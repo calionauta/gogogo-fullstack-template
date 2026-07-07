@@ -12,4 +12,3 @@ func MarshalSignals(v any) string {
 	}
 	return string(b)
 }
-

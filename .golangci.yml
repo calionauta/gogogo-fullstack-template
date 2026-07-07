@@ -1,26 +1,75 @@
 version: "2"
 linters:
   enable:
-    - errcheck
-    - govet
-    - staticcheck
-    - gosec
-    - revive
-    - gocritic
-    - ineffassign
-    - unused
-    - noctx
+    - errcheck        # unchecked errors
+    - govet           # suspicious constructs (shadow, printf misuse)
+    - staticcheck     # comprehensive static analysis (SA*, S*, QF*)
+    - gosec           # security anti-patterns (hardcoded creds, weak crypto)
+    - revive          # idiomatic style (golint successor)
+    - gocritic        # opinionated checks (incl. ruleguard if rules/ exists)
+    - ineffassign     # assignments whose value is never used
+    - unused          # unexported identifiers never referenced
+    - noctx           # http requests without context.Context
+    - funlen          # function length limit
+    - gocyclo         # cyclomatic complexity
+    - goconst         # repeated strings that should be constants
+    - lll             # long line detection
+    - dupl            # duplicated code blocks
+    - mnd             # magic numbers (allow basic tolerances)
   settings:
     errcheck:
       check-type-assertions: true
+      check-blank: true
     gosec:
       severity: medium
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment  # too noisy for template-heavy projects
     revive:
       rules:
         - name: exported
         - name: var-naming
         - name: error-return
+        - name: error-strings
+        - name: error-naming
         - name: context-as-argument
+        - name: context-keys-type
+        - name: dot-imports
+        - name: empty-block
+        - name: superfluous-else
+        - name: unused-parameter
+        - name: var-declaration
+        - name: package-comments
+    funlen:
+      lines: 100
+      statements: 60
+    gocyclo:
+      min-complexity: 12
+    goconst:
+      min-len: 4
+      min-occurrences: 3
+    lll:
+      line-length: 120
+      tab-width: 1
+    mnd:
+      checks:
+        - argument
+        - case
+        - condition
+        - return
+      ignored-numbers:
+        - "0"
+        - "1"
+        - "2"
+        - "3"
+        - "10"
+        - "100"
+        - "1000"
+        - "200"
+        - "500"
+        - "10000"
+        - "150405"  # time.Now format HHMMSS
   exclusions:
     generated: lax
     presets:
@@ -28,11 +77,24 @@ linters:
       - common-false-positives
       - legacy
       - std-error-handling
-    paths:
-      - "_test.go"
+    rules:
+      # Ignore length checks in templ-generated files
+      - path: (.+)_templ\.go
+        linters:
+          - funlen
+          - gocyclo
+          - dupl
+          - lll
+      # pb_data is a test artifact directory
+      - path: internal/workflow/pb_data/
+        linters:
+          - all
 formatters:
   enable:
-    - gofmt
+    - gofumpt
     - goimports
-  exclusions:
-    generated: lax
+  settings:
+    gofumpt:
+      lang-version: "1.26"
+    goimports:
+      local-prefixes: github.com/calionauta/cali-go-stack

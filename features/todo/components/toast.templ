@@ -1,0 +1,93 @@
+package components
+
+import (
+	"fmt"
+	"time"
+)
+
+// toastSignalName returns a per-toast signal key so each toast's open state
+// is tracked independently. Naming convention matches the pattern from
+// features/narrative-therapy/components/shared/toast.templ.
+func toastSignalName(toastID string) string {
+	return "toast_vis_" + toastID
+}
+
+func makeToastSignals(toastID string) map[string]any {
+	return map[string]any{toastSignalName(toastID): false}
+}
+
+// SafeJSON marshals a value to a JSON string with single quotes HTML-escaped
+// for safe use inside Datastar data-* attributes.
+func SafeJSON(v any) string {
+	b, err := jsonMarshal(v)
+	if err != nil {
+		return `""`
+	}
+	return escapeSingleQuotes(string(b))
+}
+
+// Toast renders a single toast message that:
+//   - appears automatically 10ms after mount (via Datastar data-init__delay)
+//   - stacks vertically above earlier toasts (column-reverse in container)
+//   - dismisses itself after `duration` (3s success/info, 8s error)
+//   - removes its DOM node after the close animation completes
+//   - has a manual close (✕) button
+//   - shows a progress bar that shrinks over the lifetime of the toast
+//
+// The handler appends rendered toasts to #toast-container via Datastar's
+// Patch with WithModeAppend().
+templ Toast(message string, toastType string, toastID string) {
+	<div
+		id={ toastID }
+		data-signals={ SafeJSON(makeToastSignals(toastID)) }
+		data-class={ fmt.Sprintf(`{'open': $%s === true}`, toastSignalName(toastID)) }
+		data-init__delay.10ms={ fmt.Sprintf(`$%s = true`, toastSignalName(toastID)) }
+		if toastType == "error" {
+			data-init__delay.8s={ fmt.Sprintf(`$%s = false`, toastSignalName(toastID)) }
+			data-init__delay.8500ms="el.remove()"
+		} else {
+			data-init__delay.3s={ fmt.Sprintf(`$%s = false`, toastSignalName(toastID)) }
+			data-init__delay.3500ms="el.remove()"
+		}
+		class="toast-msg mb-2"
+	>
+		<div
+			role="alert"
+			class={
+				"alert shadow-lg",
+				templ.KV("alert-success", toastType == "success"),
+				templ.KV("alert-error", toastType == "error"),
+				templ.KV("alert-warning", toastType == "warning"),
+				templ.KV("alert-info", toastType == "info"),
+			}
+		>
+			@toastIcon(toastType)
+			<span>{ message }</span>
+			<button
+				data-on:click="el.closest('.toast-msg').remove()"
+				class="btn btn-xs btn-circle btn-ghost"
+				aria-label="Close"
+			>✕</button>
+		</div>
+		<div class="toast-timer-bar"></div>
+	</div>
+}
+
+templ toastIcon(toastType string) {
+	switch toastType {
+		case "success":
+			<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+		case "error":
+			<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4c-.77-1.33-2.69-1.33-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3z"/></svg>
+		case "warning":
+			<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+		default:
+			<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+	}
+}
+
+// NewToastID returns a unique ID for a toast element. Used by handlers
+// to identify toasts and by Datastar to track per-toast open state.
+func NewToastID() string {
+	return fmt.Sprintf("toastmsg_%d", time.Now().UnixNano())
+}

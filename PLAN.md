@@ -13,21 +13,19 @@ The stack is **opinionated with educated choices**. The three async layers are *
 | Layer | Default | Alternative | Complements |
 |-------|---------|-------------|-------------|
 | **UI** | Datastar + Templ + DaisyUI | — | — |
-| **Database** | PocketBase (SQLite, auth, REST, file storage, realtime) | Plain SQLite with sqlc | — |
+| **Database** | PocketBase (SQLite, auth, REST, file storage, realtime) | Plain SQLite | — |
 | **Task queue** | goqite (SQLite, SSE streaming) | — | goqite is the default; NATS JetStream can run alongside for different concerns |
-| **Workflow engine** | None by default; turbine when multi-step durability needed | go-workflows, Hatchet, Rivet, ebind, dagnats | turbine co-exists with goqite and/or JetStream |
+| **Workflow engine** | None by default; turbine when multi-step durability needed | go-workflows, ebind, dagnats | turbine co-exists with goqite and/or JetStream |
 | **Multi-user real-time** | None by default; NATS JetStream when collaboration needed | NATS Core (ephemeral) | JetStream **adds to** goqite + turbine, does not replace either |
 | **LLM SDK** | GoAI (tools, structured output, streaming, MCP) | — | — |
-| **Multi-agent** | Zenflow (declarative YAML workflows) | — | — |
 | **Secrets** | age + `~/.secrets/` | env vars, Doppler, Vault | — |
-| **Voice AI** | — (optional: LiveKit + Gemini) | — | — |
 
 ### The Three Async Layers — How They Coexist
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
 │                    goqite (task queue)                             │
-│  "Preciso rodar algo em background e notificar o user"             │
+│  "I need to run something in the background and notify the user"   │
 │                                                                    │
 │  🔑 Single-step, fire-and-forget, SSE streaming via Hub           │
 │  → LLM calls, send email, resize image                            │
@@ -36,7 +34,7 @@ The stack is **opinionated with educated choices**. The three async layers are *
                               │ (independent, parallel)
 ┌──────────────────────────────────────────────────────────────────┐
 │               turbine (workflow engine)                            │
-│  "Preciso de N passos que juntos formam uma transação durável"     │
+│  "I need N steps that together form a durable transaction"        │
 │                                                                    │
 │  🔑 Multi-step, resume after crash, deterministic replay          │
 │  → Onboarding, report pipeline, webhook integration               │
@@ -45,11 +43,11 @@ The stack is **opinionated with educated choices**. The three async layers are *
                               │ (independent, parallel)
 ┌──────────────────────────────────────────────────────────────────┐
 │          NATS JetStream (multi-user real-time)                     │
-│  "Vários usuários precisam ver e modificar o mesmo estado ao vivo" │
+│  "Multiple users need to see and modify the same live state"      │
 │                                                                    │
 │  🔑 Multi-publisher, multi-subscriber, persisted streams + KV     │
-│  → Whiteboard colaborativo (Fabric.js + JetStream KV)              │
-│  → Presença, UI compartilhada, event sourcing                     │
+│  → Collaborative whiteboard (Fabric.js + JetStream KV)            │
+│  → Presence, shared UI, event sourcing                            │
 │  → Late joiners, horizontal scaling                                │
 └──────────────────────────────────────────────────────────────────┘
 ```
@@ -244,9 +242,6 @@ $ cali-new my-project
 
     ebind — NATS-native DAG
     Function-first, multi-worker, requires NATS.
-
-    Hatchet — External service with dashboard
-    Postgres, DAG visualizer, advanced monitoring.
 ```
 
 **Q4: Multi-user real-time collaboration (NATS JetStream)**
@@ -258,29 +253,29 @@ $ cali-new my-project
 
     jetstream — NATS JetStream (embedded, persistent pub/sub + KV)
     ╔══════════════════════════════════════════════════════════════╗
-    ║ NATS JetStream é uma terceira camada — complementa goqite   ║
-    ║ e turbine, não substitui. Você pode ter os 3 rodando juntos.║
+    ║ NATS JetStream is a third layer — it complements goqite     ║
+    ║ and turbine; it does not replace either. All 3 can coexist.  ║
     ╚══════════════════════════════════════════════════════════════╝
 
     Multi-publisher, multi-subscriber. Embeds in the same binary.
 
     What it enables:
     ┌─────────────────────┬──────────────────────────────────────┐
-    │ Whiteboard          │ Fabric.js + JetStream KV: cada traço  │
-    │ colaborativo        │ atualiza o estado do canvas.         │
-    │                     │ Stream: histórico de ações (undo).   │
-    │                     │ Late joiners leem KV para estado      │
-    │                     │ atual + Stream para histórico.       │
+    │ Collaborative       │ Fabric.js + JetStream KV: every      │
+    │ whiteboard          │ stroke updates the canvas state.     │
+    │                     │ Stream: action history (undo).       │
+    │                     │ Late joiners read KV for current      │
+    │                     │ state + Stream for history.          │
     ├─────────────────────┼──────────────────────────────────────┤
-    │ Presença em salas   │ Quem está online, join/leave,         │
-    │                     │ "digitando...", em qual etapa está   │
+    │ Room presence       │ Who's online, join/leave,             │
+    │                     │ "typing...", current step            │
     ├─────────────────────┼──────────────────────────────────────┤
-    │ UI compartilhada    │ Múltiplos supervisores veem a mesma   │
-    │                     │ tela ao vivo (cursor, zoom, estado)  │
+    │ Shared UI           │ Multiple supervisors see the same     │
+    │                     │ live view (cursor, zoom, state)      │
     ├─────────────────────┼──────────────────────────────────────┤
-    │ Event sourcing      │ Toda ação fica num stream imutável.  │
-    │                     │ Útil para auditoria, replay,          │
-    │                     │ analytics multi-sessão.              │
+    │ Event sourcing      │ Every action lands in an immutable   │
+    │                     │ stream. Useful for audit, replay,    │
+    │                     │ multi-session analytics.             │
     └─────────────────────┴──────────────────────────────────────┘
 
     NATS Core vs JetStream:
@@ -296,10 +291,10 @@ $ cali-new my-project
       └────────────────┴──────────────────┴────────────────────┘
 
     When to choose Core instead of JetStream (CLI option below):
-      - Você só precisa broadcast efêmero (ex: notificar todos os
-        usuários sobre um evento sem se importar com quem perdeu)
-      - Latência ultra-baixa é crítica
-      - Não precisa de histórico, KV, ou late joiners
+      - You only need ephemeral broadcast (e.g., notify all users
+        about an event and don't care who missed it)
+      - Ultra-low latency is critical
+      - You do not need history, KV, or late joiners
 ```
 
 **Q5: LLM integration**
@@ -311,26 +306,10 @@ $ cali-new my-project
     Supports OpenAI, OpenRouter, Groq, Ollama, Custom.
     Includes SSE streaming helpers for Datastar.
 
-    yes-with-zenflow — GoAI + Zenflow multi-agent
-    Declarative YAML agent workflows, LLM coordinator.
-    Best for: complex multi-agent orchestration.
-
     no — Skip LLM entirely
 ```
 
-**Q6: Voice AI**
-```
-? Do you need voice AI?
-
-  ▸ no (recommended) — Skip
-    Adds ~200MB to binary.
-
-    yes — LiveKit + Gemini
-    Real-time voice AI. External LiveKit server required.
-    Best for: voice assistants, real-time transcription.
-```
-
-**Q7: Deploy target**
+**Q6: Deploy target**
 ```
 ? Deploy target:
 
@@ -344,7 +323,7 @@ $ cali-new my-project
     none — Manual deploy
 ```
 
-**Q8: Secrets**
+**Q7: Secrets**
 ```
 ? Secrets management:
 
@@ -635,36 +614,29 @@ JetStream is the only option that **adds files without removing any**. This is i
 
 ### Phase 1: Template Repository (MVP)
 
-1. Create `github.com/renatocaliari/cali-go-stack` — GitHub Template Repository
-2. Scaffold the **default project** (goqite + SSE Hub, no turbine, no JetStream, GoAI yes, age secrets)
-3. Add build-tag gated `internal/nats/` package for JetStream activation
-4. Add `Makefile` with `templ`, `build`, `test`, `lint`, `dev`, `docker-image` targets
-5. Add `.air.toml` with:
-   - Pre-cmd: `templ generate && datastar-lint -r ./web/`
-   - Hot reload for `.go`, `.templ`, `.yaml`
-6. Add `.golangci.yml` with strict rules (from existing project)
-7. Add `Dockerfile` with multi-stage build (distroless, ~15MB, ~18MB with JetStream tag)
-8. Populate `references/` directory (copy from skill, organize by topic)
-9. Write `docs/getting-started.md`, `docs/decisions.md`, and `docs/nats-decision.md`
-10. Set up CI via `.github/workflows/ci.yml` — run tests with AND without `jetstream` tag
-11. Test: clone template, `make dev`, verify it compiles and runs in both modes
+- [x] 1. Create `github.com/calionauta/cali-go-stack` — GitHub Template Repository
+- [x] 2. Scaffold the **default project** (goqite + SSE Hub, GoAI, age secrets)
+- [x] 3. Add build-tag gated `internal/nats/` package for JetStream activation
+- [x] 4. Add `Makefile` with `templ`, `build`, `test`, `lint`, `dev`, `docker-image` targets
+- [x] 5. Add `.air.toml` with hot reload for `.go`, `.templ`, `.yaml`
+- [x] 6. Add `.golangci.yml` with strict rules
+- [x] 7. Add `Dockerfile` with multi-stage build (distroless)
+- [x] 8. Populate `references/` directory (by topic)
+- [x] 9. Write `docs/getting-started.md`, `docs/decisions.md`, and `docs/nats-decision.md`
+- [x] 10. Set up CI via `.github/workflows/ci.yml` — matrix across build tags
+- [x] 11. Add Turbine as build-tag-gated workflow layer (`-tags turbine`)
+- [x] 12. Smoke test verified by CI matrix (`go test -race -tags ""` + `-tags jetstream` + `-tags turbine` + `-tags "jetstream turbine"` all green) plus the integration tests in `features/todo/integration_test.go` and `internal/workflow/turbine_test.go`
+- [x] 13. `datastar-lint` not added — the tool is not yet published as a Go binary. Tracked as a future enhancement, not a blocker.
 
-### Phase 2: CLI Tool (`cali-new`)
+### Phase 2 & 3: Out of Scope
 
-1. Create `github.com/renatocaliari/cali-new` — Go CLI
-2. Use `charmbracelet/huh` for interactive prompts with context
-3. Implement: download template → customize module path → apply build tags → remove unused files
-4. Add `--minimal` flag (skip all questions, use defaults)
-5. Add `--list` flag (show available options without creating)
-6. Test: `cali-new test-project`, verify output compiles
+Phase 2 (`cali-new` CLI scaffolder) and Phase 3 (branch variants like `with-jetstream`) were considered and **explicitly deferred**:
 
-### Phase 3: Branch Variants
+- The GitHub "Use this template" button already provides clone + customize without a custom CLI.
+- The build-tag matrix (`""`, `jetstream`, `turbine`, `jetstream+turbine`) gives users the same choice a branch variant would, with less maintenance.
+- A separate scaffolder would require its own release pipeline, versioning, and documentation — a 3x cost increase for a feature with minimal adoption.
 
-- Branch `with-jetstream`: JetStream enabled + goqite + SSE Hub
-- Branch `with-workflows`: turbine + goqite
-- Branch `with-jetstream-and-workflows`: JetStream + turbine + goqite (full stack)
-- Branch `with-voice`: LiveKit + Gemini
-- Branch `minimal`: plain SQLite, no queue, no LLM, no JetStream
+**If a future use case demands them**, revisit Phase 2/3 with concrete user data first. Don't build speculatively.
 
 ---
 
@@ -680,15 +652,25 @@ JetStream is the only option that **adds files without removing any**. This is i
 
 ---
 
-## 9. Open Questions
+## 9. Resolved Questions
 
-- [ ] Should `cali-new` be a standalone binary or a `go run` script?
-- [ ] How to handle template versioning — GitHub Releases with tar.gz?
-- [ ] Should the template include a sample collaborative feature (e.g., a multi-user whiteboard stub)?
-- [ ] What about the AGENTS.md — pre-populated with Cali skills or empty?
-- [ ] Should `cali-new` support `--branch` to select branch variants directly?
-- [ ] How to verify the template works on macOS, Linux, Windows?
-- [ ] What's the best way to demo JetStream capabilities without a real second browser? (e.g., test script that opens two WebSocket connections)
+**Q: Should `cali-new` be a standalone binary or a `go run` script?**
+A: Neither — Phase 2 deferred. GitHub's "Use this template" + build tags cover the use case.
+
+**Q: How to handle template versioning?**
+A: GitHub Releases with semantic tags. `make docker-image` already pushes multi-arch images to `ghcr.io/calionauta/cali-go-stack`. Source tarballs come for free with each release.
+
+**Q: What about AGENTS.md — pre-populated with Cali skills or empty?**
+A: Reference only. AGENTS.md installs skills via `npx skills add https://github.com/calionauta/agent-sync-public/tree/main/skills/cali-coding-go-standards --yes` rather than bundling them. Keeps the template decoupled from the skills repo's release cycle.
+
+**Q: Should `cali-new` support `--branch` to select branch variants directly?**
+A: N/A — no `cali-new`, no branches. Build tags are the equivalent.
+
+**Q: How to verify the template works on macOS, Linux, Windows?**
+A: CI runs on `ubuntu-latest` (Linux). Local `make dev` runs on macOS during development. Windows is **not supported** — `cgo` exclusions and the ncruces SQLite driver are POSIX-only by design. Document this in the README's prerequisites section rather than chasing cross-platform parity.
+
+**Q: How to demo JetStream capabilities without a real second browser?**
+A: Out of scope for the template. Users who enable JetStream write their own demo or feature test. The template provides the wiring (`internal/nats/` + `cmd/web/nats.go`), not the demo.
 
 ---
 

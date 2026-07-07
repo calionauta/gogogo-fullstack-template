@@ -1,0 +1,72 @@
+package components
+
+import "github.com/calionauta/cali-go-stack/features/todo"
+
+// Layout wraps the todo app in a full HTML document with:
+//   - DaisyUI + TailwindCSS classes (assumes the CDN/embedded CSS is loaded
+//     by the consuming page)
+//   - Datastar JS loaded from the embedded copy under /static/datastar.js
+//   - #toast-container for stacked toasts (bottom-right, column-reverse)
+//   - <style> block for the toast animations + progress bar
+//
+// Pages call Layout(title, signals) and embed their content as children.
+templ Layout(title string, signals todo.Signals) {
+	<!DOCTYPE html>
+	<html lang="en" data-theme="light">
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<title>{ title }</title>
+			<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daisyui@5.6.13/dist/full.min.css"/>
+			<script src="https://cdn.tailwindcss.com"></script>
+			<script type="module" src="/static/datastar.js"></script>
+			<style>
+				/* Stacking container: fixed bottom-right, toasts stack upward. */
+				#toast-container {
+					z-index: 100;
+					position: fixed;
+					right: 1rem;
+					bottom: 1rem;
+					display: flex;
+					flex-direction: column-reverse;
+					gap: 0.5rem;
+					max-width: 24rem;
+				}
+
+				/* Toast entrance: hidden + scaled-down, then the .open class
+				   transitions it in. Driven by data-class on the toast root. */
+				.toast-msg {
+					opacity: 0;
+					transform: scale(0.9) translateY(50px);
+					transition: transform 0.5s, opacity 0.5s;
+				}
+				.toast-msg.open {
+					transform: scale(1) translateY(0);
+					opacity: 1;
+				}
+
+				/* Progress bar: shrinks from 100% to 0% over the toast lifetime.
+				   Matches the toast-remove delay (3s for success/info, 8s for
+				   error) — the CSS animation here fires immediately on mount
+				   because the bar is rendered together with the toast root. */
+				.toast-timer-bar {
+					height: 3px;
+					border-radius: 999px;
+					background: oklch(0.872 0.01 258.338 / 0.3);
+					animation: toast-shrink 3s linear forwards;
+				}
+				.toast-msg:has(.alert-error) .toast-timer-bar {
+					animation-duration: 8s;
+				}
+				@keyframes toast-shrink {
+					from { width: 100%; }
+					to { width: 0%; }
+				}
+			</style>
+		</head>
+		<body class="bg-base-200 min-h-screen">
+			@TodoList(signals)
+			<div id="toast-container"></div>
+		</body>
+	</html>
+}

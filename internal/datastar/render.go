@@ -9,7 +9,11 @@ import (
 )
 
 // RenderAndPatch renders a Templ component and patches it into the DOM via SSE.
-func RenderAndPatch(sse *datastarsdk.ServerSentEventGenerator, component templ.Component, opts ...datastarsdk.PatchElementOption) error {
+func RenderAndPatch(
+	sse *datastarsdk.ServerSentEventGenerator,
+	component templ.Component,
+	opts ...datastarsdk.PatchElementOption,
+) error {
 	var buf strings.Builder
 	if err := component.Render(context.Background(), &buf); err != nil {
 		return err

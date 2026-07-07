@@ -2,6 +2,7 @@ package todo
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 	"time"
@@ -70,6 +71,7 @@ func TestSSEHubBroadcast(t *testing.T) {
 }
 
 func TestSSEHubBackpressure(t *testing.T) {
+	t.Helper()
 	hub := queue.NewSSEHub()
 	// Full channel (capacity 1, already has message)
 	ch := make(chan []byte, 1)
@@ -80,10 +82,14 @@ func TestSSEHubBackpressure(t *testing.T) {
 	hub.Send("slow", []byte("overflow"))
 
 	// Should still have the original message
-	<-ch
+	got := <-ch
+	if string(got) != "existing" {
+		t.Fatalf("expected original 'existing' message, got %q", string(got))
+	}
 }
 
 func TestSSEHubUnregister(t *testing.T) {
+	t.Helper()
 	hub := queue.NewSSEHub()
 	ch := make(chan []byte, 10)
 	hub.Register("gone", ch)
@@ -201,8 +207,10 @@ func TestRetrySupportsSSEFeedback(t *testing.T) {
 
 func TestTodoModelDefaults(t *testing.T) {
 	todo := Todo{
-		ID:    "test-1",
 		Title: "Write tests",
+	}
+	if todo.ID != "" {
+		t.Fatalf("expected empty ID by default, got %q", todo.ID)
 	}
 	if todo.Completed {
 		t.Fatal("new todo should not be completed")
@@ -212,8 +220,8 @@ func TestTodoModelDefaults(t *testing.T) {
 	}
 }
 
-func TestTodoSignals(t *testing.T) {
-	signals := TodoSignals{
+func TestSignals(t *testing.T) {
+	signals := Signals{
 		Todos:     []Todo{{ID: "1", Title: "Test", Completed: false}},
 		Filter:    "all",
 		ItemCount: 1,
@@ -223,5 +231,64 @@ func TestTodoSignals(t *testing.T) {
 	}
 	if len(signals.Todos) != 1 {
 		t.Fatalf("expected 1 todo, got %d", len(signals.Todos))
+	}
+	if signals.Filter != "all" {
+		t.Fatalf("expected filter 'all', got %q", signals.Filter)
+	}
+}
+
+// --- HandlerRegistry Tests ---
+
+func TestHandlerRegistryDispatch(t *testing.T) {
+	reg := queue.NewHandlerRegistry()
+	called := 0
+	reg.Register("ping", func(_ context.Context, _ *queue.SSEHub, _ queue.Job) error {
+		called++
+		return nil
+	})
+
+	hub := queue.NewSSEHub()
+	job := queue.Job{Type: "ping", Payload: []byte(`{}`)}
+	if err := reg.Lookup("ping")(context.Background(), hub, job); err != nil {
+		t.Fatalf("ping handler error: %v", err)
+	}
+	if called != 1 {
+		t.Fatalf("expected ping handler to fire once, got %d", called)
+	}
+
+	if err := reg.Lookup("nope")(context.Background(), hub, job); err == nil {
+		t.Fatal("expected error from not-found handler")
+	}
+}
+
+func TestHandlerRegistryDuplicatePanics(t *testing.T) {
+	reg := queue.NewHandlerRegistry()
+	reg.Register("dup", func(_ context.Context, _ *queue.SSEHub, _ queue.Job) error { return nil })
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatal("expected panic on duplicate Register")
+		}
+	}()
+	reg.Register("dup", func(_ context.Context, _ *queue.SSEHub, _ queue.Job) error { return nil })
+}
+
+func TestDecodeJobRoundTrip(t *testing.T) {
+	in := queue.Job{Type: "todo_created", ClientID: "client-42", Payload: []byte(`{"title":"eggs"}`)}
+	body, err := json.Marshal(in)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	out, err := queue.DecodeJob(body)
+	if err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if out.Type != in.Type || out.ClientID != in.ClientID || string(out.Payload) != string(in.Payload) {
+		t.Fatalf("round-trip mismatch: %+v vs %+v", out, in)
+	}
+}
+
+func TestDecodeJobRejectsBadJSON(t *testing.T) {
+	if _, err := queue.DecodeJob([]byte("not json")); err == nil {
+		t.Fatal("expected error on bad JSON")
 	}
 }

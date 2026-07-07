@@ -27,10 +27,8 @@ make dev
 | DaisyUI + TailwindCSS | ✅ Default |
 | age secrets management | ✅ Default |
 | GoAI LLM SDK | ✅ Default |
+| Turbine durable workflows | 🔲 Opt-in (`make build-turbine`) |
 | NATS JetStream (multi-user real-time) | 🔲 Opt-in (`make build-jetstream`) |
-| Turbine workflows | 🔲 Opt-in |
-| Fabric.js whiteboard | 🔲 Opt-in |
-| LiveKit voice AI | 🔲 Opt-in |
 
 ## Project Structure
 
@@ -53,12 +51,15 @@ references/               # Reference documentation
 ## Commands
 
 ```bash
-make templ        # Generate Templ components
-make build        # Build the binary
+make templ            # Generate Templ components
+make build            # Build the binary
 make build-jetstream  # Build with JetStream support
-make dev          # Live reload with Air
-make test         # Run tests
-make lint         # Run linters
+make build-turbine    # Build with Turbine workflow support
+make build-all        # Build with both JetStream and Turbine
+make dev              # Live reload with Air
+make test             # Run tests
+make test-turbine     # Run tests with Turbine tag
+make lint             # Run linters
 ```
 
 ## Adding JetStream
@@ -69,6 +70,18 @@ make build-jetstream
 
 # Or run in dev mode
 go run -tags jetstream ./cmd/web/
+NATS_ENABLED=true ./cali-go-stack
+```
+
+## Adding Turbine Workflows
+
+```bash
+# Build with Turbine support
+make build-turbine
+
+# Or run in dev mode
+go run -tags turbine ./cmd/web/
+WORKFLOW_ENABLED=true ./cali-go-stack
 ```
 
 ## Secrets Setup

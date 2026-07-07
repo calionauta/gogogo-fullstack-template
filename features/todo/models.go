@@ -10,12 +10,12 @@ type Todo struct {
 	UpdatedAt time.Time `json:"updated"`
 }
 
-type TodoSignals struct {
-	Todos      []Todo `json:"todos"`
-	NewTitle   string `json:"newTitle"`
-	Filter     string `json:"filter"` // "all", "active", "completed"
-	EditingID  string `json:"editingId"`
-	EditTitle  string `json:"editTitle"`
-	Loading    bool   `json:"loading"`
-	ItemCount  int    `json:"itemCount"`
+type Signals struct {
+	Todos     []Todo `json:"todos"`
+	NewTitle  string `json:"newTitle"`
+	Filter    string `json:"filter"` // "all", "active", "completed"
+	EditingID string `json:"editingId"`
+	EditTitle string `json:"editTitle"`
+	Loading   bool   `json:"loading"`
+	ItemCount int    `json:"itemCount"`
 }

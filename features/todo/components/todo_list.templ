@@ -8,14 +8,14 @@ import (
 	"github.com/calionauta/cali-go-stack/features/todo"
 )
 
-func marshalTodoSignals(s todo.TodoSignals) string {
+func marshalSignals(s todo.Signals) string {
 	b, _ := json.Marshal(s)
 	return string(b)
 }
 
-templ TodoList(signals todo.TodoSignals) {
+templ TodoList(signals todo.Signals) {
 	<div class="max-w-2xl mx-auto mt-8 px-4">
-		<div class="card bg-base-100 shadow-xl" data-signals={ marshalTodoSignals(signals) }>
+		<div class="card bg-base-100 shadow-xl" data-signals={ marshalSignals(signals) }>
 			<div class="card-body">
 				<h2 class="card-title text-2xl mb-4">
 					<svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-primary" viewBox="0 0 20 20" fill="currentColor">

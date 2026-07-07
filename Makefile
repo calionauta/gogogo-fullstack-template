@@ -22,6 +22,14 @@ build-jetstream: templ
 	@echo "→ Building $(APP_NAME) (with JetStream) v$(VERSION)..."
 	@go build -tags jetstream $(LDFLAGS) -o $(APP_NAME) ./$(APP_DIR)
 
+build-turbine: templ
+	@echo "→ Building $(APP_NAME) (with Turbine workflows) v$(VERSION)..."
+	@go build -tags turbine $(LDFLAGS) -o $(APP_NAME) ./$(APP_DIR)
+
+build-all: templ
+	@echo "→ Building $(APP_NAME) (JetStream + Turbine) v$(VERSION)..."
+	@go build -tags "jetstream turbine" $(LDFLAGS) -o $(APP_NAME) ./$(APP_DIR)
+
 run:
 	@echo "→ Starting $(APP_NAME) on port $(PORT)..."
 	@PORT=$(PORT) ./$(APP_NAME)
@@ -36,6 +44,9 @@ test:
 
 test-jetstream:
 	@go test -race -tags jetstream ./... -count=1
+
+test-turbine:
+	@go test -race -tags turbine ./... -count=1
 
 lint:
 	@go vet ./...
@@ -73,6 +84,8 @@ help:
 	@echo "Targets:"
 	@echo "  build          Build binary (runs templ generate first)"
 	@echo "  build-jetstream Build with JetStream support"
+	@echo "  build-turbine  Build with Turbine workflow support"
+	@echo "  build-all      Build with JetStream + Turbine"
 	@echo "  test           Run tests with race detector"
 	@echo "  lint           Run go vet + golangci-lint"
 	@echo "  check-sizes    Check file/function size limits"

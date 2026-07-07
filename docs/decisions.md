@@ -9,13 +9,23 @@ goqite is a SQLite-backed queue that runs in-process. Zero external dependencies
 
 JetStream is available as an **additional** layer for multi-user real-time, when needed.
 
+## Why Turbine for Durable Workflows
+
+[Turbine](https://turbine.yakir.io) is a SQLite-backed durable workflow engine. Each step's result is recorded; on crash, the workflow resumes from the last completed step.
+- ✅ Multi-step transactions that survive restarts
+- ✅ Step retries with exponential backoff
+- ✅ Queues, scheduling (cron), and human-in-the-loop approvals
+- ✅ Embeds as a library — no external service
+
+Turbine is opt-in via the `turbine` build tag. Workflows live in their own SQLite file under `data/workflow/`, separate from the main PocketBase database.
+
 ## Why Three Async Layers (Complementary, Not Alternatives)
 
 | Layer | Problem It Solves | When You Need It |
 |-------|-------------------|------------------|
 | goqite | "I need to run background tasks and notify the user" | Always (default) |
-| turbine | "I need N steps that survive a crash" | Complex onboarding, pipelines |
-| NATS JetStream | "Multiple users need to see the same live state" | Whiteboard, presence, shared UI |
+| turbine | "I need N steps that survive a crash" | Complex onboarding, pipelines (opt-in build tag) |
+| NATS JetStream | "Multiple users need to see the same live state" | Whiteboard, presence, shared UI (opt-in build tag) |
 
 You can have all three in the same binary. They do not conflict.
 
@@ -28,7 +38,7 @@ PocketBase embeds as a Go library and provides:
 - ✅ Admin dashboard
 - ✅ File storage
 
-Plain SQLite with sqlc is available as an escape hatch when PocketBase is too opinionated.
+Plain SQLite is available as an escape hatch when PocketBase is too opinionated.
 
 ## Why age + ~/.secrets/ (Not Doppler/Vault)
 

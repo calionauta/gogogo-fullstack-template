@@ -1,10 +1,11 @@
 package db
 
 import (
-	"github.com/calionauta/cali-go-stack/config"
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/core"
+
+	"github.com/calionauta/cali-go-stack/config"
 
 	_ "github.com/ncruces/go-sqlite3/driver"
 )

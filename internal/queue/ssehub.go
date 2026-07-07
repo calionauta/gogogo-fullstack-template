@@ -1,6 +1,7 @@
 package queue
 
 import (
+	"context"
 	"log/slog"
 	"sync"
 )
@@ -68,6 +69,33 @@ func (h *SSEHub) Broadcast(data []byte) {
 		default:
 			slog.Warn("ssehub: dropping slow client")
 		}
+	}
+}
+
+// SendBlocking pushes data to a specific client, blocking until the
+// client's channel accepts the chunk or ctx is canceled. Use this when
+// the caller (typically a worker running under retry) cannot proceed
+// without delivering the chunk — the retry layer treats a context
+// cancellation as a transient failure and backs off per RetryConfig.
+//
+// Returns ctx.Err() if the context is canceled before delivery; returns
+// ErrClientNotFound if the clientID is not registered (and no buffer
+// replay would help).
+func (h *SSEHub) SendBlocking(ctx context.Context, clientID string, data []byte) error {
+	h.mu.RLock()
+	ch, ok := h.clients[clientID]
+	h.mu.RUnlock()
+
+	if !ok {
+		h.bufferEvent(clientID, data)
+		return nil // buffered for later replay
+	}
+
+	select {
+	case ch <- data:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
 	}
 }
 

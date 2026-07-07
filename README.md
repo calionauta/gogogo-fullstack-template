@@ -1,107 +1,140 @@
 # cali-go-stack
 
-Uma cola inicial pra projetos web em Go. Single binary, zero SaaS, LLM-friendly.
+A starting point for web projects in Go. Single binary, zero SaaS, LLM-friendly.
 
 ---
 
-Já comecei uns 20 projetos web em Go. Toda vez a mesma conversa: escolher banco, fila, template engine, auth, deploy… e no fim o projeto empacava na decisão, não no código. 
+Every Go web project I start ends up in the same conversation: pick a database, queue, template engine, auth, deploy… and the project stalls on the decision, not the code.
 
-Esse template é minha tentativa de ter um ponto de partida que já resolve 80% dessas escolhas sem te prender num ecossistema fechado.
+This template is my attempt at a starting point that already resolves those choices without locking you into a closed ecosystem.
 
-## O que vem com o pacote
+## What's in the package
 
-Tudo que você precisa pra construir um app web moderno, num binário só:
+Everything you need to build a modern web app, in a single binary:
 
-| Camada | Escolha | Por quê |
-|--------|---------|---------|
-| **Linguagem** | Go 1.26 | Compila rápido, deploy fácil, runtime enxuto |
-| **Banco + Auth + API** | [PocketBase](https://pocketbase.io) embarcado | Zero config pra ter auth, REST, admin UI, arquivos — tudo SQLite |
-| **UI** | [Datastar](https://data-star.dev) (SSE reativo) + [Templ](https://templ.guide) (componentes) | HTML puro vindo do servidor, sem JS framework, sem build step |
-| **CSS** | [DaisyUI](https://daisyui.com) + TailwindCSS | Componentes prontos, customizáveis, 34kB minificado |
-| **Fila** | [goqite](https://github.com/maragudk/goqite) + SSE Hub | Jobs em background com streaming pro frontend, sem Redis |
-| **LLM** | [GoAI](https://github.com/zendev-sh/goai) | Chamadas pra qualquer provider (OpenAI, Anthropic, Groq, Ollama…) |
-| **Secrets** | age + `~/.secrets/` | Criptografia local, sem vault, sem nuvem |
-| **Tempo real** | NATS JetStream (opt-in) | Multi-usuário real-time, só ativa quando precisar |
+| Layer | Choice | Why |
+|-------|--------|-----|
+| **Language** | Go 1.26 | Fast compilation, easy deploy, lean runtime |
+| **Database + Auth + API** | [PocketBase](https://pocketbase.io) (embedded, on `ncruces/go-sqlite3`) | Zero-config auth, REST, admin UI, file storage — all in SQLite |
+| **Templating** | [Templ](https://templ.guide) | Type-safe Go components, generated at build time |
+| **Reactive UI** | [Datastar](https://data-star.dev) (SSE) | HTML from the server, no JS framework, no build step |
+| **CSS** | [DaisyUI v5](https://daisyui.com) + TailwindCSS | Ready components, customizable, ~34kB minified |
+| **Task queue** | [goqite](https://github.com/maragudk/goqite) + SSE Hub | Background jobs streamed to the browser, no Redis |
+| **Retries** | [avast/retry-go v4](https://github.com/avast/retry-go) | Exponential backoff with jitter, no boilerplate |
+| **Workflows** | [Turbine](https://turbine.yakir.io) | Multi-step durable workflows embedded in PocketBase SQLite (build-tag gated) |
+| **LLM SDK** | [GoAI](https://github.com/zendev-sh/goai) | Any provider: OpenAI, Anthropic, Groq, Ollama… |
+| **Real-time** | [NATS JetStream](https://nats.io) (opt-in) | Multi-user real-time, only enabled when you need it |
+| **Secrets** | [age](https://age-encryption.org) + `~/.secrets/` | Local encryption, no vault, no cloud |
+| **IDs** | [google/uuid](https://github.com/google/uuid) | Stable request/job IDs |
+| **Live reload** | [Air](https://github.com/air-verse/air) | `make dev` regenerates templ and restarts the binary |
+| **Linting** | [golangci-lint](https://golangci-lint.run) | `errcheck`, `staticcheck`, `gosec`, `revive`, `gocritic` (see `.golangci.yml`) |
+| **CI/CD** | GitHub Actions | `ci.yml` (lint + test + build, tag matrix `""`/`jetstream`/`turbine`) + `deploy.yml` (multi-arch Docker to ghcr.io, runs on `master`) |
+| **Container** | distroless `static-debian12:nonroot` | No shell, no package manager, ~20MB final image |
 
-Tudo CGO-free. Binário único. `make build` e pronto.
+Fully CGO-free. Single binary. `make build` and you're done.
 
-## Stack em camadas, não em silos
+## Stack in layers, not silos
 
-Uma das coisas que mais me incomodava em templates prontos é que eles assumem **uma** solução pra cada problema. Mas a realidade é que você precisa de fila **e** de workflow **e** de tempo real — cada um pra uma coisa.
+One thing that bothered me most in ready-made templates is that they assume **one** solution per problem. In reality you need a queue **and** workflows **and** real-time — each for a different thing.
 
-Esse template resolve isso com **três camadas assíncronas complementares**:
+This template solves it with **three complementary async layers**:
 
 ```
-goqite    → jobs background + SSE pro browser (padrão, sempre ativo)
-turbine   → workflows duráveis multi-passo (opcional)
-JetStream → tempo real multi-usuário (opt-in, build tag)
+goqite    → background jobs + SSE to the browser (default, always on)
+turbine   → durable multi-step workflows (opt-in, build tag)
+JetStream → multi-user real-time (opt-in, build tag)
 ```
 
-Elas coexistem no mesmo binário. Não competem.
+They coexist in the same binary. They don't compete.
 
-## O exemplo: Todo App com SSE
+## The example: Todo App with SSE
 
-O template já vem com um Todo App funcional:
+The template ships with a working Todo App:
 
-- CRUD completo via PocketBase
-- UI reativa com Datastar + DaisyUI
-- Streaming SSE em tempo real
-- Retry com exponential backoff e jitter
-- Testes que rodam com `-race`
+- Full CRUD via PocketBase
+- Reactive UI with Datastar + DaisyUI
+- Real-time SSE streaming (register-before-enqueue, replay buffer for late subscribers, backpressure on slow clients)
+- Stacked toast notifications (auto-dismiss, manual close, progress bar)
+- Async jobs: `handleCreate` enqueues a `todo_created` job; a worker picks it up and streams a success toast to the right browser tab via the SSE Hub (`clientID` routing)
+- Retries with exponential backoff and jitter (`internal/queue/retry.go`, retry-go v4) — SSE-aware: a retry emits a `lastRetry` signal so the UI can show "retrying…"
+- `WelcomeOnboarding` Turbine workflow (with `-tags turbine`) that creates 3 example todos via durable steps — kill the server mid-run, restart, watch it resume at the last incomplete step
+- Tests run with `-race`
 
-É o suficiente pra entender o padrão e começar seu próprio feature module.
+Enough to understand the pattern and start your own feature module.
 
-## Pra quem é esse template
+## Who this template is for
 
-- **Pra você que cansa de configurar a mesma stack repetidas vezes**
-- **Pra você que quer um binário único pra deploy, sem depender de Redis, Postgres, ou SaaS**
-- **Pra você que quer LLM integrado sem adicionar uma camada inteira de orquestração**
-- **Pra você que prefere HTML vindo do servidor do que SPAs de 2MB**
+- **You who get tired of configuring the same stack over and over**
+- **You who want a single binary for deploy, with no Redis, Postgres, or SaaS**
+- **You who want LLM built-in without adding a whole orchestration layer**
+- **You who prefer server-rendered HTML over 2MB SPAs**
 
-Não é um framework. Não tem lock-in. Cada peça pode ser substituída individualmente — você pode trocar PocketBase por SQLite puro, goqite por Redis, Datastar por HTMX. O template só te dá um ponto de partida que já funciona.
+It's not a framework. There's no lock-in. Each piece can be replaced individually — swap PocketBase for plain SQLite, goqite for Redis, Datastar for HTMX. The template just gives you a starting point that already works.
 
-## Começar
+## Getting started
 
 ```bash
-git clone https://github.com/calionauta/cali-go-stack.git meu-projeto
-cd meu-projeto
+git clone https://github.com/calionauta/cali-go-stack.git my-project
+cd my-project
 make dev
 ```
 
-Abre `http://localhost:8080` e vê o Todo App rodando.
+Open `http://localhost:8080` and see the Todo App running.
 
-### Outros comandos
+> The default port is `8080` (override with `PORT`). The default branch is `master`.
+
+### Other commands
 
 ```bash
-make build           # Gera binário
-make test            # Roda testes com race detector
-make check           # Lint + tamanhos + dead code
-make dev             # Live reload com Air
-make build-jetstream # Build com NATS JetStream
-make setup           # Instala hooks de pre-commit
+make build            # Build binary (default: goqite + SSE Hub)
+make build-jetstream  # Build with NATS JetStream (multi-user real-time)
+make build-turbine    # Build with Turbine durable workflows
+make build-all        # Build with both JetStream + Turbine
+make test             # Run tests with race detector (default tags)
+make test-jetstream   # Run tests with JetStream tag
+make test-turbine     # Run tests with Turbine tag
+make check            # Lint + size limits + dead code
+make dev              # Live reload with Air
+make templ            # Regenerate templ components
+make setup            # Install pre-commit hooks
+make docker-image     # Build and push multi-arch image to ghcr.io
 ```
 
-## Estrutura
+## Structure
 
 ```
-cmd/web/main.go           # Entrada — só inicializa e conecta as peças
-config/                   # Config por ambiente (dev/prod)
-db/                       # Setup do PocketBase + seed
+cmd/web/
+  main.go               # Entry point — only initializes and wires pieces
+  nats.go               # NATS JetStream bootstrap (build-tag gated)
+  turbine.go            # Turbine runtime bootstrap (build-tag gated)
+  turbine_noop.go       # No-op stub when -tags turbine absent
+config/                 # Per-environment config (dev/prod)
+db/                     # PocketBase setup + seed
 internal/
-  secrets/                # Decriptação de secrets com age
-  queue/                  # goqite + SSE Hub + workers + retry
-  nats/                   # JetStream (build-tag gated)
-  llm/                    # SDK pra LLM (GoAI)
-  datastar/               # Helpers pra Datastar
+  secrets/              # age-decrypted secrets loader
+  queue/                # goqite + SSE Hub + workers + retry + handler registry
+    goqite.go           #   goqite setup, schema (goqite_schema.sql), graceful shutdown
+    ssehub.go           #   register-before-enqueue, replay buffer, backpressure
+    workers.go          #   worker pool with context cancellation
+    retry.go            #   exponential backoff + jitter (retry-go v4)
+    handlers.go         #   HandlerRegistry: job-type to handler dispatch
+  nats/                 # JetStream (build-tag gated)
+  workflow/             # Turbine durable workflows (build-tag gated)
+    turbine.go          #   embedded in PocketBase SQLite, WithName step decoupling
+  llm/                  # GoAI LLM SDK helpers
+  datastar/             # Datastar rendering helpers
 features/
-  todo/                   # Exemplo funcional: Todo MVC
-web/resources/            # Assets estáticos (JS embarcado)
-router/                   # Rotas registradas no PocketBase
-references/               # Documentação de referência
+  todo/                 # Working example: Todo MVC
+    handlers/           #   HTTP + SSE handlers, onboarding (turbine-gated)
+    components/         #   Templ components (layout, todo_list, todo_item, toast)
+web/resources/          # Static assets (embedded JS)
+router/                 # Routes registered on PocketBase
+references/             # Reference documentation
+docs/                   # Decision logs and guides
 ```
 
-## Licenciamento, feedback
+## License, feedback
 
-Esse projeto é aberto a feedback, PRs, e adaptações. Se algo não faz sentido, se a stack não encaixa no seu problema, ou se você tem uma ideia melhor — abre uma issue.
+This project is open to feedback, PRs, and adaptations. If something doesn't make sense, if the stack doesn't fit your problem, or if you have a better idea — open an issue.
 
-Feito com intenção de ser útil, não de ser certo.
+Made with intent to be useful, not to be right.
