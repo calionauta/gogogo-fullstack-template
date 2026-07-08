@@ -42,7 +42,7 @@ func main() {
 func runHealthcheck() error {
 	cfg := config.Load()
 	url := fmt.Sprintf("http://127.0.0.1:%d/health", cfg.Port)
-	resp, err := http.Get(url)
+	resp, err := http.Get(url) // #nosec G107
 	if err != nil {
 		return fmt.Errorf("GET %s: %w", url, err)
 	}

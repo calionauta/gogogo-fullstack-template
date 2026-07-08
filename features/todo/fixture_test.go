@@ -94,7 +94,7 @@ func testFixture(t *testing.T) (string, *queue.Queue, *pocketbase.PocketBase, fu
 	r := router.NewRouter[*core.RequestEvent](newRequestEventFactory(app))
 
 	// Bind the auth cookie middleware BEFORE routes so every route
-	// (todo + auth) populates c.Auth from the pb_auth cookie.
+	// (todo + auth) populates c.Auth from the gogogo_auth cookie.
 	auth.CookieSecure = false
 	r.BindFunc(auth.LoadAuthFromCookie)
 

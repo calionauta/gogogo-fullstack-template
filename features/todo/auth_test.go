@@ -76,7 +76,7 @@ func TestIntegration_Auth_LoginFormIsShown(t *testing.T) {
 
 // TestIntegration_Auth_BadPasswordIsRejected asserts the handler
 // refuses wrong credentials and re-renders the login form with an
-// error message — does NOT set the pb_auth cookie.
+// error message — does NOT set the gogogo_auth cookie.
 func TestIntegration_Auth_BadPasswordIsRejected(t *testing.T) {
 	ctx := t.Context()
 	base, _, _, cleanup := testFixture(t)
@@ -102,17 +102,17 @@ func TestIntegration_Auth_BadPasswordIsRejected(t *testing.T) {
 		t.Fatalf("expected 200 (login form re-render), got %d", resp.StatusCode)
 	}
 	for _, c := range resp.Cookies() {
-		if c.Name == "pb_auth" {
-			t.Errorf("rejected login should NOT set pb_auth cookie")
+		if c.Name == "gogogo_auth" {
+			t.Errorf("rejected login should NOT set gogogo_auth cookie")
 		}
 	}
 }
 
 // TestIntegration_Auth_GoodCredentialsSetsCookie is the happy path:
-// POST /login with the documented demo creds issues a pb_auth
+// POST /login with the documented demo creds issues a gogogo_auth
 // cookie. We follow the 303 (which lands on /) and assert that the
 // app page rendered with status 200, then look at the *cookies* the
-// chain returned to find pb_auth. The Status assertion on the final
+// chain returned to find gogogo_auth. The Status assertion on the final
 // page proves the auth let us past the login wall.
 func TestIntegration_Auth_GoodCredentialsSetsCookie(t *testing.T) {
 	ctx := t.Context()
@@ -125,7 +125,7 @@ func TestIntegration_Auth_GoodCredentialsSetsCookie(t *testing.T) {
 			// CheckRedirect is called once per redirect. The first
 			// call has len(via) == 0 (no predecessor yet). On
 			// subsequent calls, via[len(via)-1] is the response
-			// that issued the current redirect. We grab the pb_auth
+			// that issued the current redirect. We grab the gogogo_auth
 			// cookie from it.
 			if len(via) == 0 {
 				return nil
@@ -135,7 +135,7 @@ func TestIntegration_Auth_GoodCredentialsSetsCookie(t *testing.T) {
 				return nil
 			}
 			for _, c := range prevResp.Cookies() {
-				if c.Name == "pb_auth" {
+				if c.Name == "gogogo_auth" {
 					authCookie = c
 				}
 			}
@@ -162,10 +162,10 @@ func TestIntegration_Auth_GoodCredentialsSetsCookie(t *testing.T) {
 		t.Fatalf("expected final response 200, got %d", resp.StatusCode)
 	}
 	if authCookie == nil {
-		t.Fatalf("pb_auth cookie not seen during redirect chain")
+		t.Fatalf("gogogo_auth cookie not seen during redirect chain")
 	}
 	if authCookie.Value == "" {
-		t.Fatalf("pb_auth cookie has empty value")
+		t.Fatalf("gogogo_auth cookie has empty value")
 	}
 }
 
