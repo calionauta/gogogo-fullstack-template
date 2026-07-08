@@ -126,6 +126,87 @@ Items left over from the `gogogo-template` → `gogogo-fullstack-template` renam
 
 ---
 
+## 6. BUG: 303 redirect loop on `/` and `/api/*` (and every unknown path)
+
+### What happened
+
+When the user visits `https://gogogo.calionauta.com/` in the browser,
+they see "this page redirected you too many times". The PocketBase
+admin UI at `/_/` does respond (status 200), but it asks for
+credentials that nobody knows — the first superuser has never been
+created.
+
+### Root cause (suspected)
+
+Every non-static path returns `303 See Other → /login`. Two diagnostic
+hits:
+
+- `GET /api/anything` → `303 /login` (not the `/api/*` JSON behaviour
+  we expect from PB)
+- `GET /api/health` → `200 ok` (the one route that worked, because
+  PB registers it BEFORE our `OnServe` `BindFunc` middleware chain
+  ran)
+- `GET /static/missing` → `404` (file server, not in our middleware
+  chain)
+
+Symptom: `LoadAuthFromCookie` (registered with `se.Router.BindFunc`)
+plus the `RedirectIfAuthed` middleware on `GET /login` together
+**shadow every PocketBase native route** because PocketBase's
+`Router` is route-level, but the chain ordering is broken. Either
+the redirect fires before PB's auth check on `/api/admins`, OR
+PB's default HTTP middleware ran AFTER our `BindFunc` and overrode
+the route to always return 303.
+
+A second suspicion: an older deploy on this container (created
+**before** the rename today — see git log) is still running. The
+image is `gogogo-template:prod` with `createdAt=2026-07-08T17:57`
+which is the old image ID, even though the container was restarted.
+Verify by `docker inspect --format "{{.Image}}" gogogo-template` and
+compare to the image built at the most recent push.
+
+### How to verify next session
+
+1. SSH into the server, stop the container.
+2. Pull the **most recent** image (or re-build locally with the
+   current source).
+3. Start it and probe the four paths above — confirm symptom.
+4. If still 303, inspect the `OnServe` `BindFunc` chain order in
+   `router/router.go` and `features/auth/wiring.go`. The fix is
+   likely either:
+   - **Move `LoadAuthFromCookie` to register BEFORE any route**
+     so PB's native routes see a populated `e.Auth` but keep their
+     own auth checks (instead of being shadowed).
+   - OR remove the global `se.Router.BindFunc(LoadAuthFromCookie)`
+     and instead call it as `.BindFunc(...)` on each route chain.
+5. Once fixed, create the **first superuser** either via:
+   - the install link at `/_/#/pbinstall/<token>` (token printed in
+     the container's stdout at startup — PocketBase 0.39+ redacts
+     this in our structured logger; raw `docker logs` shows the
+     real value)
+   - OR via `docker exec <container> /app superuser upsert EMAIL PASS`
+     (this requires the container to NOT be running the web server,
+     so stop it first, run the upsert, then `docker start` again)
+   - Best practice: set `ADMIN_UNLOCK_TOKEN` to a non-empty value
+     in the deploy env, then `/_/` accepts admin login without
+     needing the install-link dance.
+
+### Exit criteria
+
+- [ ] `curl -I https://<domain>/api/health` → 200 (already passes)
+- [ ] `curl -I https://<domain>/api/admins` → 401 (no auth header)
+      OR 200 (with admin token), NOT 303
+- [ ] `curl -I https://<domain>/` without cookie → 303 to `/login`
+      (still expected, but ONE hop, not infinite)
+- [ ] `curl -I https://<domain>/login` without cookie → **200** with
+      login form (the actual fix)
+- [ ] First superuser exists in `_admins` table (`docker exec` +
+      sqlite query, or via admin UI after creation)
+- [ ] Either `ADMIN_UNLOCK_TOKEN` is set in deploy env, or the
+      first-install link is documented for fresh forks
+
+
+---
+
 ## Notes for whoever picks this up
 
 - The session that opened this file used `git filter-repo --mailmap`
