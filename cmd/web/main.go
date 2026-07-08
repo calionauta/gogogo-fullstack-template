@@ -9,6 +9,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -42,7 +43,11 @@ func main() {
 func runHealthcheck() error {
 	cfg := config.Load()
 	url := fmt.Sprintf("http://127.0.0.1:%d/health", cfg.Port)
-	resp, err := http.Get(url) // #nosec G107
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil) // #nosec G107
+	if err != nil {
+		return fmt.Errorf("build healthcheck request: %w", err)
+	}
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("GET %s: %w", url, err)
 	}
