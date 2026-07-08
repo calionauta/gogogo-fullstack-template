@@ -1,5 +1,9 @@
 # gogogo-template
 
+<p align="center">
+  <img src="web/resources/static/logo.png" alt="gogogo-template" width="256">
+</p>
+
 A starting point for web projects in Go. Single binary, zero external services, LLM-friendly.
 
 This template is my attempt at a starting point that already resolves those choices without locking you into a closed ecosystem.

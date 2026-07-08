@@ -35,3 +35,6 @@ internal/workflow/pb_data/
 node_modules/
 
 # Web resources (hand-rolled CSS, kept committed)
+
+# Root-level logo is a social-card asset (1024px), not for the README — see web/resources/static/logo.png
+/logo.png
