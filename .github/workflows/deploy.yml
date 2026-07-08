@@ -1,10 +1,10 @@
 # deploy.yml — production deploy to the user's own server
-# (calionauta/fullstack.example.com via Tailscale + Cloudflare tunnel).
+# (calionauta/fullstack.example.com via SSH).
 #
 # Trigger: every push to master. The workflow:
 #   1. Builds the project (lint + test + race + CSS build)
 #   2. Builds the production Docker image (linux/amd64 scratch)
-#   3. SCPs the binary + compose file to the server (via Tailscale)
+#   3. SCPs the binary + compose file to the server (via SSH)
 #   4. SSHes in and runs scripts/deploy-prod.sh which:
 #        - atomically swaps the binary
 #        - writes the secrets file (mode 600) from GH Secrets
@@ -17,12 +17,9 @@
 # `gogogo-template.previous` so an operator can roll back instantly.
 #
 # Required GitHub Actions secrets (Settings > Secrets > Actions):
-#   Tailscale:
-#     TS_OAUTH_CLIENT_ID   Tailscale OAuth client ID
-#     TS_OAUTH_SECRET       Tailscale OAuth client secret
 #   SSH to the server:
-#     DEPLOY_HOST           Tailscale hostname of the server
-#                           (e.g. gogogo-server.tail-<hash>.ts.net)
+#     DEPLOY_HOST           hostname or IP of the server
+#                           (e.g. server.example.com or 100.x.x.x)
 #     DEPLOY_USER           the deploy user (e.g. 'deploy')
 #     DEPLOY_SSH_KEY        private SSH key (PEM, the user only)
 #   Demo runtime:
@@ -105,18 +102,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Bring up Tailscale in the runner
-        # The user's box is on a Tailscale network. We bring Tailscale
-        # up in the GH runner so we can reach it. OAuth (not authkey)
-        # because authkeys are long-lived credentials; OAuth is scoped
-        # to this run only.
-        uses: tailscale/github-action@v2
-        with:
-          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
-          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
-          tags: tag:ci
-          args: --ssh
 
       - name: Download built binary
         uses: actions/download-artifact@v4
