@@ -161,8 +161,7 @@ jobs:
           set -euo pipefail
           # Set up SSH key + config once for this run.
           mkdir -p ~/.ssh && chmod 0700 ~/.ssh
-          printf '%s
-' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key && chmod 0600 ~/.ssh/deploy_key
+          printf '%s' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key && chmod 0600 ~/.ssh/deploy_key
           cat > ~/.ssh/config <<EOF
           Host $DEPLOY_HOST
             StrictHostKeyChecking no
