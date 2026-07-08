@@ -30,7 +30,9 @@ BIN_DIR="${APP_DIR}/bin"
 COMPOSE_DIR="${APP_DIR}/compose"
 SECRETS_DIR="${APP_DIR}/secrets"
 SECRETS_FILE="${SECRETS_DIR}/${PROJECT}.env"
-DATA_DIR="${APP_DIR}/data"
+# Bind mount location for PocketBase SQLite WAL files. Must match
+# the host path inside deploy/docker-compose.prod.yml.
+DATA_DIR="/var/lib/${PROJECT}/data"
 COMPOSE_FILE="${COMPOSE_DIR}/docker-compose.prod.yml"
 
 cd "${APP_DIR}"
@@ -69,7 +71,12 @@ if [ -f "${SECRETS_FILE}" ]; then
 fi
 
 # ── 4. Data dir ownership (PocketBase writes here) ──
-mkdir -p "${DATA_DIR}/pb_data"
+# The compose file bind-mounts /var/lib/${PROJECT}/data. We create
+# that path on the host with the correct ownership (65532) so the
+# container (USER 65532:65532) can read/write SQLite WAL files
+# without hitting "permission denied" on first start.
+mkdir -p "${DATA_DIR}"
+chown 65532:65532 "${DATA_DIR}"
 chmod 0750 "${DATA_DIR}"
 
 # ── 5. Roll the container ──

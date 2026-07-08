@@ -36,7 +36,15 @@ services:
     env_file:
       - /home/deploy/gogogo-fullstack-template/secrets/gogogo-fullstack-template.env
     volumes:
-      - gogogo-fullstack-template-data:/var/lib/gogogo-fullstack-template/data
+      # Bind mount (not Docker volume) for two reasons:
+      # 1. New volumes start owned by root, which conflicts with the
+      #    container running as USER 65532. Bind mounts are pre-existing
+      #    directories and the deploy script (scripts/deploy-prod.sh)
+      #    creates /var/lib/<APP_NAME>/data with the correct ownership
+      #    before starting the container.
+      # 2. Operators can inspect, back up, and copy the SQLite WAL files
+      #    without docker exec — see scripts/db-tools/ for helpers.
+      - /var/lib/${APP_NAME:-gogogo-fullstack-template}/data:/var/lib/${APP_NAME:-gogogo-fullstack-template}/data
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/health || exit 1"]
       interval: 30s
@@ -48,7 +56,3 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-
-volumes:
-  gogogo-fullstack-template-data:
-    name: gogogo-fullstack-template-data

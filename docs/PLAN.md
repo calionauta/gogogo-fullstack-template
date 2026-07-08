@@ -1,8 +1,8 @@
 # PLAN.md — multi-session roadmap for gogogo-fullstack-template
 
-> Living document. Each numbered section is a **future session** — read
-> "What we'll do" before opening the session to know the starting point,
-> "Exit criteria" to know when the session is done.
+> Living document. Each numbered section is a **future session**.
+> Read "What we'll do" before opening the session to know the starting
+> point; "Exit criteria" tells you when the session is done.
 >
 > Update this file at the end of each session, not during. The session
 > that closes work also commits the updated PLAN.md.
@@ -16,237 +16,124 @@
 Add an optional second frontend target to the same project: a native
 desktop app (Windows/macOS/Linux) and a mobile app (Android/iOS),
 both built on top of the same Go business logic that already powers
-the web app. No rewrite — Wails v3 wraps the existing handlers in
-a webview and binds Go methods to JS; we just need a thin
-`cmd/desktop/main.go` (and `cmd/mobile/main.go`) that:
+the web app. Wails v3 wraps the existing handlers in a webview and
+binds Go methods to JS — we add two thin entry points (`cmd/desktop/`,
+`cmd/mobile/`) without rewriting the web stack.
 
-1. Mounts the same router inside `application.New[options]`
-2. Re-exports the same Datastar/Templ pages
-3. Adds native-only stuff (menu bar, tray, file dialogs,
-   notifications, biometric auth) via `application.OnStartup` hooks
-
-### Why it matters
-
-Right now the template is web-only. A user wanting to ship the same
-admin tool (todos, PocketBase auth, LLM demos) as a desktop dashboard
-or offline mobile app has to start a new project. Wails v3 lets us
-ship both from one tree, one Go codebase, one set of tests.
-
-CI strategy: **GitHub Actions runners build the platform artifacts,
-the developer ships zero toolchains locally.** `macos-latest` builds
-`.dmg` + `.app` (macOS), `.msi` (Windows cross from macOS), and
-`.ipa` (iOS); `ubuntu-latest` builds `.deb` + `.AppImage` (Linux)
-and `.apk` (Android). Artifacts are attached to the run, so a
-forker who can push a tag gets a release with all binaries.
-
-### Scope estimate
-
-| Sub-step | Time | Output |
-|----------|------|--------|
-| Scaffold `cmd/desktop/main.go` + Wails v3 imports | 30 min | Compiles, opens blank window |
-| Mount existing router via `application.Options.Assets` | 1 h | Webview shows the existing web UI |
-| Add 2 build tags: `//go:build desktop` / `//go:build mobile` | 30 min | Clean separation, `cmd/web/` untouched |
-| Write `Makefile` targets: `make desktop`, `make mobile-bundle` | 1 h | Repeatable local + CI build |
-| GitHub Actions workflow `build-platforms.yml` (matrix: mac/win/linux × desktop/android/ios) | 3 h | 6 jobs, artifacts attached |
-| Native menu bar + tray + biometric auth demo | 2 h | One proof-of-concept per platform |
-| Tests: Wails test helpers + a smoke test per platform | 2 h | `make test-desktop` green |
-
-**Total**: ~12 h focused work, fits in 2 sessions.
-
-### Where to look when we start
-
-- Wails v3 docs (https://wails.io) — `v3_preview` branch in their repo
-- Existing `cmd/web/main.go` for the HTTP entry point to mirror
-- The LLM `fakeserver` we added — desktop app can ship with the
-  fake mode toggled by envvar so users get a working demo offline
+CI strategy: GitHub Actions runners build all platform artifacts.
+A forker who can push a tag gets a release with `.dmg`, `.msi`,
+`.deb`, `.AppImage`, `.apk`, `.ipa` attached — zero local
+toolchains required.
 
 ### Exit criteria
 
-- [ ] `make desktop` produces a runnable `.app` (macOS dev) on macOS
-- [ ] `make android` produces a runnable `.apk` from any dev machine
+- [ ] `make desktop` produces a runnable macOS `.app` locally
+- [ ] `make android` produces a runnable `.apk`
 - [ ] `.github/workflows/build-platforms.yml` runs on every push and
-      uploads `.dmg`, `.msi`, `.deb`, `.AppImage`, `.apk`, `.ipa`
-      artifacts — all green
+      uploads 6 platform artifacts
 - [ ] `cmd/desktop/main.go` and `cmd/mobile/main.go` are < 200 lines
-      each and reuse the existing router/handlers as-is
-- [ ] README has a "Desktop & Mobile" section with screenshot of
-      the native wrapper around the web UI
+      each, reusing the existing router/handlers
+- [ ] README has a "Desktop & Mobile" section with screenshot
 
 ---
 
-## 2. Persistent Wails dev reload (deferred)
+## 2. Bug #6 — RESOLVED in commit 23d69b5 ✅
 
-If Wails v3 lands cleanly, the next session will:
+**Status**: fixed. No further action.
 
-- Add `wailsjs/` codegen to `make codegen`
-- Add a `--live-reload-from=web` flag that proxies to `localhost:8080`
-  during development so the desktop app reloads when the web dev server
-  does
+The 303 redirect loop on `/` and `/login` was caused by registering
+routes inside `app.OnServe().BindFunc(...)` from inside another
+`OnServe` handler. PocketBase's `Hook.Trigger` snapshots registered
+handlers before any of them run, so nested `BindFunc`s are silently
+a no-op. Fix: `RegisterAuth` now takes `*core.ServeEvent` and wires
+routes directly on `se.Router` inside the existing top-level
+router.OnServe hook. See AGENTS.md §"Wiring HTTP routes" for the
+full rule and `http://localhost:8080/<path>` curl recipes.
+
+**Follow-up still pending (manual, dashboard-only):** the Cloudflare
+Tunnel `b56a1467-...` does not include `gogogo.calionauta.com`
+in its local ingress config (DNS CNAME points at the tunnel, but
+cloudflared doesn't have a rule for that hostname). Until the
+tunnel config is updated in the Cloudflare Zero Trust dashboard,
+requests to `gogogo.calionauta.com` resolve through Cloudflare
+Edge but don't terminate at the local server. Operator action:
+https://dash.cloudflare.com → `calionauta.com` → Zero Trust →
+Networks → Tunnels → current tunnel → Public hostname → add
+`gogogo.calionauta.com` → service `http://127.0.0.1:8080`.
 
 ---
 
 ## 3. Local-first repo CI as reusable workflow
 
-The current `make check` / `make gate` works locally. The next
-session extracts this into a reusable GitHub Actions workflow
+The current `make check` / `make gate` works locally. Next session
+extracts this into a reusable GitHub Actions workflow
 (`.github/workflows/lint-test.yml`) that downstream forks can
-`uses: calionauta/gogogo-fullstack-template/.github/workflows/lint-test.yml@master`
-to inherit our quality bar with zero config.
+inherit with zero config.
 
 ---
 
 ## 4. Multi-project promotion
 
-If we adopt `gogogo-fullstack-template` for `stelow` and
-`datastar-lint` (sibling repos already in `~/Development/`), the
-canonical `/opt/<name>/{bin,compose,env,secrets,data}` layout
-becomes a shared convention. The next session:
-
-- Extracts `scripts/deploy-prod.sh` to a separate `gogogo-deploy`
-  repo (or template file) so the three projects share the same
-  deploy runner
-- Adds a `Makefile` target `make release` that versions + tags +
-  builds + deploys in one command
+If `gogogo-fullstack-template` becomes the foundation for `stelow`
+or `datastar-lint`, the canonical `/var/lib/<name>/data/` bind-mount
+layout is the shared convention. Extract `scripts/deploy-prod.sh`
+into a separate `gogogo-deploy` repo so the three projects share
+the same deploy runner.
 
 ---
 
-## 5. Cleanup post-rename
+## 5. Pending cleanups
 
-Items left over from the `gogogo-template` → `gogogo-fullstack-template` rename:
-
-- [ ] Server still has `/home/deploy/gogogo-template/` (old deploy dir)
-      — next deploy will create `/home/deploy/gogogo-fullstack-template/`
-      alongside it. Once the new one is verified, `rm -rf` the old.
-- [ ] Cloudflare Tunnel ingress at `gogogo.calionauta.com` still points
-      at the old container — needs a new tunnel entry for the new
-      `<name>.example.com` host
-- [ ] Both `v0.1.0` … `v0.4.0` tags exist on the renamed repo
-- [ ] The `gh release` notes for v0.1.0 still mention the old name
-      (cannot edit after fact; document in a CHANGELOG note)
+- [ ] `/home/deploy/gogogo-template/` (legacy deploy dir on the
+      server) can be removed once `gogogo-fullstack-template` is
+      stable for a full week
+- [ ] Old `gogogo.calionauta.com` install link JWTs have all expired
+      — current install link printed by `docker logs` on every
+      restart; operator creates superuser via the UI at that link
+- [ ] The first superuser for `gogogo.calionauta.com` has not yet
+      been created — operator must open the install link and submit
+      the form (see Bug #6 status)
 
 ---
 
-## 6. BUG: 303 redirect loop on `/` and `/api/*` (and every unknown path)
+## 6. On-prem deploy permission gotcha (real bug, real fix)
 
-### What happened (additional context discovered 2026-07-08)
+**Symptom** (this session, 2026-07-08): PocketBase container fails
+on every restart with `sqlite3: unable to open database file:
+permission denied`. The data dir is on a Docker named volume
+(`gogogo-fullstack-template-data:/var/lib/.../data`). Docker
+creates new volumes with `root:root` ownership, but the container
+runs as `USER 65532:65532`. Result: crash loop on first deploy to a
+fresh server.
 
-`dig gogogo.calionauta.com` resolves to **Cloudflare IPs**
-(104.21.25.159, 172.67.134.93) — NOT the local tunnel. The local
-cloudflared config (`/etc/cloudflared/config.yml` and
-`~/.tunnel-config.json`) does **NOT** include
-`gogogo.calionauta.com`. The host is being served by *another*
-tunnel/ingress on the user's Cloudflare account — likely an older
-tunnel that was pointing at Render/Fly/elsewhere before this
-project moved to the user's own server.
+**Root cause**: Docker volume permissions are not negotiated against
+the container's `USER`. Bind mounts work because `deploy-prod.sh`
+can `chown 65532:65532` the host directory before starting.
 
-Until the DNS is redirected to the current tunnel
-(`b56a1467-b1b2-4490-a661-8afb21ccfaa0`), every request to
-`https://gogogo.calionauta.com` returns 303 from a route the local
-server is not actually serving.
+**Fix shipped in commit `2c8a1f6`** (this session):
+- `deploy/docker-compose.prod.yml`: switched to bind mount
+  `/var/lib/${APP_NAME}/data:/var/lib/${APP_NAME}/data`
+- `scripts/deploy-prod.sh`: creates `/var/lib/${APP_NAME}/data` with
+  `chown 65532:65532` before bringing the container up
 
-### Action required (out of code, in Cloudflare dashboard)
-
-1. Log in to https://dash.cloudflare.com → `calionauta.com` →
-   Zero Trust → Networks → Tunnels
-2. Find the tunnel that has `gogogo.calionauta.com` in its ingress
-   (or the Cloudflare Pages/Custom Hostname that points elsewhere)
-3. Either re-attach it to the current tunnel, or delete the old
-   entry and add `gogogo.calionauta.com` to the current tunnel
-   pointing at `http://100.120.175.47:4180` (the OAuth2-Proxy
-   upstream — or to `http://127.0.0.1:8080` directly, skipping
-   OAuth if the demo doesn't need SSO)
-
-After the DNS fix, fix the code bug below.
-
-
-### What happened (continued)
-
-When the user visits `https://gogogo.calionauta.com/` in the browser,
-they see "this page redirected you too many times". The PocketBase
-admin UI at `/_/` does respond (status 200), but it asks for
-credentials that nobody knows — the first superuser has never been
-created.
-
-### Root cause (suspected)
-
-Every non-static path returns `303 See Other → /login`. Two diagnostic
-hits:
-
-- `GET /api/anything` → `303 /login` (not the `/api/*` JSON behaviour
-  we expect from PB)
-- `GET /api/health` → `200 ok` (the one route that worked, because
-  PB registers it BEFORE our `OnServe` `BindFunc` middleware chain
-  ran)
-- `GET /static/missing` → `404` (file server, not in our middleware
-  chain)
-
-Symptom: `LoadAuthFromCookie` (registered with `se.Router.BindFunc`)
-plus the `RedirectIfAuthed` middleware on `GET /login` together
-**shadow every PocketBase native route** because PocketBase's
-`Router` is route-level, but the chain ordering is broken. Either
-the redirect fires before PB's auth check on `/api/admins`, OR
-PB's default HTTP middleware ran AFTER our `BindFunc` and overrode
-the route to always return 303.
-
-A second suspicion: an older deploy on this container (created
-**before** the rename today — see git log) is still running. The
-image is `gogogo-template:prod` with `createdAt=2026-07-08T17:57`
-which is the old image ID, even though the container was restarted.
-Verify by `docker inspect --format "{{.Image}}" gogogo-template` and
-compare to the image built at the most recent push.
-
-### How to verify next session
-
-1. SSH into the server, stop the container.
-2. Pull the **most recent** image (or re-build locally with the
-   current source).
-3. Start it and probe the four paths above — confirm symptom.
-4. If still 303, inspect the `OnServe` `BindFunc` chain order in
-   `router/router.go` and `features/auth/wiring.go`. The fix is
-   likely either:
-   - **Move `LoadAuthFromCookie` to register BEFORE any route**
-     so PB's native routes see a populated `e.Auth` but keep their
-     own auth checks (instead of being shadowed).
-   - OR remove the global `se.Router.BindFunc(LoadAuthFromCookie)`
-     and instead call it as `.BindFunc(...)` on each route chain.
-5. Once fixed, create the **first superuser** either via:
-   - the install link at `/_/#/pbinstall/<token>` (token printed in
-     the container's stdout at startup — PocketBase 0.39+ redacts
-     this in our structured logger; raw `docker logs` shows the
-     real value)
-   - OR via `docker exec <container> /app superuser upsert EMAIL PASS`
-     (this requires the container to NOT be running the web server,
-     so stop it first, run the upsert, then `docker start` again)
-   - Best practice: set `ADMIN_UNLOCK_TOKEN` to a non-empty value
-     in the deploy env, then `/_/` accepts admin login without
-     needing the install-link dance.
-
-### Exit criteria
-
-- [ ] `curl -I https://<domain>/api/health` → 200 (already passes)
-- [ ] `curl -I https://<domain>/api/admins` → 401 (no auth header)
-      OR 200 (with admin token), NOT 303
-- [ ] `curl -I https://<domain>/` without cookie → 303 to `/login`
-      (still expected, but ONE hop, not infinite)
-- [ ] `curl -I https://<domain>/login` without cookie → **200** with
-      login form (the actual fix)
-- [ ] First superuser exists in `_admins` table (`docker exec` +
-      sqlite query, or via admin UI after creation)
-- [ ] Either `ADMIN_UNLOCK_TOKEN` is set in deploy env, or the
-      first-install link is documented for fresh forks
-
+**Lesson for other projects**: prefer bind mounts over named volumes
+when the container runs as a non-root UID. Bind mounts give the
+operator full file-system access for inspection, backup, and
+permission repair. Named volumes are appropriate only when the
+container runs as root (rare for production).
 
 ---
 
 ## Notes for whoever picks this up
 
-- The session that opened this file used `git filter-repo --mailmap`
-  for the privacy pass — that pattern is reusable, see
-  the backup repo at `~/backups/gogogo-template-*.git/` for the
-  migration script.
-- The `caveman ultra` user preference (terse chat, full prose in
-  deliverable docs) is preserved in agentmemory — sessions don't
-  need to re-ask.
 - The deploy pipeline is **Pattern B** (shell key, image built on
   server) — see `~/.agents/skills/cali-ops-deploy-github-tailscale/`
   for the two patterns and when to use each.
+- The redirect-loop and `http.ServeMux` subtree-matching gotchas are
+  documented in AGENTS.md §"Wiring HTTP routes".
+- The privacy filter-repo pass is documented in the git history;
+  backup mirror at `~/backups/gogogo-template-*.git/`.
+- For PocketBase permissions, the rule is: **`scripts/deploy-prod.sh`
+  creates `/var/lib/<APP_NAME>/data` with `chown 65532:65532`**,
+  and `deploy/docker-compose.prod.yml` bind-mounts it. Don't switch
+  to named volumes unless the container runs as root.
