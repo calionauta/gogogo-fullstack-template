@@ -59,7 +59,7 @@ cmd/web/                  Entry point (PB + goqite + SSE Hub). Builds: jetstream
 config/                   Env-based config
 db/                       PocketBase setup + ensureTodosCollection seed
 internal/{secrets,queue,nats,workflow,llm,datastar}/
-features/app/             Application core
+features/app/             Application core: AppContext + cross-cutting middleware
 features/todo/            Example: Todo MVC (Datastar + DaisyUI + PocketBase + SSE Hub)
 web/resources/            Static assets (embedded)
 router/                   Route registration on PocketBase
@@ -68,6 +68,16 @@ docs/                     Decision logs and guides
 
 Three async layers (complementary, not alternatives):
 `goqite` → background jobs + SSE; `turbine` → durable workflows; `JetStream` → multi-user real-time.
+
+## Cross-cutting application core
+
+`features/app/` provides `AppContext` — a single struct that bundles
+the cross-cutting dependencies every feature might need (queue, LLM
+client, config). The template itself uses it lightly (mainly for
+`LogStartupSummary`), but downstream projects that grow to multiple
+features can wire their handlers to take `*AppContext` instead of
+assembling (queue, llm, broadcaster, ...) individually. See the
+package doc in `features/app/app.go` for the full rationale.
 
 ## Quality Gate
 

@@ -6,81 +6,189 @@ import (
 	"sync"
 )
 
-// SSEHub manages Server-Sent Event connections.
-// Patterns: register-before-enqueue, replay buffer, backpressure.
+// Default values for the SSEHub knobs. Exposed as consts so callers
+// can reference them in tests and config wiring.
+const (
+	// DefaultReplayBufferSize is the per-client ring-buffer length
+	// kept while no client is connected. Sized for ~64KB of
+	// Datastar patch-signals at ~1KB each.
+	DefaultReplayBufferSize = 64
+
+	// DefaultClientQueueSize is the per-client channel buffer the
+	// caller is expected to use when calling Register. We document it
+	// but don't enforce it (the caller passes a pre-made channel).
+	DefaultClientQueueSize = 32
+)
+
+// SSEHubStats is a snapshot of the hub's current resource use. Returned
+// by Stats() so operators can observe backpressure and reconnection
+// churn. Cheap to compute; safe to call on a hot path.
+type SSEHubStats struct {
+	Clients         int // currently connected clients
+	BufferedClients int // clients with messages in their replay buffer
+	BufferedEvents  int // total events across all replay buffers
+}
+
+// SSEHub manages Server-Sent Event connections with three properties
+// the todo demo relies on:
+//
+//  1. Register-before-enqueue: clients register their channel first,
+//     so any Send before/during connection is delivered via the
+//     replay buffer.
+//  2. Replay buffer: short ring-buffer per client ID, so late
+//     subscribers receive recent events (e.g. a tab that reconnects
+//     after a brief network blip).
+//  3. Backpressure: when a client's channel is full, the hub drops
+//     the event for that client (logs) rather than blocking the
+//     producer. Producer-blocking via SendBlocking(ctx, ...) is the
+//     explicit "I want to wait" path.
+//
+// Concurrency: SSEHub is safe for concurrent use by any number of
+// producers and consumers. The internal map is guarded by a
+// sync.RWMutex; per-client channels are owned by the caller.
 type SSEHub struct {
 	mu      sync.RWMutex
 	clients map[string]chan []byte
-	buffer  map[string][][]byte // replay buffer per client
+	buffer  map[string][][]byte
+
+	// maxBuffer is the per-client replay buffer ring length.
+	maxBuffer int
+
+	// onDrop is invoked once per dropped event (slow client or
+	// failed delivery). Defaults to a slog.Warn; tests can inject a
+	// counter to assert drop behaviour.
+	onDrop func(clientID string, data []byte, reason string)
 }
 
-func NewSSEHub() *SSEHub {
-	return &SSEHub{
-		clients: make(map[string]chan []byte),
-		buffer:  make(map[string][][]byte),
+// HubOption configures an SSEHub at construction time. Apply with
+// NewSSEHub(With...).
+type HubOption func(*SSEHub)
+
+// WithReplayBufferSize sets the per-client replay buffer length.
+// The oldest event is dropped when the buffer is full (ring
+// behaviour). Pass 0 to disable replay entirely.
+func WithReplayBufferSize(n int) HubOption {
+	return func(h *SSEHub) {
+		h.maxBuffer = n
 	}
 }
 
-// Register adds a client channel. Must be called BEFORE enqueue.
+// WithDropHandler installs a callback invoked once per dropped event.
+// `reason` is "slow-client" for backpressure drops or
+// "send-blocking-cancelled" for context-cancelled drops. Used by
+// tests; production can use this to emit metrics.
+func WithDropHandler(fn func(clientID string, data []byte, reason string)) HubOption {
+	return func(h *SSEHub) {
+		h.onDrop = fn
+	}
+}
+
+// NewSSEHub builds a hub with the given options. Defaults match
+// what the production todo example needs (64-slot replay buffers,
+// slog.Warn on drops).
+func NewSSEHub(opts ...HubOption) *SSEHub {
+	h := &SSEHub{
+		clients:   make(map[string]chan []byte),
+		buffer:    make(map[string][][]byte),
+		maxBuffer: DefaultReplayBufferSize,
+		onDrop: func(clientID string, _ []byte, reason string) {
+			slog.Warn("ssehub: dropping event", "client_id", clientID, "reason", reason)
+		},
+	}
+	for _, opt := range opts {
+		opt(h)
+	}
+	return h
+}
+
+// Register adds a client channel. Must be called BEFORE Send for
+// the replay buffer to be useful — late callers still receive any
+// events buffered since the hub was created, just synchronously
+// (no goroutine is spawned).
+//
+// Safe to call multiple times with the same clientID; the channel
+// is replaced and the buffer is preserved (so a re-connecting tab
+// doesn't lose intermediate events).
 func (h *SSEHub) Register(clientID string, ch chan []byte) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.clients[clientID] = ch
 
-	// Replay any buffered events
-	if buf, ok := h.buffer[clientID]; ok {
-		go func() {
-			for _, msg := range buf {
-				select {
-				case ch <- msg:
-				default:
-					// backpressure: drop if client is slow
-				}
-			}
-		}()
-		delete(h.buffer, clientID)
+	// Drain the replay buffer SYNCHRONOUSLY. We hold the write lock
+	// so a concurrent Send either sees us as already-registered and
+	// pushes to the channel, or — if it grabbed the lock first —
+	// pushes to the buffer (which we'll drain next call).
+	//
+	// Drop-on-full: a slow client during replay is the same
+	// backpressure path as a slow live client; the event is gone,
+	// but the producer never blocks. Replay is best-effort.
+	for _, msg := range h.buffer[clientID] {
+		select {
+		case ch <- msg:
+		default:
+			h.onDrop(clientID, msg, "slow-client-replay")
+		}
 	}
+	delete(h.buffer, clientID)
 }
 
-// Send pushes data to a specific client. Falls back to buffer if client not ready.
+// Unregister removes a client and its buffer. Subsequent Sends to
+// the same clientID re-buffer.
+func (h *SSEHub) Unregister(clientID string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	delete(h.clients, clientID)
+	delete(h.buffer, clientID)
+}
+
+// Send pushes data to a specific client. Non-blocking: if the
+// client's channel is full, the event is dropped (logged via
+// onDrop) AND also recorded in the replay buffer. If the client
+// is not registered, the event goes straight to the replay buffer.
+//
+// Use Send (not SendBlocking) on the hot path of background
+// workers — they shouldn't block the entire worker pool on a
+// slow client. SendBlocking is the explicit "wait" path.
 func (h *SSEHub) Send(clientID string, data []byte) {
 	h.mu.RLock()
-	ch, ok := h.clients[clientID]
+	ch, registered := h.clients[clientID]
 	h.mu.RUnlock()
 
-	if ok {
+	if registered {
 		select {
 		case ch <- data:
+			return
 		default:
-			h.bufferEvent(clientID, data)
+			h.onDrop(clientID, data, "slow-client")
 		}
-	} else {
-		h.bufferEvent(clientID, data)
 	}
+	h.bufferEvent(clientID, data)
 }
 
-// Broadcast sends data to all connected clients.
-func (h *SSEHub) Broadcast(data []byte) {
-	h.mu.RLock()
-	defer h.mu.RUnlock()
-	for _, ch := range h.clients {
-		select {
-		case ch <- data:
-		default:
-			slog.Warn("ssehub: dropping slow client")
-		}
+// SendCtx is the same as Send but takes a context. It is non-blocking
+// (uses the same drop-on-full path) but skips the call entirely if
+// the context is already canceled — useful inside a select with
+// other work, where the producer would rather skip the event than
+// race to send it.
+func (h *SSEHub) SendCtx(ctx context.Context, clientID string, data []byte) {
+	select {
+	case <-ctx.Done():
+		return
+	default:
 	}
+	h.Send(clientID, data)
 }
 
 // SendBlocking pushes data to a specific client, blocking until the
-// client's channel accepts the chunk or ctx is canceled. Use this when
-// the caller (typically a worker running under retry) cannot proceed
-// without delivering the chunk — the retry layer treats a context
-// cancellation as a transient failure and backs off per RetryConfig.
+// client's channel accepts the chunk or ctx is canceled. Use this
+// when the caller (typically a worker running under retry) cannot
+// proceed without delivering the chunk — the retry layer treats a
+// context cancellation as a transient failure and backs off per
+// RetryConfig.
 //
-// Returns ctx.Err() if the context is canceled before delivery; returns
-// ErrClientNotFound if the clientID is not registered (and no buffer
-// replay would help).
+// If the client is not registered, the event is buffered for
+// later replay and the call returns nil immediately (no waiting
+// on a non-existent channel).
 func (h *SSEHub) SendBlocking(ctx context.Context, clientID string, data []byte) error {
 	h.mu.RLock()
 	ch, ok := h.clients[clientID]
@@ -95,25 +203,60 @@ func (h *SSEHub) SendBlocking(ctx context.Context, clientID string, data []byte)
 	case ch <- data:
 		return nil
 	case <-ctx.Done():
+		h.onDrop(clientID, data, "send-blocking-cancelled")
 		return ctx.Err()
 	}
 }
 
+// Broadcast sends data to all currently connected clients. Drop
+// policy: a client whose channel is full has the event dropped
+// (logged). Producers never block. Disconnected clients are not
+// re-broadcast into (re-register to receive new events).
+func (h *SSEHub) Broadcast(data []byte) {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	for id, ch := range h.clients {
+		select {
+		case ch <- data:
+		default:
+			h.onDrop(id, data, "slow-client-broadcast")
+		}
+	}
+}
+
+// Stats returns a snapshot of the hub's current resource use. Use
+// for /health endpoints, /debug/pprof-style metrics, or tests that
+// assert on buffered events without reaching into internals.
+func (h *SSEHub) Stats() SSEHubStats {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	stats := SSEHubStats{Clients: len(h.clients)}
+	for _, buf := range h.buffer {
+		if len(buf) > 0 {
+			stats.BufferedClients++
+			stats.BufferedEvents += len(buf)
+		}
+	}
+	return stats
+}
+
+// bufferEvent appends data to the per-client replay buffer, dropping
+// the oldest event if the buffer is full. Caller must NOT hold the
+// mutex (this function acquires it).
 func (h *SSEHub) bufferEvent(clientID string, data []byte) {
+	if h.maxBuffer <= 0 {
+		// Replay disabled — keep the most recent event only in a
+		// single-slot "in case a client connects later" buffer? No:
+		// honour the contract. Drop.
+		h.onDrop(clientID, data, "replay-disabled")
+		return
+	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	buf := h.buffer[clientID]
-	const maxBuffer = 64
-	if len(buf) >= maxBuffer {
+	if len(buf) >= h.maxBuffer {
+		// Ring buffer: drop oldest.
 		buf = buf[1:]
 	}
 	h.buffer[clientID] = append(buf, data)
-}
-
-// Unregister removes a client and its buffer.
-func (h *SSEHub) Unregister(clientID string) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	delete(h.clients, clientID)
-	delete(h.buffer, clientID)
 }

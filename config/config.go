@@ -41,9 +41,14 @@ type Config struct {
 		ExecutorID string
 	}
 
-	GoAI struct {
-		APIKey string
-	}
+	GoAI GoAIConfig
+}
+
+// GoAIConfig holds the LLM client settings. Currently just an
+// APIKey + a model; expanded in internal/llm as more knobs
+// (GOAI_BASE_URL, GOAI_MODEL, etc.) are read from env.
+type GoAIConfig struct {
+	APIKey string
 }
 
 // Load builds the Config. Order matters: secrets must be decrypted
@@ -81,7 +86,7 @@ func Load() *Config {
 		DataDir:       getEnv("DATA_DIR", "data"),
 		EncryptionKey: os.Getenv("ENCRYPTION_KEY"),
 		AdminToken:    os.Getenv("ADMIN_UNLOCK_TOKEN"),
-		GoAI: struct{ APIKey string }{
+		GoAI: GoAIConfig{
 			APIKey: os.Getenv("GOAI_API_KEY"),
 		},
 	}

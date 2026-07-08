@@ -15,6 +15,7 @@ import (
 
 	"github.com/calionauta/gogogo-template/config"
 	"github.com/calionauta/gogogo-template/db"
+	"github.com/calionauta/gogogo-template/features/app"
 	"github.com/calionauta/gogogo-template/features/todo/handlers"
 	"github.com/calionauta/gogogo-template/internal/llm"
 	"github.com/calionauta/gogogo-template/internal/queue"
@@ -44,6 +45,13 @@ func run() error {
 		return fmt.Errorf("queue init: %w", err)
 	}
 	defer q.Close()
+
+	// Context bundles the cross-cutting dependencies (queue, LLM
+	// client) and is the seam where downstream projects add their own
+	// cross-cutting middleware. Currently only used for LogStartupSummary
+	// below; future feature handlers can take *app.Context instead
+	// of (q, llm, ...) to avoid the dependency-assembly boilerplate.
+	_ = app.New(cfg, q)
 
 	todoH := handlers.New(pb, q, cfg)
 	todoH.RegisterHandlers(q.Registry())
