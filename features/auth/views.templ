@@ -1,0 +1,127 @@
+package auth
+
+// Navbar is the top bar rendered on every authenticated page.
+// Shows the app name on the left, a user dropdown on the right with
+// the logged-in email and a logout button. Login link when no user.
+templ Navbar(userEmail string) {
+	<nav class="navbar bg-base-100 shadow-sm border-b border-base-300 sticky top-0 z-50 min-h-12 shrink-0 px-4 sm:px-6">
+		<div class="navbar-start">
+			<div class="flex items-center gap-3">
+				<a href="/" class="text-lg font-bold tracking-tight">
+					gogogo-template
+				</a>
+				<span class="badge badge-soft badge-neutral badge-sm font-mono hidden sm:inline-flex">demo</span>
+			</div>
+		</div>
+		<div class="navbar-end gap-2">
+			if userEmail == "" {
+				<a
+					href="/login"
+					class="btn btn-primary btn-sm"
+					data-on:click="$loading = true"
+				>
+					Sign in
+				</a>
+			} else {
+				<div class="dropdown dropdown-end">
+					<div tabindex="0" role="button" class="btn btn-ghost btn-sm">
+						<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+							<path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/>
+						</svg>
+						<span class="hidden sm:inline">{ userEmail }</span>
+					</div>
+					<ul tabindex="0" role="menu" class="menu menu-sm dropdown-content z-[60] mt-3 w-56 rounded-box border border-base-300 bg-base-100 p-2 shadow-lg">
+						<li class="menu-title">
+							<span class="text-base-content/50">Signed in as</span>
+						</li>
+						<li>
+							<span class="font-mono text-xs">{ userEmail }</span>
+						</li>
+						<li>
+							<form method="POST" action="/logout" data-on:submit="$loading = true">
+								<button type="submit" class="w-full text-left">
+									<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+										<path fill-rule="evenodd" d="M3 10a1 1 0 011-1h10a1 1 0 110 2H4a1 1 0 01-1-1zM9 4a1 1 0 011-1h7a1 1 0 011 1v12a1 1 0 01-1 1h-7a1 1 0 01-1-1V4z" clip-rule="evenodd"/>
+									</svg>
+									Sign out
+								</button>
+							</form>
+						</li>
+					</ul>
+				</div>
+			}
+		</div>
+	</nav>
+}
+
+// LoginPage is the standalone /login page (no navbar; the user isn't
+// logged in yet). DaisyUI form with the demo credentials prefilled so
+// the user just has to click "Sign in".
+templ LoginPage(next string, errMsg string) {
+	<!DOCTYPE html>
+	<html lang="en" data-theme="light">
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<title>Sign in — gogogo-template</title>
+			<link rel="stylesheet" href="/static/daisyui.min.css"/>
+			<link rel="stylesheet" href="/static/app.css"/>
+			<script defer type="module" src="/static/datastar.js"></script>
+		</head>
+		<body class="bg-base-200 min-h-screen flex items-center justify-center p-4">
+			<div class="card w-full max-w-md bg-base-100 shadow-xl">
+				<div class="card-body">
+					<h1 class="text-2xl font-bold text-center mb-2">gogogo-template</h1>
+					<p class="text-center text-base-content/60 mb-6">
+						Sign in to manage your todos
+					</p>
+
+					if errMsg != "" {
+						<div role="alert" class="alert alert-error mb-4">
+							<span>{ errMsg }</span>
+						</div>
+					}
+
+					<form method="POST" action="/login" class="space-y-4">
+						<input type="hidden" name="next" value={ next }/>
+						<label class="form-control w-full">
+							<div class="label">
+								<span class="label-text">Email</span>
+							</div>
+							<input
+								type="email"
+								name="email"
+								value="demo@demo.app"
+								class="input input-bordered w-full"
+								required
+								autocomplete="email"
+							/>
+						</label>
+
+						<label class="form-control w-full">
+							<div class="label">
+								<span class="label-text">Password</span>
+							</div>
+							<input
+								type="password"
+								name="password"
+								value="demo1234456"
+								class="input input-bordered w-full"
+								required
+								autocomplete="current-password"
+							/>
+						</label>
+
+						<button type="submit" class="btn btn-primary w-full">
+							Sign in
+						</button>
+
+						<div class="text-xs text-center text-base-content/40 mt-4">
+							Demo credentials prefilled. Click <strong>Sign in</strong> to enter.
+						</div>
+					</form>
+				</div>
+			</div>
+		</body>
+	</html>
+}

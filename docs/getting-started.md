@@ -1,4 +1,4 @@
-# Getting Started with cali-go-stack
+# Getting Started with gogogo-template
 
 ## Prerequisites
 
@@ -10,7 +10,7 @@
 
 ```bash
 # Clone the template
-git clone https://github.com/calionauta/cali-go-stack.git my-project
+git clone https://github.com/calionauta/gogogo-template.git my-project
 cd my-project
 
 # Generate templ components and run
@@ -70,7 +70,7 @@ make build-jetstream
 
 # Or run in dev mode
 go run -tags jetstream ./cmd/web/
-NATS_ENABLED=true ./cali-go-stack
+NATS_ENABLED=true ./gogogo-template
 ```
 
 ## Adding Turbine Workflows
@@ -81,7 +81,7 @@ make build-turbine
 
 # Or run in dev mode
 go run -tags turbine ./cmd/web/
-WORKFLOW_ENABLED=true ./cali-go-stack
+WORKFLOW_ENABLED=true ./gogogo-template
 ```
 
 ## Secrets Setup

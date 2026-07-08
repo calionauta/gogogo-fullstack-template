@@ -9,9 +9,9 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 	sdk "github.com/starfederation/datastar-go/datastar"
 
-	"github.com/calionauta/cali-go-stack/features/todo"
-	dshelpers "github.com/calionauta/cali-go-stack/internal/datastar"
-	"github.com/calionauta/cali-go-stack/internal/queue"
+	"github.com/calionauta/gogogo-template/features/todo"
+	dshelpers "github.com/calionauta/gogogo-template/internal/datastar"
+	"github.com/calionauta/gogogo-template/internal/queue"
 )
 
 func (h *TodoHandler) handleList(c *core.RequestEvent) error {

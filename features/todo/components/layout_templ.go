@@ -8,17 +8,22 @@ package components
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-import "github.com/calionauta/cali-go-stack/features/todo"
+import (
+	"github.com/calionauta/gogogo-template/features/auth"
+	"github.com/calionauta/gogogo-template/features/todo"
+)
 
 // Layout wraps the todo app in a full HTML document with:
-//   - DaisyUI + TailwindCSS classes (assumes the CDN/embedded CSS is loaded
-//     by the consuming page)
+//   - DaisyUI + TailwindCSS classes (vendored CSS — no CDN at runtime)
 //   - Datastar JS loaded from the embedded copy under /static/datastar.js
+//   - Sticky navbar with user menu (skipped on /login, which is standalone)
 //   - #toast-container for stacked toasts (bottom-right, column-reverse)
 //   - <style> block for the toast animations + progress bar
 //
-// Pages call Layout(title, signals) and embed their content as children.
-func Layout(title string, signals todo.Signals) templ.Component {
+// Pages call Layout(title, signals, userEmail) and embed their content as
+// children. userEmail is the empty string for guests; the navbar shows a
+// "Sign in" CTA instead.
+func Layout(title string, signals todo.Signals, userEmail string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -46,13 +51,17 @@ func Layout(title string, signals todo.Signals) templ.Component {
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/layout.templ`, Line: 19, Col: 17}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/layout.templ`, Line: 24, Col: 17}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</title><link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/daisyui@5.6.13/dist/full.min.css\"><script src=\"https://cdn.tailwindcss.com\"></script><script type=\"module\" src=\"/static/datastar.js\"></script><style>\n\t\t\t\t/* Stacking container: fixed bottom-right, toasts stack upward. */\n\t\t\t\t#toast-container {\n\t\t\t\t\tz-index: 100;\n\t\t\t\t\tposition: fixed;\n\t\t\t\t\tright: 1rem;\n\t\t\t\t\tbottom: 1rem;\n\t\t\t\t\tdisplay: flex;\n\t\t\t\t\tflex-direction: column-reverse;\n\t\t\t\t\tgap: 0.5rem;\n\t\t\t\t\tmax-width: 24rem;\n\t\t\t\t}\n\n\t\t\t\t/* Toast entrance: hidden + scaled-down, then the .open class\n\t\t\t\t   transitions it in. Driven by data-class on the toast root. */\n\t\t\t\t.toast-msg {\n\t\t\t\t\topacity: 0;\n\t\t\t\t\ttransform: scale(0.9) translateY(50px);\n\t\t\t\t\ttransition: transform 0.5s, opacity 0.5s;\n\t\t\t\t}\n\t\t\t\t.toast-msg.open {\n\t\t\t\t\ttransform: scale(1) translateY(0);\n\t\t\t\t\topacity: 1;\n\t\t\t\t}\n\n\t\t\t\t/* Progress bar: shrinks from 100% to 0% over the toast lifetime.\n\t\t\t\t   Matches the toast-remove delay (3s for success/info, 8s for\n\t\t\t\t   error) — the CSS animation here fires immediately on mount\n\t\t\t\t   because the bar is rendered together with the toast root. */\n\t\t\t\t.toast-timer-bar {\n\t\t\t\t\theight: 3px;\n\t\t\t\t\tborder-radius: 999px;\n\t\t\t\t\tbackground: oklch(0.872 0.01 258.338 / 0.3);\n\t\t\t\t\tanimation: toast-shrink 3s linear forwards;\n\t\t\t\t}\n\t\t\t\t.toast-msg:has(.alert-error) .toast-timer-bar {\n\t\t\t\t\tanimation-duration: 8s;\n\t\t\t\t}\n\t\t\t\t@keyframes toast-shrink {\n\t\t\t\t\tfrom { width: 100%; }\n\t\t\t\t\tto { width: 0%; }\n\t\t\t\t}\n\t\t\t</style></head><body class=\"bg-base-200 min-h-screen\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</title><link rel=\"stylesheet\" href=\"/static/daisyui.min.css\"><link rel=\"stylesheet\" href=\"/static/app.css\"><script defer type=\"module\" src=\"/static/datastar.js\"></script><style>\n\t\t\t\t/* Stacking container: fixed bottom-right, toasts stack upward. */\n\t\t\t\t#toast-container {\n\t\t\t\t\tz-index: 100;\n\t\t\t\t\tposition: fixed;\n\t\t\t\t\tright: 1rem;\n\t\t\t\t\tbottom: 1rem;\n\t\t\t\t\tdisplay: flex;\n\t\t\t\t\tflex-direction: column-reverse;\n\t\t\t\t\tgap: 0.5rem;\n\t\t\t\t\tmax-width: 24rem;\n\t\t\t\t}\n\n\t\t\t\t/* Toast entrance: hidden + scaled-down, then the .open class\n\t\t\t\t   transitions it in. Driven by data-class on the toast root. */\n\t\t\t\t.toast-msg {\n\t\t\t\t\topacity: 0;\n\t\t\t\t\ttransform: scale(0.9) translateY(50px);\n\t\t\t\t\ttransition: transform 0.5s, opacity 0.5s;\n\t\t\t\t}\n\t\t\t\t.toast-msg.open {\n\t\t\t\t\ttransform: scale(1) translateY(0);\n\t\t\t\t\topacity: 1;\n\t\t\t\t}\n\n\t\t\t\t/* Progress bar: shrinks from 100% to 0% over the toast lifetime.\n\t\t\t\t   Matches the toast-remove delay (3s for success/info, 8s for\n\t\t\t\t   error) — the CSS animation here fires immediately on mount\n\t\t\t\t   because the bar is rendered together with the toast root. */\n\t\t\t\t.toast-timer-bar {\n\t\t\t\t\theight: 3px;\n\t\t\t\t\tborder-radius: 999px;\n\t\t\t\t\tbackground: oklch(0.872 0.01 258.338 / 0.3);\n\t\t\t\t\tanimation: toast-shrink 3s linear forwards;\n\t\t\t\t}\n\t\t\t\t.toast-msg:has(.alert-error) .toast-timer-bar {\n\t\t\t\t\tanimation-duration: 8s;\n\t\t\t\t}\n\t\t\t\t@keyframes toast-shrink {\n\t\t\t\t\tfrom { width: 100%; }\n\t\t\t\t\tto { width: 0%; }\n\t\t\t\t}\n\t\t\t</style></head><body class=\"bg-base-200 min-h-screen\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = auth.Navbar(userEmail).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

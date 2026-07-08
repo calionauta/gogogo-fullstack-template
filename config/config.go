@@ -5,7 +5,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/calionauta/cali-go-stack/internal/secrets"
+	"github.com/calionauta/gogogo-template/internal/secrets"
 )
 
 type Config struct {
@@ -114,7 +114,7 @@ func getEnv(key, fallback string) string {
 func defaultAppName() string {
 	exe, err := os.Executable()
 	if err != nil || exe == "" {
-		return "cali-go-stack"
+		return "gogogo-template"
 	}
 	base := exe
 	for i := len(exe) - 1; i >= 0; i-- {
@@ -124,7 +124,7 @@ func defaultAppName() string {
 		}
 	}
 	if base == "" {
-		return "cali-go-stack"
+		return "gogogo-template"
 	}
 	return base
 }

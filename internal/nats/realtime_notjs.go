@@ -10,7 +10,7 @@ package nats
 import (
 	"context"
 
-	"github.com/calionauta/cali-go-stack/internal/queue"
+	"github.com/calionauta/gogogo-template/internal/queue"
 )
 
 // TodoBroadcaster publishes todo mutations so every connected client

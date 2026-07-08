@@ -1,25 +1,30 @@
 package components
 
-import "github.com/calionauta/cali-go-stack/features/todo"
+import (
+	"github.com/calionauta/gogogo-template/features/auth"
+	"github.com/calionauta/gogogo-template/features/todo"
+)
 
 // Layout wraps the todo app in a full HTML document with:
-//   - DaisyUI + TailwindCSS classes (assumes the CDN/embedded CSS is loaded
-//     by the consuming page)
+//   - DaisyUI + TailwindCSS classes (vendored CSS — no CDN at runtime)
 //   - Datastar JS loaded from the embedded copy under /static/datastar.js
+//   - Sticky navbar with user menu (skipped on /login, which is standalone)
 //   - #toast-container for stacked toasts (bottom-right, column-reverse)
 //   - <style> block for the toast animations + progress bar
 //
-// Pages call Layout(title, signals) and embed their content as children.
-templ Layout(title string, signals todo.Signals) {
+// Pages call Layout(title, signals, userEmail) and embed their content as
+// children. userEmail is the empty string for guests; the navbar shows a
+// "Sign in" CTA instead.
+templ Layout(title string, signals todo.Signals, userEmail string) {
 	<!DOCTYPE html>
 	<html lang="en" data-theme="light">
 		<head>
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
 			<title>{ title }</title>
-			<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daisyui@5.6.13/dist/full.min.css"/>
-			<script src="https://cdn.tailwindcss.com"></script>
-			<script type="module" src="/static/datastar.js"></script>
+			<link rel="stylesheet" href="/static/daisyui.min.css"/>
+			<link rel="stylesheet" href="/static/app.css"/>
+			<script defer type="module" src="/static/datastar.js"></script>
 			<style>
 				/* Stacking container: fixed bottom-right, toasts stack upward. */
 				#toast-container {
@@ -65,6 +70,7 @@ templ Layout(title string, signals todo.Signals) {
 			</style>
 		</head>
 		<body class="bg-base-200 min-h-screen">
+			@auth.Navbar(userEmail)
 			@TodoList(signals)
 			<div id="toast-container"></div>
 		</body>

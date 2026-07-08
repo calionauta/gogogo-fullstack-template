@@ -7,6 +7,15 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 )
 
+// Demo credentials seeded on first run. The owner of a deployed
+// gogogo-template MUST override these or disable the seed before
+// exposing the app to the internet. Left as exported vars so a
+// downstream project can swap them from cmd/web/main.go.
+var (
+	DemoUserEmail    = "demo@demo.app"
+	DemoUserPassword = "demo1234456"
+)
+
 // SeedDefaults creates default collections and data on first run.
 //
 // Collections are NOT auto-created by PocketBase on first access — that comment
@@ -17,6 +26,9 @@ func SeedDefaults(app *pocketbase.PocketBase) error {
 	app.OnServe().BindFunc(func(se *core.ServeEvent) error {
 		if err := ensureTodosCollection(se.App); err != nil {
 			slog.Error("seed: ensureTodosCollection failed", "error", err)
+		}
+		if err := ensureDemoUser(se.App); err != nil {
+			slog.Error("seed: ensureDemoUser failed", "error", err)
 		}
 		return se.Next()
 	})
@@ -43,5 +55,35 @@ func ensureTodosCollection(app core.App) error {
 		return err
 	}
 	slog.Info("seed: created todos collection")
+	return nil
+}
+
+// ensureDemoUser upserts the demo user into PocketBase's built-in
+// `users` collection (the auth collection). Uses email lookup +
+// password re-set so the seed is idempotent across restarts and so
+// the demo password is always current.
+func ensureDemoUser(app core.App) error {
+	col, err := app.FindCollectionByNameOrId("users")
+	if err != nil {
+		// First run, users collection might not exist yet.
+		return nil
+	}
+	if existing, err := app.FindAuthRecordByEmail(col.Name, DemoUserEmail); err == nil && existing != nil {
+		// Refresh the password so a cloned template always uses
+		// the documented demo password even if someone reset it
+		// through the admin UI.
+		existing.SetPassword(DemoUserPassword)
+		if saveErr := app.Save(existing); saveErr != nil {
+			return saveErr
+		}
+		return nil
+	}
+	record := core.NewRecord(col)
+	record.SetEmail(DemoUserEmail)
+	record.SetPassword(DemoUserPassword)
+	if saveErr := app.Save(record); saveErr != nil {
+		return saveErr
+	}
+	slog.Info("seed: created demo user", "email", DemoUserEmail)
 	return nil
 }

@@ -6,10 +6,11 @@ import (
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/core"
 
-	"github.com/calionauta/cali-go-stack/config"
-	"github.com/calionauta/cali-go-stack/features/todo/handlers"
-	"github.com/calionauta/cali-go-stack/internal/queue"
-	"github.com/calionauta/cali-go-stack/web/resources"
+	"github.com/calionauta/gogogo-template/config"
+	"github.com/calionauta/gogogo-template/features/auth"
+	"github.com/calionauta/gogogo-template/features/todo/handlers"
+	"github.com/calionauta/gogogo-template/internal/queue"
+	"github.com/calionauta/gogogo-template/web/resources"
 )
 
 // WorkflowRuntime is a marker for the Turbine runtime. The router only
@@ -44,6 +45,12 @@ func Init(
 			fs.ServeHTTP(c.Response, c.Request)
 			return nil
 		})
+
+		// Auth: login/logout/cookie middleware. Wires the demo login
+		// page and ensures every request has e.Auth populated from the
+		// pb_auth cookie before reaching feature handlers.
+		auth.CookieSecure = !cfg.Dev && cfg.Host != "127.0.0.1"
+		auth.RegisterAuth(app)
 
 		// Register example feature: Todo MVC. Use the same handler
 		// instance the caller registered for background jobs so route

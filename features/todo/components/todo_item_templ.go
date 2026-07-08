@@ -12,7 +12,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/calionauta/cali-go-stack/features/todo"
+	"github.com/calionauta/gogogo-template/features/todo"
 )
 
 func TodoItem(item todo.Todo) templ.Component {

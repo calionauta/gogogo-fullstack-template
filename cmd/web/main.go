@@ -13,12 +13,12 @@ import (
 	"log"
 	"os"
 
-	"github.com/calionauta/cali-go-stack/config"
-	"github.com/calionauta/cali-go-stack/db"
-	"github.com/calionauta/cali-go-stack/features/todo/handlers"
-	"github.com/calionauta/cali-go-stack/internal/llm"
-	"github.com/calionauta/cali-go-stack/internal/queue"
-	"github.com/calionauta/cali-go-stack/router"
+	"github.com/calionauta/gogogo-template/config"
+	"github.com/calionauta/gogogo-template/db"
+	"github.com/calionauta/gogogo-template/features/todo/handlers"
+	"github.com/calionauta/gogogo-template/internal/llm"
+	"github.com/calionauta/gogogo-template/internal/queue"
+	"github.com/calionauta/gogogo-template/router"
 )
 
 func main() {

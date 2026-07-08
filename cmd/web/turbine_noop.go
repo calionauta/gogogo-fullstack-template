@@ -2,7 +2,7 @@
 
 package main
 
-import "github.com/calionauta/cali-go-stack/config"
+import "github.com/calionauta/gogogo-template/config"
 
 func startTurbine(cfg *config.Config) {
 	// Turbine not available without -tags turbine

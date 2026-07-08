@@ -1,9 +1,9 @@
-# cali-go-stack
+# gogogo-template
 
 ## Project Overview
 
 Go web application template with Datastar + Templ + PocketBase + goqite + Turbine + NATS JetStream.
-Module: `github.com/calionauta/cali-go-stack`
+Module: `github.com/calionauta/gogogo-template`
 
 ## Stack
 

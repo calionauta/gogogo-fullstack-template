@@ -3,7 +3,7 @@ package nats
 import (
 	"context"
 
-	"github.com/calionauta/cali-go-stack/internal/queue"
+	"github.com/calionauta/gogogo-template/internal/queue"
 )
 
 // InMemoryBroadcaster fans out todo updates via the SSE Hub's Broadcast

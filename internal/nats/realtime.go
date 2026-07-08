@@ -16,7 +16,7 @@ import (
 
 	natsio "github.com/nats-io/nats.go"
 
-	"github.com/calionauta/cali-go-stack/internal/queue"
+	"github.com/calionauta/gogogo-template/internal/queue"
 )
 
 // TodoBroadcaster publishes todo mutations so every connected client
@@ -86,7 +86,7 @@ func (b *JetStreamBroadcaster) Subscribe(hub *queue.SSEHub) {
 	sub, err := b.js.Subscribe(todoSubject, func(msg *natsio.Msg) {
 		hub.Broadcast(msg.Data)
 		_ = msg.Ack()
-	}, natsio.Durable("cali-go-stack-todos"), natsio.ManualAck())
+	}, natsio.Durable("gogogo-template-todos"), natsio.ManualAck())
 	if err != nil {
 		slog.Error("realtime: subscribe failed", "error", err)
 		return

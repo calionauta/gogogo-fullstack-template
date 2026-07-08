@@ -11,16 +11,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net/http"
 
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/router"
 
-	"github.com/calionauta/cali-go-stack/config"
-	"github.com/calionauta/cali-go-stack/features/todo"
-	"github.com/calionauta/cali-go-stack/internal/llm"
-	"github.com/calionauta/cali-go-stack/internal/nats"
-	"github.com/calionauta/cali-go-stack/internal/queue"
+	"github.com/calionauta/gogogo-template/config"
+	"github.com/calionauta/gogogo-template/features/todo"
+	"github.com/calionauta/gogogo-template/features/todo/components"
+	"github.com/calionauta/gogogo-template/internal/llm"
+	"github.com/calionauta/gogogo-template/internal/nats"
+	"github.com/calionauta/gogogo-template/internal/queue"
 )
 
 // HTTP status codes used by the handlers. Centralized so the lint
@@ -102,6 +104,7 @@ func (h *TodoHandler) broadcastTodo(c *core.RequestEvent, event string, item tod
 
 // RegisterRoutes wires the HTTP routes on a PocketBase serve event.
 func (h *TodoHandler) RegisterRoutes(se *core.ServeEvent) {
+	se.Router.GET("/", h.handleIndex)
 	se.Router.GET("/api/todos", h.handleList)
 	se.Router.POST("/api/todos", h.handleCreate)
 	se.Router.POST("/api/todos/{id}/toggle", h.handleToggle)
@@ -116,10 +119,35 @@ func (h *TodoHandler) RegisterRoutes(se *core.ServeEvent) {
 	}
 }
 
+// handleIndex serves the demo Todo page. Wraps the TodoList signal
+// patch in the auth.Navbar + Layout. Requires login: guests are
+// bounced to /login by the RequireAuthOrRedirect middleware applied
+// in router.Init.
+func (h *TodoHandler) handleIndex(c *core.RequestEvent) error {
+	if c.Auth == nil {
+		return c.Redirect(http.StatusSeeOther, "/login")
+	}
+	userEmail := ""
+	if c.Auth != nil {
+		userEmail = c.Auth.Email()
+	}
+	signals := todo.Signals{
+		Filter:       "all",
+		ItemCount:    0,
+		AdminEnabled: h.cfg.AdminToken != "",
+		LLMEnabled:   h.llmEnabled(),
+		Suggestions:  []string{},
+		SuggestErr:   "",
+	}
+	c.Response.Header().Set("Content-Type", "text/html; charset=utf-8")
+	return components.Layout("Todos \u2014 gogogo-template", signals, userEmail).Render(c.Request.Context(), c.Response)
+}
+
 // RegisterRoutesOn registers the same routes on a raw router for tests
 // that want to drive the handlers via httptest.NewServer without going
 // through PocketBase's serve command.
 func (h *TodoHandler) RegisterRoutesOn(r *router.Router[*core.RequestEvent]) {
+	r.GET("/", h.handleIndex)
 	r.GET("/api/todos", h.handleList)
 	r.POST("/api/todos", h.handleCreate)
 	r.POST("/api/todos/{id}/toggle", h.handleToggle)

@@ -97,4 +97,4 @@ formatters:
     gofumpt:
       lang-version: "1.26"
     goimports:
-      local-prefixes: github.com/calionauta/cali-go-stack
+      local-prefixes: github.com/calionauta/gogogo-template

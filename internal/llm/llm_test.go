@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/calionauta/cali-go-stack/internal/queue"
+	"github.com/calionauta/gogogo-template/internal/queue"
 )
 
 func TestNew_DefaultsToOpenAI(t *testing.T) {

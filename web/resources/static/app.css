@@ -1,0 +1,78 @@
+/* app.css — small CSS utility layer for classes the project uses
+   that aren't part of DaisyUI 4's standalone stylesheet. Vendored
+   intentionally rather than fetched at runtime: the distroless image
+   can't reach a CDN at boot, and "single binary" is a hard promise.
+
+   If you change the design, add a rule here (the rule of small
+   surface). If the rule set grows past ~2KB, switch the project to a
+   proper Tailwind build with `tailwindcss` and `daisyui` as plugins.
+*/
+
+.flex { display: flex; }
+.flex-1 { flex: 1 1 0%; }
+.grid { display: grid; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.gap-2 { gap: 0.5rem; }
+.gap-3 { gap: 0.75rem; }
+.h-12 { height: 3rem; }
+.h-4  { height: 1rem; }
+.h-5  { height: 1.25rem; }
+.h-7  { height: 1.75rem; }
+.w-12 { width: 3rem; }
+.w-4  { width: 1rem; }
+.w-5  { width: 1.25rem; }
+.w-7  { width: 1.75rem; }
+.w-full { width: 100%; }
+.min-h-screen { min-height: 100vh; }
+.max-w-2xl { max-width: 42rem; }
+
+.mb-2 { margin-bottom: 0.5rem; }
+.mb-3 { margin-bottom: 0.75rem; }
+.mb-4 { margin-bottom: 1rem; }
+.mb-6 { margin-bottom: 1.5rem; }
+.ml-2 { margin-left: 0.5rem; }
+.mt-2 { margin-top: 0.5rem; }
+.mt-4 { margin-top: 1rem; }
+.mt-8 { margin-top: 2rem; }
+
+.p-3   { padding: 0.75rem; }
+.px-4  { padding-left: 1rem; padding-right: 1rem; }
+.py-8  { padding-top: 2rem; padding-bottom: 2rem; }
+.pt-4  { padding-top: 1rem; }
+
+.text-xs   { font-size: 0.75rem; line-height: 1rem; }
+.text-sm   { font-size: 0.875rem; line-height: 1.25rem; }
+.text-2xl  { font-size: 1.5rem; line-height: 2rem; }
+.font-normal { font-weight: 400; }
+.font-bold   { font-weight: 700; }
+
+.border-b { border-bottom-width: 1px; border-bottom-style: solid; border-bottom-color: currentColor; }
+.border-t { border-top-width:    1px; border-top-style:    solid; border-top-color:    currentColor; }
+.border-base-200 { border-color: oklch(var(--b2)); }
+.border-base-300 { border-color: oklch(var(--b3)); }
+.divide-y > * + * { border-top-width: 1px; border-top-style: solid; border-top-color: oklch(var(--b2)); }
+.divide-base-200 > * + * { border-top-color: oklch(var(--b2)); }
+
+.bg-white { background-color: #fff; }
+.bg-base-100 { background-color: oklch(var(--b1)); }
+.bg-base-200 { background-color: oklch(var(--b2)); }
+
+.text-base-content\/50 { color: oklch(var(--bc) / 0.5); }
+.text-base-content\/60 { color: oklch(var(--bc) / 0.6); }
+.text-base-content\/40 { color: oklch(var(--bc) / 0.4); }
+
+.hover\:bg-base-200:hover { background-color: oklch(var(--b2)); }
+.hover\:text-base-content\/60:hover { color: oklch(var(--bc) / 0.6); }
+.transition-colors { transition-property: color, background-color, border-color, text-decoration-color, fill, stroke; transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1); transition-duration: 150ms; }
+.shadow-xl { box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1); }
+.rounded-lg { border-radius: 0.5rem; }
+.opacity-30 { opacity: 0.3; }
+
+/* Position utilities used by the toasts container. */
+.absolute { position: absolute; }
+.relative { position: relative; }
+.fixed { position: fixed; }
+.bottom-4 { bottom: 1rem; }
+.right-4 { right: 1rem; }
+.mx-auto { margin-left: auto; margin-right: auto; }

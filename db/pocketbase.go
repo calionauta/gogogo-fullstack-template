@@ -5,7 +5,7 @@ import (
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/core"
 
-	"github.com/calionauta/cali-go-stack/config"
+	"github.com/calionauta/gogogo-template/config"
 
 	_ "github.com/ncruces/go-sqlite3/driver"
 )

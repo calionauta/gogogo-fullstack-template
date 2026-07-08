@@ -3,8 +3,8 @@
 package router
 
 import (
-	"github.com/calionauta/cali-go-stack/internal/nats"
-	"github.com/calionauta/cali-go-stack/internal/queue"
+	"github.com/calionauta/gogogo-template/internal/nats"
+	"github.com/calionauta/gogogo-template/internal/queue"
 )
 
 // newTodoBroadcaster builds the JetStream-backed broadcaster from the

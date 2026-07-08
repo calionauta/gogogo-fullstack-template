@@ -1,4 +1,4 @@
-# .air.toml — Live reload for cali-go-stack.
+# .air.toml — Live reload for gogogo-template.
 #
 # On every save, Air runs the `build` cycle. pre_cmd runs before the Go
 # build (Templ codegen + Datastar linter). post_cmd runs AFTER a successful

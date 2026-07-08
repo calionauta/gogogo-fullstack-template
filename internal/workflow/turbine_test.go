@@ -159,7 +159,7 @@ func TestWelcomeOnboarding_CreatesThreeDurableTodos(t *testing.T) {
 	}
 	got := stub.Titles()
 	want := []string{
-		"Read the cali-go-stack README",
+		"Read the gogogo-template README",
 		"Explore the Turbine workflow",
 		"Build something with the stack",
 	}

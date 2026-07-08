@@ -1,7 +1,7 @@
 name: Deploy
 on:
   push:
-    branches: [main]
+    branches: [master]
   workflow_dispatch:
 permissions:
   packages: write
@@ -22,7 +22,7 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
       - uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/calionauta/cali-go-stack
+          images: ghcr.io/calionauta/gogogo-template
           tags: |
             type=ref,event=branch
             type=sha

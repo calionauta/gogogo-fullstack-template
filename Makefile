@@ -1,4 +1,4 @@
-APP_NAME    := cali-go-stack
+APP_NAME    := gogogo-template
 APP_DIR     := cmd/web
 PORT        ?= 8080
 VERSION     := $(shell git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo "dev")
@@ -52,7 +52,7 @@ test-turbine:
 fmt:
 	@echo "→ Checking formatting (gofumpt + goimports)..."
 	@test -z "$$(gofumpt -l .)" || (echo "  ❌ gofumpt issues:"; gofumpt -l .; exit 1)
-	@test -z "$$(goimports -l -local github.com/calionauta/cali-go-stack $$(find . -name '*.go' ! -name '*_templ.go'))" || (echo "  ❌ goimports issues"; goimports -l -local github.com/calionauta/cali-go-stack $$(find . -name '*.go' ! -name '*_templ.go'); exit 1)
+	@test -z "$$(goimports -l -local github.com/calionauta/gogogo-template $$(find . -name '*.go' ! -name '*_templ.go'))" || (echo "  ❌ goimports issues"; goimports -l -local github.com/calionauta/gogogo-template $$(find . -name '*.go' ! -name '*_templ.go'); exit 1)
 	@echo "  ✅ formatting clean"
 
 # datastar-lint checks .templ files for Datastar anti-patterns.

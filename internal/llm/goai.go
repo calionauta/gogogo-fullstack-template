@@ -1,5 +1,5 @@
 // Package llm wires the GoAI SDK (github.com/zendev-sh/goai) into the
-// cali-go-stack template. The Client is configured via env so the
+// gogogo-template template. The Client is configured via env so the
 // same binary can talk to any OpenAI-compatible provider: Groq,
 // OpenRouter, Together, Cloudflare, Ollama (via OpenAI-compat shim),
 // or a self-hosted vLLM.
@@ -33,7 +33,7 @@ import (
 	"github.com/zendev-sh/goai/provider"
 	"github.com/zendev-sh/goai/provider/compat"
 
-	"github.com/calionauta/cali-go-stack/internal/queue"
+	"github.com/calionauta/gogogo-template/internal/queue"
 )
 
 // ErrNoAPIKey is returned by Chat/ChatStream when the client was built

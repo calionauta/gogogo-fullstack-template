@@ -1,4 +1,4 @@
-module github.com/calionauta/cali-go-stack
+module github.com/calionauta/gogogo-template
 
 go 1.26.1
 

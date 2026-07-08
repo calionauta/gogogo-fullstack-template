@@ -13,7 +13,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/calionauta/cali-go-stack/features/todo"
+	"github.com/calionauta/gogogo-template/features/todo"
 )
 
 func marshalSignals(s todo.Signals) string {

@@ -8,8 +8,8 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 	sdk "github.com/starfederation/datastar-go/datastar"
 
-	dshelpers "github.com/calionauta/cali-go-stack/internal/datastar"
-	"github.com/calionauta/cali-go-stack/internal/llm"
+	dshelpers "github.com/calionauta/gogogo-template/internal/datastar"
+	"github.com/calionauta/gogogo-template/internal/llm"
 )
 
 // handleSuggest is the "AI suggest next todo" endpoint. Reads the

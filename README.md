@@ -1,4 +1,4 @@
-# cali-go-stack
+# gogogo-template
 
 A starting point for web projects in Go. Single binary, zero external services, LLM-friendly.
 
@@ -103,7 +103,7 @@ It's not a framework. There's no lock-in. Each piece can be replaced individuall
 Use this template (green **Use this template** button above) or clone it:
 
 ```bash
-git clone https://github.com/calionauta/cali-go-stack.git my-project
+git clone https://github.com/calionauta/gogogo-template.git my-project
 cd my-project
 make dev
 ```
