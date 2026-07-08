@@ -18,6 +18,7 @@ import (
 
 	"github.com/calionauta/cali-go-stack/config"
 	"github.com/calionauta/cali-go-stack/features/todo"
+	"github.com/calionauta/cali-go-stack/internal/llm"
 	"github.com/calionauta/cali-go-stack/internal/nats"
 	"github.com/calionauta/cali-go-stack/internal/queue"
 )
@@ -49,12 +50,25 @@ type TodoHandler struct {
 	q           *queue.Queue
 	cfg         *config.Config
 	broadcaster TodoBroadcaster
+	llm         *llm.Client
 }
 
 // New constructs a TodoHandler. Used by both production wiring (router.Init)
 // and integration tests (testFixture).
 func New(app *pocketbase.PocketBase, q *queue.Queue, cfg *config.Config) *TodoHandler {
 	return &TodoHandler{app: app, q: q, cfg: cfg}
+}
+
+// SetLLMClient wires the LLM client used by the AI suggest handler.
+// Pass nil to disable AI features (the suggest route won't be
+// registered in that case).
+func (h *TodoHandler) SetLLMClient(c *llm.Client) { h.llm = c }
+
+// llmEnabled reports whether the AI suggest pathway is live. Used
+// by handlers that build Signals so the UI hides the Suggest button
+// when the LLM isn't configured.
+func (h *TodoHandler) llmEnabled() bool {
+	return h.llm != nil && h.llm.Configured()
 }
 
 // SetBroadcaster wires the realtime layer. Pass nil (the default) to
@@ -94,6 +108,12 @@ func (h *TodoHandler) RegisterRoutes(se *core.ServeEvent) {
 	se.Router.POST("/api/todos/completed/delete", h.handleClearCompleted)
 	se.Router.POST("/api/todos/{id}/delete", h.handleDelete)
 	se.Router.GET("/api/todos/stream", h.handleSSEStream)
+	if h.cfg.AdminToken != "" {
+		se.Router.POST("/api/admin/unlock", h.handleAdminUnlock)
+	}
+	if h.llm != nil && h.llm.Configured() {
+		se.Router.POST("/api/todos/suggest", h.handleSuggest)
+	}
 }
 
 // RegisterRoutesOn registers the same routes on a raw router for tests
@@ -106,6 +126,12 @@ func (h *TodoHandler) RegisterRoutesOn(r *router.Router[*core.RequestEvent]) {
 	r.POST("/api/todos/completed/delete", h.handleClearCompleted)
 	r.POST("/api/todos/{id}/delete", h.handleDelete)
 	r.GET("/api/todos/stream", h.handleSSEStream)
+	if h.cfg.AdminToken != "" {
+		r.POST("/api/admin/unlock", h.handleAdminUnlock)
+	}
+	if h.llm != nil && h.llm.Configured() {
+		r.POST("/api/todos/suggest", h.handleSuggest)
+	}
 }
 
 // RegisterHandlers wires the todo handler's background jobs into the

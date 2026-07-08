@@ -59,9 +59,35 @@ The template ships with a working Todo App:
 - Async jobs: `handleCreate` enqueues a `todo_created` job; a worker picks it up and streams a success toast to the right browser tab via the SSE Hub (`clientID` routing)
 - Retries with exponential backoff and jitter (`internal/queue/retry.go`, retry-go v4) — SSE-aware: a retry emits a `lastRetry` signal so the UI can show "retrying…"
 - `WelcomeOnboarding` Turbine workflow (with `-tags turbine`) that creates 3 example todos via durable steps — kill the server mid-run, restart, watch it resume at the last incomplete step
+- **Admin unlock** via `age` + `~/.secrets/`. The Todo example wires a master-password path: when `ADMIN_UNLOCK_TOKEN` is set (in the age-encrypted secrets file), the UI shows a "Clear all" form; the handler compares constant-time and clears all todos on match. Demonstrates the age flow end-to-end.
+- **AI suggest** via GoAI. When `GOAI_API_KEY` is set, the input gets a "Suggest" button that asks the LLM for 3 completions of the partial title. Provider is configurable (Groq, OpenRouter, Together, Cloudflare, OpenAI). Retries with exponential backoff; same `internal/queue/retry.go` used by the SSE toast path.
 - Tests run with `-race`
 
 Enough to understand the pattern and start your own feature module.
+
+## Free LLM providers (OpenAI-compatible, no card required)
+
+The GoAI client uses the `compat` provider, so any OpenAI-compatible endpoint works. Set `GOAI_BASE_URL` + `GOAI_API_KEY` + `GOAI_MODEL` in your environment or secrets file.
+
+| Provider | Free tier | How to get a key |
+|----------|-----------|------------------|
+| **[Groq](https://console.groq.com)** | Generous free tier, very fast inference. Recommended default. | Sign up → API Keys → copy |
+| **[OpenRouter](https://openrouter.ai)** | Several free models (smaller). | Keys page |
+| **[Together AI](https://api.together.xyz)** | $5 free credit, no card. | API Keys |
+| **[Cloudflare Workers AI](https://developers.cloudflare.com/workers-ai/)** | 10k neurons/day free. | Account → Workers AI |
+| **OpenAI** (default) | Pay-as-you-go. | platform.openai.com |
+
+Example: switch to Groq in your env:
+
+```bash
+GOAI_BASE_URL=https://api.groq.com/openai/v1
+GOAI_MODEL=llama-3.3-70b-versatile
+GOAI_API_KEY=gsk_...
+```
+
+If `GOAI_API_KEY` is empty, the AI suggest route is **not registered** and the UI button is hidden. The Todo example keeps working — AI is opt-in, not required.
+
+**Note on truly keyless services:** [mlvoca.com](https://mlvoca.github.io/free-llm-api/) offers a free, keyless LLM API, but it exposes the **Ollama** API shape (`POST /api/generate`), not OpenAI Chat Completions. GoAI's `compat` provider speaks OpenAI; a thin Ollama-shim would be needed to use mlvoca. The mlvoca terms also forbid commercial use, so it would not be a sensible default for a reusable template.
 
 ## Who this template is for
 

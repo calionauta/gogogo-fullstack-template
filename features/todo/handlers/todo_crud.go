@@ -25,6 +25,8 @@ func (h *TodoHandler) handleList(c *core.RequestEvent) error {
 	sse := sdk.NewSSE(c.Response, c.Request)
 	return dshelpers.MergeSignals(sse, todo.Signals{
 		Todos: todos, Filter: filter, ItemCount: len(todos),
+		AdminEnabled: h.cfg.AdminToken != "",
+		LLMEnabled:   h.llmEnabled(),
 	})
 }
 

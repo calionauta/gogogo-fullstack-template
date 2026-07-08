@@ -16,6 +16,7 @@ import (
 	"github.com/calionauta/cali-go-stack/config"
 	"github.com/calionauta/cali-go-stack/db"
 	"github.com/calionauta/cali-go-stack/features/todo/handlers"
+	"github.com/calionauta/cali-go-stack/internal/llm"
 	"github.com/calionauta/cali-go-stack/internal/queue"
 	"github.com/calionauta/cali-go-stack/router"
 )
@@ -46,6 +47,7 @@ func run() error {
 
 	todoH := handlers.New(pb, q, cfg)
 	todoH.RegisterHandlers(q.Registry())
+	todoH.SetLLMClient(llm.New(cfg.GoAI.APIKey))
 
 	workers := q.StartWorkers()
 	_ = workers // held for parity with turbine runtime var; unused at call site

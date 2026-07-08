@@ -9,6 +9,11 @@ import (
 )
 
 type Config struct {
+	// AppName is used as the scope for the secrets file
+	// (~/.secrets/<AppName>.env.age) and the project name in logs.
+	// Derived from APP_NAME env or the binary name; never empty.
+	AppName string
+
 	Host     string
 	Port     int
 	LogLevel string
@@ -17,6 +22,13 @@ type Config struct {
 	DBPath        string
 	DataDir       string
 	EncryptionKey string
+
+	// AdminToken, when non-empty, unlocks the admin endpoints (e.g. the
+	// Todo "clear all" via token). Loaded from the age-decrypted
+	// secrets file, NOT from the host environment directly. This is the
+	// canonical example of "use a real secret in the demo app" — see
+	// README's "Admin unlock" section.
+	AdminToken string
 
 	NATS struct {
 		Enabled  bool
@@ -34,8 +46,18 @@ type Config struct {
 	}
 }
 
+// Load builds the Config. Order matters: secrets must be decrypted
+// BEFORE reading the rest of the env so admin/LLM/NATS values can
+// come from the encrypted file.
 func Load() *Config {
-	secrets.Load()
+	appName := os.Getenv("APP_NAME")
+	if appName == "" {
+		appName = defaultAppName()
+	}
+
+	// Decrypt ~/.secrets/<appName>.env.age into the process env. Silent
+	// skip when AGE_SECRET_KEY or the secrets file is missing.
+	secrets.Load(appName)
 
 	dev := os.Getenv("ENVIRONMENT") != "production"
 
@@ -50,6 +72,7 @@ func Load() *Config {
 	}
 
 	cfg := &Config{
+		AppName:       appName,
 		Host:          getEnv("HOST", "0.0.0.0"),
 		Port:          port,
 		LogLevel:      getEnv("LOG_LEVEL", "INFO"),
@@ -57,6 +80,7 @@ func Load() *Config {
 		DBPath:        getEnv("DATABASE_PATH", "data/app.db"),
 		DataDir:       getEnv("DATA_DIR", "data"),
 		EncryptionKey: os.Getenv("ENCRYPTION_KEY"),
+		AdminToken:    os.Getenv("ADMIN_UNLOCK_TOKEN"),
 		GoAI: struct{ APIKey string }{
 			APIKey: os.Getenv("GOAI_API_KEY"),
 		},
@@ -81,4 +105,26 @@ func getEnv(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+// defaultAppName falls back to the binary name when APP_NAME is unset
+// so the secrets file scope tracks whatever the project owner actually
+// compiled. Uses os.Args[0] (binary path) trimmed to base name; if that
+// fails (e.g. tests), it returns a hard-coded stable name.
+func defaultAppName() string {
+	exe, err := os.Executable()
+	if err != nil || exe == "" {
+		return "cali-go-stack"
+	}
+	base := exe
+	for i := len(exe) - 1; i >= 0; i-- {
+		if exe[i] == '/' {
+			base = exe[i+1:]
+			break
+		}
+	}
+	if base == "" {
+		return "cali-go-stack"
+	}
+	return base
 }
