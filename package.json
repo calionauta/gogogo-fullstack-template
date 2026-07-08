@@ -4,10 +4,10 @@
   "private": true,
   "description": "Tailwind v4 + DaisyUI v5 CSS build for gogogo-template. The output (web/resources/static/app.min.css) is embedded into the Go binary via //go:embed; there is no runtime CSS build step. This runs once at Docker image build time (and on demand via `make css`).",
   "devDependencies": {
-    "@tailwindcss/cli": "4.1.13",
+    "@tailwindcss/cli": "^4.3.2",
     "@tailwindcss/oxide": "^4.3.2",
-    "daisyui": "5.6.15",
-    "tailwindcss": "4.1.13"
+    "daisyui": "^5.6.15",
+    "tailwindcss": "^4.3.2"
   },
   "scripts": {
     "build": "tailwindcss -i ./src/css/input.css -o ./web/resources/static/app.min.css"
