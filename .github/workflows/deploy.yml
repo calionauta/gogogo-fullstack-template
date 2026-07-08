@@ -224,7 +224,9 @@ jobs:
           ssh $DEPLOY_HOST "set -euo pipefail
             APP_NAME=\"gogogo-template\"
             APP_DIR=\"/home/deploy/\${APP_NAME}\"
-            mkdir -p \"\${APP_DIR}/{bin,compose,env,scripts,secrets,data/pb_data}\"
+            for d in bin compose env scripts secrets data/pb_data; do
+             mkdir -p \"\${APP_DIR}/\${d}\"
+           done
 
             if [ ! -d \"/home/deploy/gogogo-template/repo\" ]; then
               git clone \"https://github.com/${{ github.repository }}.git\" \"/home/deploy/gogogo-template/repo\"
