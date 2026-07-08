@@ -97,10 +97,14 @@ if sudo -n true 2>/dev/null; then
     sudo -n chown -R 65532:65532 "${DATA_DIR}" 2>/dev/null || true
 fi
 if command -v setfacl >/dev/null 2>&1; then
-    setfacl -R -m u:65532:rwx -d -m u:65532:rwx "${DATA_DIR}" 2>/dev/null \
-        || chmod -R 0777 "${DATA_DIR}"
+    # Recurse so existing deploy-owned subdirs (e.g. data/pb_data) get
+    # the ACL + default ACL (new files inherit 65532 rwx). Errors on
+    # container-owned .db files are expected (deploy can't chown/chmod
+    # them) and harmless — those files are already owned by 65532 and
+    # therefore writable by the container. Never abort on them.
+    setfacl -R -m u:65532:rwx -d -m u:65532:rwx "${DATA_DIR}" 2>/dev/null || true
 else
-    chmod -R 0777 "${DATA_DIR}"
+    chmod -R 0777 "${DATA_DIR}" 2>/dev/null || true
 fi
 echo "→ Data dir ready: ${DATA_DIR} (container uid 65532 gets rwx via ACL or 0777)"
 
