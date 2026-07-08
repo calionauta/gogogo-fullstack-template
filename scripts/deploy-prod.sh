@@ -73,14 +73,14 @@ mkdir -p "${DATA_DIR}/pb_data"
 chmod 0750 "${DATA_DIR}"
 
 # ── 5. Roll the container ──
-cd "${COMPOSE_DIR}"
-echo "→ docker compose build + up -d"
-# The image is built locally (no registry push). Build it, then
-# start. If the build context (..) isn't present on the server, the
-# GH Action scp's the Dockerfile + binary; for manual deploys the
-# operator runs this from a checkout.
-docker compose -f "${COMPOSE_FILE}" build "${PROJECT}"
-docker compose -f "${COMPOSE_FILE}" up -d "${PROJECT}"
+# Build context is the repo checkout (cloned/updated by the GH
+# Action into ${APP_DIR}/repo). The compose file lives at
+# deploy/docker-compose.prod.yml relative to the repo root.
+REPO_DIR="${APP_DIR}/repo"
+cd "${REPO_DIR}"
+echo "→ docker compose build + up -d (context: ${REPO_DIR})"
+docker compose -f deploy/docker-compose.prod.yml build "${PROJECT}"
+docker compose -f deploy/docker-compose.prod.yml up -d "${PROJECT}"
 
 # ── 6. Wait for healthy + report ──
 echo "→ Waiting for /health (max 30s)..."

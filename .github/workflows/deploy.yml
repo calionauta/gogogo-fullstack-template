@@ -159,7 +159,7 @@ jobs:
           script: |
             set -euo pipefail
             APP_NAME="gogogo-template"
-            SECRETS_DIR="/opt/${APP_NAME}/secrets"
+            SECRETS_DIR="/home/deploy/${APP_NAME}/secrets"
             mkdir -p "$SECRETS_DIR"
             umask 077
             # Atomic write: render to .tmp, then mv (so a crash mid-write
@@ -206,19 +206,19 @@ jobs:
           script: |
             set -euo pipefail
             APP_NAME="gogogo-template"
-            APP_DIR="/opt/${APP_NAME}"
+            APP_DIR="/home/deploy/${APP_NAME}"
             mkdir -p "${APP_DIR}"/{bin,compose,env,secrets,data/pb_data}
 
             # First-time setup: clone the repo (or pull if already cloned).
-            if [ ! -d "${APP_DIR}/repo" ]; then
-              git clone "https://github.com/${{ github.repository }}.git" "${APP_DIR}/repo"
+            if [ ! -d "/home/deploy/gogogo-template/repo" ]; then
+              git clone "https://github.com/${{ github.repository }}.git" "/home/deploy/gogogo-template/repo"
             else
-              git -C "${APP_DIR}/repo" pull --ff-only
+              git -C "/home/deploy/gogogo-template/repo" pull --ff-only
             fi
 
             # Sync the latest .env and deploy-prod.sh from the repo.
-            cp "${APP_DIR}/repo/.env" "${APP_DIR}/env/.env" 2>/dev/null || true
-            cp "${APP_DIR}/repo/scripts/deploy-prod.sh" "${APP_DIR}/scripts/deploy-prod.sh"
+            cp "/home/deploy/gogogo-template/repo/.env" "${APP_DIR}/env/.env" 2>/dev/null || true
+            cp "/home/deploy/gogogo-template/repo/scripts/deploy-prod.sh" "${APP_DIR}/scripts/deploy-prod.sh"
             chmod 0700 "${APP_DIR}/scripts/deploy-prod.sh"
 
             bash "${APP_DIR}/scripts/deploy-prod.sh"
