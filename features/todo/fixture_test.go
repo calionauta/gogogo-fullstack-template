@@ -12,6 +12,8 @@ import (
 	"github.com/pocketbase/pocketbase/tools/router"
 
 	"github.com/calionauta/gogogo-template/config"
+	"github.com/calionauta/gogogo-template/db"
+	"github.com/calionauta/gogogo-template/features/auth"
 	"github.com/calionauta/gogogo-template/features/todo/handlers"
 	"github.com/calionauta/gogogo-template/internal/queue"
 
@@ -68,8 +70,32 @@ func testFixture(t *testing.T) (string, *queue.Queue, *pocketbase.PocketBase, fu
 
 	workers := q.StartWorkers()
 
+	// Seed the demo user so auth login has a target. testFixture is
+	// shared by feature tests; existing todo tests don't exercise
+	// auth, so this is purely additive. We call both the OnServe
+	// binding (matches production wiring) AND run the demo-user
+	// seed inline — OnServe doesn't fire in tests, so the user
+	// would never be seeded.
+	if seedErr := db.SeedDefaults(app); seedErr != nil {
+		t.Fatalf("testFixture: SeedDefaults: %v", seedErr)
+	}
+	if err = seedDemoUserInline(app); err != nil {
+		t.Fatalf("testFixture: seedDemoUserInline: %v", err)
+	}
+
 	r := router.NewRouter[*core.RequestEvent](newRequestEventFactory(app))
+
+	// Bind the auth cookie middleware BEFORE routes so every route
+	// (todo + auth) populates c.Auth from the pb_auth cookie.
+	auth.CookieSecure = false
+	r.BindFunc(auth.LoadAuthFromCookie)
+
+	// Wire todo + auth routes onto the same router. Order matters:
+	// todo first, then auth /login + /logout.
 	h.RegisterRoutesOn(r)
+	r.GET("/login", auth.RedirectIfAuthed).BindFunc(auth.HandleLoginGetForTest)
+	r.POST("/login", auth.HandlePasswordLogin)
+	r.POST("/logout", auth.HandleLogout)
 
 	mux, err := r.BuildMux()
 	if err != nil {
@@ -165,4 +191,29 @@ func readBody(t *testing.T, resp *http.Response) string {
 		}
 	}
 	return string(buf)
+}
+
+// seedDemoUserInline runs the demo-user seed synchronously so tests
+// can log in immediately. In production the same seed runs via
+// db.SeedDefaults → OnServe.bindFunc → ensureDemoUser; the test
+// path bypasses OnServe because the test app's OnServe is never invoked,
+// so we call the seed function directly. Mirrors db.ensureDemoUser
+// (kept local to avoid an import cycle through db_test).
+func seedDemoUserInline(app core.App) error {
+	col, err := app.FindCollectionByNameOrId("users")
+	if err != nil {
+		return err
+	}
+	email := "demo@demo.app"
+	password := "demo1234456"
+
+	if existing, err := app.FindAuthRecordByEmail(col.Name, email); err == nil && existing != nil {
+		existing.SetPassword(password)
+		return app.Save(existing)
+	}
+
+	record := core.NewRecord(col)
+	record.SetEmail(email)
+	record.SetPassword(password)
+	return app.Save(record)
 }

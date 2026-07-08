@@ -54,6 +54,15 @@ func handleLoginGet(e *core.RequestEvent) error {
 	return renderLoginPageTo(e, errMsg)
 }
 
+// HandleLoginGetForTest is the exported alias used by features that
+// wire the login route outside the OnServe hook (e.g. integration
+// tests that drive routes via PocketBase's router instead of the
+// full server). Identical behaviour to handleLoginGet; exported so
+// external test packages can bind it.
+func HandleLoginGetForTest(e *core.RequestEvent) error {
+	return handleLoginGet(e)
+}
+
 // renderLoginPageTo writes the login form to the response. Used by
 // the package's HTTP handler so we don't need a separate
 // RequestEvent-bound render path inside the OnServe callback.
