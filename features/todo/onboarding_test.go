@@ -141,8 +141,10 @@ func TestOnboarding_StartCreatesThreeTodos(t *testing.T) {
 	}
 	deadline := time.Now().Add(20 * time.Second)
 	var titles []string
+	var recs []*core.Record
+	var ferr error
 	for time.Now().Before(deadline) {
-		recs, ferr := app.FindRecordsByFilter("todos", "", "", 0, 0)
+		recs, ferr = app.FindRecordsByFilter("todos", "", "", 0, 0)
 		if ferr == nil {
 			titles = titles[:0]
 			for _, r := range recs {
@@ -161,6 +163,15 @@ func TestOnboarding_StartCreatesThreeTodos(t *testing.T) {
 	for _, w := range want {
 		if !containsStrSlice(titles, w) {
 			t.Errorf("expected todo %q among created todos, got %v", w, titles)
+		}
+	}
+	// Regression guard: durable-workflow todos must be scoped to the
+	// demo user via the owner field, not orphaned. handleStart passes
+	// c.Auth.Id (or the "user" form value) and PocketBaseTodoCreator
+	// sets rec.owner, so every created row must carry that owner.
+	for _, r := range recs {
+		if got := r.GetString("owner"); got != "alice" {
+			t.Errorf("todo %q owner = %q, want alice", r.GetString(titleField), got)
 		}
 	}
 }

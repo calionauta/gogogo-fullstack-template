@@ -163,6 +163,9 @@ func createTodosCollection(app core.App) error {
 		&core.BoolField{Name: "completed"},
 		&core.DateField{Name: "created"},
 		&core.DateField{Name: "updated"},
+		// owner carries the demo user id so workflow-created todos are
+		// tenant-scoped (mirrors the production collection).
+		&core.TextField{Name: "owner"},
 	)
 	return app.Save(col)
 }
