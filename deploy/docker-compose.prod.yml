@@ -34,10 +34,11 @@ services:
       GOAI_BASE_URL: ${GOAI_BASE_URL:-https://api.openai.com/v1}
       GOAI_MODEL: ${GOAI_MODEL:-gpt-4o-mini}
       # Realtime + durable workflow — binary built with -tags "jetstream turbine".
+      # Turbine shares the main PocketBase DB (see Dockerfile.prod WORKDIR note),
+      # so it needs no separate data dir.
       NATS_ENABLED: "true"
       NATS_STORE_DIR: /var/lib/${APP_NAME:-gogogo-fullstack-template}/data/nats
       WORKFLOW_ENABLED: "true"
-      WORKFLOW_DATA_DIR: /var/lib/${APP_NAME:-gogogo-fullstack-template}/data/workflow
       WORKFLOW_EXECUTOR_ID: local
     env_file:
       - /home/deploy/gogogo-fullstack-template/secrets/gogogo-fullstack-template.env

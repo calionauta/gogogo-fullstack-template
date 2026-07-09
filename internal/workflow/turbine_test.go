@@ -12,6 +12,10 @@ import (
 	"time"
 
 	"github.com/YakirOren/turbine"
+	"github.com/pocketbase/dbx"
+	"github.com/pocketbase/pocketbase"
+
+	_ "github.com/ncruces/go-sqlite3/driver"
 )
 
 // stubCreator captures todo titles passed through the workflow so tests
@@ -40,20 +44,49 @@ func (s *stubCreator) Titles() []string {
 	return out
 }
 
+// newTestApp spins up a PocketBase app on a temp dir using the same
+// ncruces/go-sqlite3 driver as production, bootstraps it (opens the DB +
+// runs migrations), and returns it. Turbine's Setup shares this app's DB
+// connection, so workflow state lands in the same SQLite file.
+func newTestApp(t *testing.T, tmpDir string) *pocketbase.PocketBase {
+	t.Helper()
+	app := pocketbase.NewWithConfig(pocketbase.Config{
+		DefaultDataDir: tmpDir,
+		DBConnect: func(dbPath string) (*dbx.DB, error) {
+			pragmas := "?_pragma=busy_timeout(10000)" +
+				"&_pragma=journal_mode(WAL)" +
+				"&_pragma=foreign_keys(ON)" +
+				"&_pragma=synchronous(NORMAL)"
+			return dbx.Open("sqlite3", dbPath+pragmas)
+		},
+	})
+	if err := app.Bootstrap(); err != nil {
+		t.Fatalf("Bootstrap: %v", err)
+	}
+	return app
+}
+
 // TestNewRequiresEnabled confirms that constructing a runtime without
 // WORKFLOW_ENABLED fails fast rather than silently launching Turbine.
 // This guards the build-tag opt-in contract: a binary built with -tags
 // turbine must still require explicit configuration to spin up workflows.
 func TestNewRequiresEnabled(t *testing.T) {
-	_, err := New(Config{Enabled: false}, nil)
+	tmpDir, err := os.MkdirTemp("", "turbine-disabled-*")
+	if err != nil {
+		t.Fatalf("MkdirTemp: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	app := newTestApp(t, tmpDir)
+	_, err = New(app, Config{Enabled: false}, nil)
 	if err == nil {
 		t.Fatal("expected error when Config.Enabled is false, got nil")
 	}
 }
 
-// TestHelloWorkflowEndToEnd launches the Turbine runtime in a temp data
-// dir, registers the Hello workflow, runs it with a real input, and
-// asserts the result propagates through the durable-step machinery.
+// TestHelloWorkflowEndToEnd launches the Turbine runtime against a temp-dir
+// PocketBase app, registers the Hello workflow, runs it with a real input,
+// and asserts the result propagates through the durable-step machinery.
 //
 // This is the canonical E2E test for the workflow package — it mirrors
 // what a real binary built with `-tags turbine` would do on first boot.
@@ -66,15 +99,15 @@ func TestHelloWorkflowEndToEnd(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	rt, err := New(Config{
+	app := newTestApp(t, tmpDir)
+	rt, err := New(app, Config{
 		Enabled:    true,
-		DataDir:    tmpDir,
 		ExecutorID: "test",
 	}, nil)
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
-	if err := rt.Start(); err != nil {
+	if err = rt.Start(); err != nil {
 		t.Fatalf("Start: %v", err)
 	}
 	defer rt.Shutdown()
@@ -127,11 +160,12 @@ func TestWelcomeOnboarding_CreatesThreeDurableTodos(t *testing.T) {
 	RegisterTodoCreator(stub)
 	defer RegisterTodoCreator(nil)
 
-	rt, err := New(Config{Enabled: true, DataDir: tmpDir, ExecutorID: "test"}, nil)
+	app := newTestApp(t, tmpDir)
+	rt, err := New(app, Config{Enabled: true, ExecutorID: "test"}, nil)
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
-	if err := rt.Start(); err != nil {
+	if err = rt.Start(); err != nil {
 		t.Fatalf("Start: %v", err)
 	}
 	defer rt.Shutdown()
@@ -191,11 +225,12 @@ func TestWelcomeOnboarding_StepFailureBubblesUp(t *testing.T) {
 	RegisterTodoCreator(stub)
 	defer RegisterTodoCreator(nil)
 
-	rt, err := New(Config{Enabled: true, DataDir: tmpDir, ExecutorID: "test"}, nil)
+	app := newTestApp(t, tmpDir)
+	rt, err := New(app, Config{Enabled: true, ExecutorID: "test"}, nil)
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
-	if err := rt.Start(); err != nil {
+	if err = rt.Start(); err != nil {
 		t.Fatalf("Start: %v", err)
 	}
 	defer rt.Shutdown()

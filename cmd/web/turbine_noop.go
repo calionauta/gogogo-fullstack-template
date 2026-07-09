@@ -2,10 +2,14 @@
 
 package main
 
-import "github.com/calionauta/gogogo-fullstack-template/config"
+import (
+	"github.com/calionauta/gogogo-fullstack-template/config"
+	"github.com/pocketbase/pocketbase"
+)
 
-func startTurbine(cfg *config.Config) {
+func startTurbine(app *pocketbase.PocketBase, cfg *config.Config) {
 	// Turbine not available without -tags turbine
+	_ = app
 	_ = cfg
 }
 

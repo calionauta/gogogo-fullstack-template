@@ -92,7 +92,7 @@ func run() error {
 
 	startNATS(cfg)
 
-	startTurbine(cfg)
+	startTurbine(pb, cfg)
 	defer shutdownTurbine()
 
 	var workflowRt router.WorkflowRuntime

@@ -37,7 +37,6 @@ type Config struct {
 
 	Workflow struct {
 		Enabled    bool
-		DataDir    string
 		ExecutorID string
 	}
 
@@ -98,7 +97,6 @@ func Load() *Config {
 
 	if os.Getenv("WORKFLOW_ENABLED") == "true" {
 		cfg.Workflow.Enabled = true
-		cfg.Workflow.DataDir = getEnv("WORKFLOW_DATA_DIR", cfg.DataDir+"/workflow")
 		cfg.Workflow.ExecutorID = getEnv("WORKFLOW_EXECUTOR_ID", "local")
 	}
 

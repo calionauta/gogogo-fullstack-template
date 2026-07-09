@@ -62,9 +62,8 @@ func turbineFixture(t *testing.T) (string, *pocketbase.PocketBase, func()) {
 		t.Fatalf("queue.New: %v", err)
 	}
 
-	rt, err := workflow.New(workflow.Config{
+	rt, err := workflow.New(app, workflow.Config{
 		Enabled:    true,
-		DataDir:    tmpDir,
 		ExecutorID: "test-onboarding",
 	}, nil)
 	if err != nil {

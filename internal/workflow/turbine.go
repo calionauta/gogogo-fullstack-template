@@ -16,6 +16,7 @@ import (
 	"sync"
 
 	"github.com/YakirOren/turbine"
+	"github.com/pocketbase/pocketbase"
 )
 
 // TodoCreator is the interface a workflow step uses to write todos to the
@@ -150,9 +151,9 @@ func WelcomeOnboarding(ctx turbine.Context, user string) ([]ExampleTodo, error) 
 			if c == nil {
 				return ExampleTodo{}, ErrTodoCreatorNotRegistered
 			}
-			id, err := c.CreateExampleTodo(ctx, title, user)
-			if err != nil {
-				return ExampleTodo{}, fmt.Errorf("create example todo %q: %w", title, err)
+			id, cErr := c.CreateExampleTodo(ctx, title, user)
+			if cErr != nil {
+				return ExampleTodo{}, fmt.Errorf("create example todo %q: %w", title, cErr)
 			}
 			return ExampleTodo{Title: title, ID: id}, nil
 		}, turbine.WithStepName(fmt.Sprintf("create_example_todo_%d", i+1)))
@@ -176,14 +177,28 @@ func WelcomeOnboarding(ctx turbine.Context, user string) ([]ExampleTodo, error) 
 // config package (which transitively loads the secrets package).
 type Config struct {
 	Enabled    bool
-	DataDir    string
 	ExecutorID string
 }
 
-// New creates a Turbine runtime configured to store workflow state under
-// cfg.DataDir. The runtime is launched asynchronously by Start; callers must
-// invoke Shutdown to drain pending workflows on exit.
-func New(cfg Config, logger *slog.Logger) (*Runtime, error) {
+// New creates a Turbine runtime wired into the supplied PocketBase app.
+//
+// Turbine stores its durable workflow state (the pt_* collections) inside the
+// app's own database, reusing the app's existing SQLite connection (the
+// ncruces/go-sqlite3 driver, volume-backed and already writable in prod).
+// This is why we pass the main *pocketbase.PocketBase instead of using
+// turbine.NewStandalone: NewStandalone spins up a SECOND PocketBase with the
+// default sqlite driver and a hardcoded data dir, which is exactly what broke
+// in the container (mkdir /pb_data + modernc version mismatch). Sharing the
+// app avoids a second data dir and a second driver entirely.
+//
+// Launch is deferred to the app's OnServe lifecycle hook (registered by
+// turbine.Setup), which fires after the app is bootstrapped and its migrations
+// have run. Callers in the normal serve path must NOT call Start() — doing so
+// would double-launch (the OnServe hook already launched it). Tests that never
+// invoke app.Start() may call Start() manually after Bootstrapping the app.
+//
+// Shutdown is wired into the app's OnTerminate hook by turbine.Setup.
+func New(app *pocketbase.PocketBase, cfg Config, logger *slog.Logger) (*Runtime, error) {
 	if !cfg.Enabled {
 		return nil, fmt.Errorf("workflow: WORKFLOW_ENABLED must be true to construct runtime")
 	}
@@ -194,10 +209,10 @@ func New(cfg Config, logger *slog.Logger) (*Runtime, error) {
 		Logger:             logger,
 	}
 
-	// NewStandalone owns a fresh PocketBase app so workflow state is
-	// isolated from the main app DB. It also bootstraps the app and runs
-	// migrations on Launch, then resets state on Shutdown.
-	rt := turbine.NewStandalone(tcfg)
+	// Setup wires Launch into app.OnServe (runs after bootstrap + migrations)
+	// and Shutdown into app.OnTerminate. It shares the app's DB connection, so
+	// workflow state lives alongside the main collections in the same SQLite file.
+	rt := turbine.Setup(app, tcfg)
 
 	turbine.Register(rt, Hello)
 	turbine.Register(rt, WelcomeOnboarding)

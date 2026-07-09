@@ -5,27 +5,29 @@ package main
 import (
 	"log"
 
+	"github.com/pocketbase/pocketbase"
+
 	"github.com/calionauta/gogogo-fullstack-template/config"
 	"github.com/calionauta/gogogo-fullstack-template/internal/workflow"
 )
 
 var turbineRuntime *workflow.Runtime
 
-func startTurbine(cfg *config.Config) {
+func startTurbine(app *pocketbase.PocketBase, cfg *config.Config) {
 	if !cfg.Workflow.Enabled {
 		return
 	}
-	rt, err := workflow.New(workflow.Config{
+	// workflow.New wires Launch into app.OnServe, so the runtime boots after
+	// the main app is bootstrapped and migrations have run. We do NOT call
+	// rt.Start() here — that would double-launch (the OnServe hook already
+	// launches it). Tests that never call app.Start() call Start() manually
+	// after Bootstrapping the app.
+	rt, err := workflow.New(app, workflow.Config{
 		Enabled:    true,
-		DataDir:    cfg.Workflow.DataDir,
 		ExecutorID: cfg.Workflow.ExecutorID,
 	}, nil)
 	if err != nil {
 		log.Printf("WARN: workflow init failed, durable workflows disabled: %v", err)
-		return
-	}
-	if err := rt.Start(); err != nil {
-		log.Printf("WARN: workflow start failed, durable workflows disabled: %v", err)
 		return
 	}
 	turbineRuntime = rt
