@@ -187,9 +187,9 @@ func (h *TodoHandler) streamSuggestResult(sse *sdk.ServerSentEventGenerator, pay
 		return fmt.Errorf("decode suggest_result payload: %w", err)
 	}
 	if err := dshelpers.MergeSignals(sse, map[string]any{
-		"suggestions":    p.Suggestions,
-		"suggestErr":     p.SuggestErr,
-		"suggestPending": p.SuggestPending,
+		signalSuggestions:    p.Suggestions,
+		signalSuggestErr:     p.SuggestErr,
+		signalSuggestPending: p.SuggestPending,
 	}); err != nil {
 		return err
 	}

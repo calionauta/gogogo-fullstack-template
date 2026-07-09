@@ -23,7 +23,7 @@ func TestIntegration_CreateListDelete(t *testing.T) {
 	defer cleanup()
 
 	ctx := newTestCtx(t)
-	mustPost(ctx, t, base, "/api/todos", url.Values{titleField: {"buy milk"}}, 200)
+	mustPost(ctx, t, base, "/api/todos", url.Values{titleField: {buyMilk}}, 200)
 
 	records, err := app.FindRecordsByFilter("todos", "", "", 0, 0)
 	if err != nil || len(records) != 1 {

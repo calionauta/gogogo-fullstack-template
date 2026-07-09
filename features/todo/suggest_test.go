@@ -30,7 +30,7 @@ func TestIntegration_SuggestSimulatedEnqueuesAndStreamsResult(t *testing.T) {
 
 	createURL := "http://127.0.0.1" + base[len("http://127.0.0.1"):] +
 		"/api/todos/suggest-simulated?clientID=" + clientID
-	resp, err := postForm(ctx, createURL, url.Values{titleField: {"buy milk"}})
+	resp, err := postForm(ctx, createURL, url.Values{titleField: {buyMilk}})
 	if err != nil {
 		t.Fatalf("suggest-simulated: %v", err)
 	}
@@ -43,14 +43,14 @@ func TestIntegration_SuggestSimulatedEnqueuesAndStreamsResult(t *testing.T) {
 	// fake's 500→200 + delay means this lands after a retry + a slow
 	// response, so we allow a generous timeout.
 	full := pumpSSEUntil(t, stream, 14*time.Second, func(s string) bool {
-		if !strings.Contains(s, "\"suggestions\"") {
+		if !strings.Contains(s, "\""+signalSuggestions+"\"") {
 			return false
 		}
 		var patch map[string]json.RawMessage
 		if err := json.Unmarshal([]byte(s), &patch); err != nil {
 			return false
 		}
-		raw, ok := patch["suggestions"]
+		raw, ok := patch[signalSuggestions]
 		if !ok {
 			return false
 		}
@@ -60,7 +60,7 @@ func TestIntegration_SuggestSimulatedEnqueuesAndStreamsResult(t *testing.T) {
 		}
 		return len(sugg) == 3
 	})
-	if !strings.Contains(full, "\"suggestions\"") {
+	if !strings.Contains(full, "\""+signalSuggestions+"\"") {
 		t.Fatalf("suggest-simulated: suggestions never arrived: %s", tailString(full, 600))
 	}
 	if !strings.Contains(full, "Got 3 suggestions") {

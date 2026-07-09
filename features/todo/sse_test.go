@@ -39,7 +39,7 @@ func TestIntegration_CreateRendersInList(t *testing.T) {
 	defer cleanup()
 	ctx := newTestCtx(t)
 
-	resp, err := postForm(ctx, base+"/api/todos", url.Values{titleField: {"buy milk"}})
+	resp, err := postForm(ctx, base+"/api/todos", url.Values{titleField: {buyMilk}})
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -48,7 +48,7 @@ func TestIntegration_CreateRendersInList(t *testing.T) {
 		t.Fatalf("status=%d", resp.StatusCode)
 	}
 	body := readBody(t, resp)
-	if !strings.Contains(body, "buy milk") {
+	if !strings.Contains(body, buyMilk) {
 		t.Fatalf("created todo not present in list patch: %s", tailString(body, 400))
 	}
 }

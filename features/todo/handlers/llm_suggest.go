@@ -79,9 +79,9 @@ func (h *TodoHandler) enqueueSuggest(c *core.RequestEvent, jobType, partial stri
 
 	sse := sdk.NewSSE(c.Response, c.Request)
 	return dshelpers.MergeSignals(sse, map[string]any{
-		"suggestions":    []string{},
-		"suggestErr":     "",
-		"suggestPending": true,
+		signalSuggestions:    []string{},
+		signalSuggestErr:     "",
+		signalSuggestPending: true,
 	})
 }
 
@@ -109,15 +109,15 @@ func (h *TodoHandler) handleSuggestJob(ctx context.Context, hub *queue.SSEHub, j
 
 	suggestions, err := client.ChatSuggest(ctx, p.Partial)
 	result := map[string]any{
-		"suggestions":    []string{},
-		"suggestErr":     "",
-		"suggestPending": false,
+		signalSuggestions:    []string{},
+		signalSuggestErr:     "",
+		signalSuggestPending: false,
 	}
 	if err != nil {
-		result["suggestErr"] = "AI suggest failed: " + err.Error()
+		result[signalSuggestErr] = "AI suggest failed: " + err.Error()
 		slog.Error("todo: suggest job failed", "job", job.Type, "error", err)
 	} else {
-		result["suggestions"] = suggestions
+		result[signalSuggestions] = suggestions
 	}
 
 	body, marshalErr := json.Marshal(queue.Job{Type: "suggest_result", Payload: mustJSON(result)})
