@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
+# If the tool is already installed via go install, use it.
+if command -v datastar-lint &>/dev/null; then
+	exec datastar-lint -r "$ROOT"
+fi
+
+# Fallback: try to build and run from the separate repo.
+DSLINT_REPO="$HOME/Development/datastar-lint"
+if [ -d "$DSLINT_REPO" ]; then
+	exec go run "$DSLINT_REPO" -r "$ROOT"
+fi
+
+echo "❌ datastar-lint not found. Install it with: go install github.com/calionauta/datastar-lint@latest"
+exit 1
