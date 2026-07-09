@@ -8,4 +8,5 @@ const (
 	signalSuggestions    = "suggestions"
 	signalSuggestErr     = "suggestErr"
 	signalSuggestPending = "suggestPending"
+	signalItemCount      = "itemCount"
 )

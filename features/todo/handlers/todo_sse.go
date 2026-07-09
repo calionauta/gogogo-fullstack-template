@@ -159,7 +159,7 @@ func (h *TodoHandler) streamTodo(c *core.RequestEvent, sse *sdk.ServerSentEventG
 	// one. View transitions give a free cross-fade.
 	if err := dshelpers.MergeSignals(sse, map[string]any{
 		"lastItemSource": "remote",
-		"itemCount":      len(todos),
+		signalItemCount:  len(todos),
 	}); err != nil {
 		return err
 	}

@@ -62,7 +62,7 @@ func (h *TodoHandler) handleList(c *core.RequestEvent) error {
 func (h *TodoHandler) patchTodoListWithSelfOrigin(sse *sdk.ServerSentEventGenerator, todos []todo.Todo) error {
 	if err := dshelpers.MergeSignals(sse, map[string]any{
 		"lastItemSource": "self",
-		"itemCount":      len(todos),
+		signalItemCount:  len(todos),
 	}); err != nil {
 		return err
 	}
@@ -111,8 +111,9 @@ func (h *TodoHandler) handleCreate(c *core.RequestEvent) error {
 	// to a clean idle state. $loading=true flips the button spinner,
 	// $newTitle='' clears the title input.
 	if err := dshelpers.MergeSignals(sse, map[string]any{
-		"loading":  false,
-		"newTitle": "",
+		"loading":       false,
+		"newTitle":      "",
+		signalItemCount: len(todos),
 	}); err != nil {
 		return err
 	}

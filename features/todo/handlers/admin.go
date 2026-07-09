@@ -56,9 +56,9 @@ func (h *TodoHandler) handleAdminUnlock(c *core.RequestEvent) error {
 
 	sse := sdk.NewSSE(c.Response, c.Request)
 	if err := dshelpers.MergeSignals(sse, map[string]any{
-		"todos":     []any{},
-		"itemCount": 0,
-		"unlocked":  true,
+		"todos":         []any{},
+		signalItemCount: 0,
+		"unlocked":      true,
 	}); err != nil {
 		return err
 	}
