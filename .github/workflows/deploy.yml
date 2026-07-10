@@ -92,7 +92,12 @@ jobs:
           sudo apt-get install -y gcc gcc-aarch64-linux-gnu libc6-dev-arm64-cross
 
       - name: Test
-        run: go test -race -count=1 ./...
+        # Exclude the module root (`.`) and cmd/desktop. The root has no Go
+        # files (go treats an empty root as a hard error); cmd/desktop is a
+        # Wails build needing GTK/WebKit dev libs only on the desktop runners.
+        run: |
+          PKGS=$(go list ./... | grep -vE "cmd/desktop$|^github.com/calionauta/gogogo-fullstack-template$")
+          go test -race -count=1 $PKGS
 
       - name: Install cross C toolchain (CGO for arm64)
         # internal/collab uses loro-go, which is a CGO binding to the Loro
