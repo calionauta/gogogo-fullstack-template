@@ -33,12 +33,16 @@ services:
       # production .env may also override).
       GOAI_BASE_URL: ${GOAI_BASE_URL:-https://api.openai.com/v1}
       GOAI_MODEL: ${GOAI_MODEL:-gpt-4o-mini}
-      # Realtime + durable workflow — binary built with -tags "jetstream turbine".
-      # Turbine shares the main PocketBase DB (see Dockerfile.prod WORKDIR note),
-      # so it needs no separate data dir.
+      # Realtime — binary built with -tags jetstream.
       NATS_ENABLED: "true"
       NATS_STORE_DIR: /var/lib/${APP_NAME:-gogogo-fullstack-template}/data/nats
-      WORKFLOW_ENABLED: "true"
+      # Durable workflow — build with -tags dagnats. DagNats boots its
+      # own embedded NATS (separate from the jetstream tag's NATS) and
+      # its HTTP API/console on DAGNATS_HTTP_ADDR (default 127.0.0.1:8090),
+      # so the two tags are mutually exclusive.
+      DAGNATS_ENABLED: "true"
+      DAGNATS_HTTP_ADDR: "127.0.0.1:8090"
+      DAGNATS_STORE_DIR: /var/lib/${APP_NAME:-gogogo-fullstack-template}/data/dagnats
       WORKFLOW_EXECUTOR_ID: local
       # Demo affordance: the keyless "Suggest (simulated)" button
       # uses an in-process fake LLM that scripts 500 -> 200 + delay

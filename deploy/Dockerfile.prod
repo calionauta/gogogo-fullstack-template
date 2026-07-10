@@ -39,7 +39,7 @@ COPY . .
 RUN go tool templ generate && \
     npm run build --silent && \
     CGO_ENABLED=0 GOOS=linux go build \
-        -tags "jetstream turbine" \
+        -tags "jetstream dagnats" \
         -trimpath -ldflags="-s -w" \
         -o /out/app ./cmd/web/
 
@@ -62,9 +62,9 @@ COPY --from=builder /out/etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
 # The app's DATA_DIR is set to /var/lib/<app>/data (absolute, via compose
 # env), which bind-mounts to the host volume ACL-granted to uid 65532
-# (see scripts/deploy-prod.sh). With -tags turbine the embedded Turbine
-# runtime shares the MAIN PocketBase app's DB connection, so it stores its
-# durable workflow state (the pt_* collections) inside the same SQLite file
+# (see scripts/deploy-prod.sh). With -tags dagnats the DagNats engine boots
+# its own embedded NATS and stores durable workflow state in DAGNATS_STORE_DIR
+# (default data/dagnats), separate from the main PocketBase SQLite file.
 # — no separate data dir is created and no extra writable path is needed.
 WORKDIR /var/lib/gogogo-fullstack-template/data
 
