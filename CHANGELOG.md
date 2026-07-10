@@ -2,6 +2,18 @@
 
 All notable changes to this template are documented here. The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.9.1] - 2026-07-10
+
+### Fixed
+- **Demo UI/UX bugs reported in the demo app:**
+  - Badge leaked a debug string (`$techDone`/`$techStep`) as `td=false ts=workflow`; now shows only the item count.
+  - **AI suggestions buttons never appeared.** The SSE dispatcher only merged the `$suggestions` signal (which toggles container visibility) but never re-rendered the buttons. Now it `RenderAndPatch`-es `#suggestions-region` with the live suggestion buttons.
+  - **Realtime badge** hardcoded "NATS JetStream / in-memory"; now reflects the actual transport via `$realtimeKind` (JetStream when NATS is enabled).
+  - **Techstack diagnostics stepper** mixed unrelated features in one row; split into two clear steppers — Queue + retry (goqite + retry-go + fake LLM) and Durable workflow (DagNats, 6 steps incl. "waiting for your first todo").
+  - **Onboarding "Run durable workflow" button stayed disabled forever.** The progress poller used a fake fixed-sleep countdown disconnected from the real DagNats run and never re-enabled on a `WaitForSignal` suspend. `pollRun` now reads real `RunStatus` (step/total/status), narrates the "waiting for your first todo" suspend, and clears `OnboardingActive` on completion/failure/5-min timeout. Uses the engine's real total (fixes the "2/5" mismatch).
+  - **SSE stream listed ALL todos** (single-tenant fallback) because the global auth middleware skips `/api/*` paths, leaving `c.Auth` nil. `handleSSEStream` now calls `auth.LoadAppAuth` explicitly so `listTodos` scopes to the owner.
+- **`make check` faster:** dropped the redundant `test-jetstream`/`test-dagnats` stages (the `test-combined` target already covers both tags + their intersection under `-race`). Full gate ~156s vs ~282s.
+
 ## [0.9.0] - 2026-07-10
 
 ### Added
