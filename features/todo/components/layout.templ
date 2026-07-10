@@ -151,24 +151,7 @@ templ Layout(title string, signals todo.Signals, userEmail string) {
 			@auth.Navbar(userEmail)
 			@TodoList(signals)
 			<div id="toast-container"></div>
-		<script>
-			// Open the realtime SSE stream once Datastar has initialised.
-			// Datastar v1.0.2 does not fire data-on:load/init on <div>/<body>,
-			// so we click the hidden #sse-opener button (whose data-on:click
-			// is a real @get that Datastar keeps open as a persistent SSE).
-			// Datastar dispatches the "datastar-ready" event when it has
-			// processed the DOM; we click on that (with a timeout fallback in
-			// case the event already fired before this listener attached).
-			(function () {
-			  function openSSE() {
-			    var b = document.getElementById('sse-opener');
-			    if (b && !b.dataset.opened) { b.dataset.opened = '1'; b.click(); }
-			  }
-			  document.addEventListener('datastar-ready', openSSE);
-			  // Fallback if datastar-ready already fired.
-			  setTimeout(openSSE, 300);
-			})();
-		</script>
+			@RealtimeStream("/api/todos/stream")
 	</body>
 	</html>
 }

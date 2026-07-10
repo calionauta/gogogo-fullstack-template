@@ -30,5 +30,12 @@ jobs:
           skip-cache: true
       - name: Test
         run: go test -tags "${{ matrix.tag }}" ./... -v -count=1
+      - name: Smoke (boot real binary)
+        # Boots the compiled artifact, hits /health, asserts the rendered
+        # page wires the SSE opener, and confirms the SSE transport opens.
+        # Gated by RUN_SMOKE so local runs skip the port-binding server.
+        env:
+          RUN_SMOKE: "1"
+        run: go test -tags "${{ matrix.tag }}" ./cmd/web/ -run TestSmoke -v -count=1 -timeout 180s
       - name: Build
         run: go build -tags "${{ matrix.tag }}" -o /dev/null ./cmd/web/

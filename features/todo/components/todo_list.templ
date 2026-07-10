@@ -38,7 +38,6 @@ func marshalSignals(s todo.Signals) string {
 templ TodoList(signals todo.Signals) {
 	<div class="max-w-2xl mx-auto mt-8 px-4 animate-in fade-in zoom-in-95 animate-duration-500">
 		<div class="card bg-base-100 shadow-xl" data-signals={ marshalSignals(signals) }>
-			<button id="sse-opener" class="hidden" data-on:click="@get('/api/todos/stream')" aria-hidden="true"></button>
 			<div class="card-body">
 				<h2 class="card-title text-2xl mb-4">
 					<svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-primary" viewBox="0 0 20 20" fill="currentColor">

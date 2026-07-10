@@ -1,0 +1,44 @@
+package components
+
+// RealtimeStream opens the persistent Server-Sent Events stream that keeps
+// every connected browser in sync. It is rendered ONCE, from Layout, so the
+// realtime wiring lives in exactly one place and cannot drift per-page.
+//
+// WHY THE HIDDEN-BUTTON + SCRIPT PATTERN (not data-on:load):
+// Datastar v1 does not fire data-on:load / data-on:init on <div> or <body>,
+// so a card using `data-on:load={ "@get('/api/todos/stream')" }` silently
+// never opened the stream — broadcasts were registered on the server but no
+// browser ever received them, and the connected-clients count stayed wrong.
+// The fix is a hidden button whose data-on:click is a real @get (Datastar
+// keeps that open as a persistent SSE), clicked by this script once Datastar
+// signals readiness. Centralising it here means a single regression test can
+// assert the opener + script are present on every page.
+//
+// streamURL is the SSE endpoint to open (e.g. "/api/todos/stream"). Other
+// features pass their own endpoint; the mechanism is identical.
+templ RealtimeStream(streamURL string) {
+	<button
+		id="sse-opener"
+		class="hidden"
+		data-on:click={ "@get('" + streamURL + "')" }
+		aria-hidden="true"
+	></button>
+	<script type="module">
+		// Open the realtime SSE stream once Datastar has initialised.
+		// Datastar v1 does not fire data-on:load/init on <div>/<body>, so we
+		// click the hidden #sse-opener button (whose data-on:click is a real
+		// @get that Datastar keeps open as a persistent SSE). Datastar
+		// dispatches the "datastar-ready" event when it has processed the
+		// DOM; we click on that, with a timeout fallback in case the event
+		// already fired before this listener attached.
+		(function () {
+			function openSSE() {
+				var b = document.getElementById('sse-opener');
+				if (b && !b.dataset.opened) { b.dataset.opened = '1'; b.click(); }
+			}
+			document.addEventListener('datastar-ready', openSSE);
+			// Fallback if datastar-ready already fired.
+			setTimeout(openSSE, 300);
+		})();
+	</script>
+}

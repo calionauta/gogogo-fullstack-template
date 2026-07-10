@@ -69,7 +69,15 @@ func Layout(title string, signals todo.Signals, userEmail string) templ.Componen
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div id=\"toast-container\"></div><script>\n\t\t\t// Open the realtime SSE stream once Datastar has initialised.\n\t\t\t// Datastar v1.0.2 does not fire data-on:load/init on <div>/<body>,\n\t\t\t// so we click the hidden #sse-opener button (whose data-on:click\n\t\t\t// is a real @get that Datastar keeps open as a persistent SSE).\n\t\t\t// Datastar dispatches the \"datastar-ready\" event when it has\n\t\t\t// processed the DOM; we click on that (with a timeout fallback in\n\t\t\t// case the event already fired before this listener attached).\n\t\t\t(function () {\n\t\t\t  function openSSE() {\n\t\t\t    var b = document.getElementById('sse-opener');\n\t\t\t    if (b && !b.dataset.opened) { b.dataset.opened = '1'; b.click(); }\n\t\t\t  }\n\t\t\t  document.addEventListener('datastar-ready', openSSE);\n\t\t\t  // Fallback if datastar-ready already fired.\n\t\t\t  setTimeout(openSSE, 300);\n\t\t\t})();\n\t\t</script></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div id=\"toast-container\"></div>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = RealtimeStream("/api/todos/stream").Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
