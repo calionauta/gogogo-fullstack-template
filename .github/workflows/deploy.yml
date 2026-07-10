@@ -82,16 +82,35 @@ jobs:
       - name: Generate CSS
         run: npm run build
 
+      - name: Install C toolchain (CGO for loro-go)
+        # internal/collab uses loro-go, a CGO binding to the Loro C library.
+        # Every build/test compiles collab, so a C compiler must be present
+        # (native x86_64 for `go test`, plus aarch64 for the cross build).
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y gcc gcc-aarch64-linux-gnu libc6-dev-arm64-cross
+
       - name: Test
         run: go test -race -count=1 ./...
+
+      - name: Install cross C toolchain (CGO for arm64)
+        # internal/collab uses loro-go, which is a CGO binding to the Loro
+        # C library. The prod binary is built with -tags jetstream, so it
+        # pulls in collab and MUST compile with CGO enabled. Cross-compiling
+        # CGO from x86_64 Ubuntu to linux/arm64 needs the aarch64 gcc.
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y gcc-aarch64-linux-gnu libc6-dev-arm64-cross
 
       - name: Build prod binary
         run: |
           mkdir -p bin
-          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build \
-          -tags "jetstream dagnats" \
-              -trimpath -ldflags="-s -w" \
-              -o bin/gogogo-fullstack-template.new ./cmd/web/
+          CGO_ENABLED=1 GOOS=linux GOARCH=arm64 \
+            CC=aarch64-linux-gnu-gcc \
+            go build \
+            -tags "jetstream dagnats" \
+            -trimpath -ldflags="-s -w -extldflags=-static" \
+            -o bin/gogogo-fullstack-template.new ./cmd/web/
 
       - name: Stash binary
         uses: actions/upload-artifact@v4
