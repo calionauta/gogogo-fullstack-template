@@ -2,56 +2,32 @@
 
 All notable changes to this template are documented here. The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [0.6.5] - 2026-07-10
+## [0.9.0] - 2026-07-10
 
 ### Added
-- **Phase D: desktop CI bundles.** `.github/workflows/build-platforms.yml`
-  builds the four native desktop artifacts on every push — `darwin/amd64`
-  + `darwin/arm64` (`.dmg`), `windows/amd64` (`.exe`), `linux/amd64`
-  (`.AppImage`) — on native runners via `wails build -app ./cmd/desktop
-  -config ./wails.json -tags jetstream -platform <p>`, uploaded as
-  artifacts. The full test/lint gate (including the collab e2e guards)
-  stays in `ci.yml`; the platform workflow only builds bundles.
-- **Phase D: e2e regression guards for the collab surfaces** (run in `make
-  test-combined`, `-tags "jetstream dagnats"`):
-  - `TestCollab_LeafNodeE2E`: a REAL central NATS (JetStream + leaf listen
-    port) runs the SyncWorker while a SEPARATE leaf-node server (the desktop
-    edge) publishes a Loro update on `app.sync.<docID>`. Asserts the leaf
-    replicates to central and the worker persists a valid snapshot — the
-    exact Phase B transport + Phase C merge/persist path, no mocks.
-  - `TestPresence_SSEBridgeE2E`: drives `collab.PresenceSSEHandler` (the
-    handler registered at `GET /api/collab/presence/{docID}`) over httptest
-    and publishes an edge cursor on `app.presence.<docID>`; asserts the SSE
-    response carries it to the browser client. (Found + fixed a real bug:
-    the SSE handler blocked before writing headers, so the client request
-    hung — now writes `200` + a priming comment up front.)
-  - All collab tests finish in ~2s; no flaky long sleeps.
-- **Phase D docs:** README "Desktop & Mobile" section (build commands,
-  Leaf Node edge-sync requirement, experimental mobile note); PLAN.md Phase
-  D items marked done.
+- **Phase C + D: collaborative whiteboard backend (Loro CRDT + presence).**
+  - `internal/collab` (jetstream): a mutex-guarded `Doc` over `aholstenson/loro-go`
+    (`EncodeSnapshot`/`EncodeUpdate`/`ApplyUpdate`/`StateVersion`); a `SyncWorker`
+    that subscribes `app.sync.>`, merges Loro updates, and persists the resolved
+    snapshot to PocketBase (`whiteboards` collection, upsert by `doc_id`); a
+    `Publisher` so the desktop edge pushes deltas on `app.sync.<docID>`.
+  - Ephemeral multi-user presence over `app.presence.>`: `Presence` (heartbeat
+    join/leave + cursor with roster TTL) plus a central SSE bridge
+    `GET /api/collab/presence/{docID}` so browser clients receive edge cursors
+    live. `cmd/desktop` starts a `Presence` session + demo cursor.
+  - Desktop CI bundles (`.github/workflows/build-platforms.yml`): `.dmg`×2 /
+    `.exe` / `.AppImage` via `wails build -tags jetstream`.
+  - **e2e guards** (in `make test-combined`, `-tags "jetstream dagnats"`):
+    `TestCollab_LeafNodeE2E` (real central NATS + separate leaf-node edge
+    replicating a Loro update to central + persisting) and
+    `TestPresence_SSEBridgeE2E` (SSE bridge carries an edge cursor to a browser
+    client). Found + fixed a real SSE hang (handler blocked before writing
+    headers). All collab tests finish in ~2s.
+  - README "Desktop & Mobile" section; mobile marked experimental.
+  - Rejected `ipfs/go-ds-crdt` (LWW-per-key KV CRDT over libp2p — would lose
+    concurrent edits; drags libp2p on top of the NATS Leaf Node). Loro stays.
 
-## [0.6.4] - 2026-07-10
-
-### Added
-- **Phase C (presence):** `internal/collab.Presence` (jetstream) broadcasts
-  ephemeral multi-user cursors over `app.presence.<docID>` — heartbeat
-  join/leave + cursor `{doc,x,y}` with a roster that expires stale peers
-  via TTL. A central SSE bridge `GET /api/collab/presence/{docID}`
-  (`router/collab_jetstream.go`) streams NATS presence to browser clients,
-  so desktop-edge cursors (including Leaf Node replicas) show live in the
-  web UI. The desktop edge starts a `Presence` session and ticks a demo
-  cursor to exercise the path end-to-end.
-  - **Regression guard `TestPresence_TwoPeersConverge`** (in `make test-combined`):
-    two `Presence` sessions over a real embedded NATS each receive the
-    other's cursor + join — proves the volatile cursor broadcast works.
-- **Phase C (Loro CRDT sync worker).** `internal/collab` wraps `aholstenson/loro-go` with a mutex-guarded `Doc` (`EncodeSnapshot`/`EncodeUpdate`/`ApplyUpdate`/`StateVersion`). The `SyncWorker` subscribes to `app.sync.>` on the embedded NATS, merges each Loro update into the per-doc CRDT, and persists the resolved snapshot via a `Persister` (`PocketBasePersister` → new `whiteboards` collection, upsert by `doc_id`). Wired in `router/collab_jetstream.go` (build tag `jetstream`); no-op otherwise. `db/seed.go` ensures the `whiteboards` collection exists.
-- **Edge publisher.** `internal/collab.Publisher.PublishUpdate` exports the delta since a version vector and publishes it on `app.sync.<docID>`. `cmd/desktop` (build tag `jetstream`) builds a publisher over the Leaf Node connection and publishes on boot, so offline edits replicate to central on reconnect.
-- **Regression guard `TestCollab_SyncWorkerPersists`.** Publishes a real Loro update on `app.sync.wb-123` against an embedded NATS JetStream; asserts the worker applies + persists a snapshot that round-trips back as a valid Loro doc. This is in `make test-combined` (`-tags "jetstream dagnats"`), so the full edge→central path is covered alongside the DagNats/JetStream guards.
-
-### Changed
-- **Rejected `ipfs/go-ds-crdt`.** Evaluated as a CRDT alternative; it is an LWW-per-key KV CRDT over libp2p/datastore, not a document CRDT — concurrent edits to the same whiteboard node would LWW-lose one edit (the failure Loro avoids). It also pulls in libp2p/IPFS on top of the NATS Leaf Node. Loro stays. See `docs/PLAN.md` §1 open-questions.
-
-## [0.6.3] - 2026-07-09
+## [0.8.0] - 2026-07-09
 
 ### Fixed
 - **Console errors on todo list patches.** The static CSS rule `view-transition-name: todo-item` was attached to every `.todo-item` element. The View Transitions API expects per-element unique names, so when the list re-rendered with multiple items, the browser logged `Unexpected duplicate view-transition-name: todo-item` and cascaded into `InvalidStateError: Transition was aborted because of invalid state` (and a stray `Access to storage is not allowed from this context` from the surrounding plugin code). Removed the duplicate-causing rule; per-item entry animations (`todo-enter-self`, `todo-enter-remote`) still cover the entry feel, and Datastar's `WithViewTransitions()` still wraps the patch in a `document.startViewTransition()` for the default root cross-fade.
