@@ -52,11 +52,16 @@ jobs:
         # DagNats boots an embedded NATS + workflow engine per package under
         # test; under -race, parallel packages starve the engine and cause
         # flaky timeouts. Serialize packages (-p 1) for the dagnats tags.
+        # The module root (`.`) has no Go files, and `go test ./...` under
+        # some Go patch versions treats an empty root package as a hard
+        # error ("no Go files"). List packages explicitly and drop the root
+        # so the gate is robust across Go versions.
         run: |
           case "${{ matrix.tag }}" in
             "dagnats"|"jetstream dagnats") P=-p1 ;;
             *) P= ;;
           esac
-          go test -tags "${{ matrix.tag }}" $P ./... -v -count=1
+          PKGS=$(go list ./... | grep -v "^github.com/calionauta/gogogo-fullstack-template$")
+          go test -tags "${{ matrix.tag }}" $P $PKGS -v -count=1
       - name: Build
         run: go build -tags "${{ matrix.tag }}" -o /dev/null ./cmd/web/
