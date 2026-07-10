@@ -4,7 +4,7 @@
 
 ## Project Overview
 
-Go web application template with Datastar + Templ + PocketBase + goqite + Turbine + NATS JetStream.
+Go web application template with Datastar + Templ + PocketBase + goqite + DagNats + NATS JetStream.
 Module: `github.com/calionauta/gogogo-fullstack-template`
 
 **Naming convention.** The repository, module path, Go binary, deployment
@@ -15,7 +15,7 @@ project name everywhere (or run a one-shot search-and-replace over the tree).
 
 ## Stack
 
-Go 1.26 | Templ v0.3.1020 | Datastar v1.2.2 (datastar-go) | PocketBase v0.39.5 (embedded, ncruces/go-sqlite3) | TailwindCSS v4.1.13 (CLI build) + DaisyUI v5.6.15 | goqite v0.4.0 | retry-go v4 | Turbine v0.3.0 (opt-in, build tag) | NATS JetStream (opt-in, build tag) | age v1.3.1 | uuid v1.6.0
+Go 1.26 | Templ v0.3.1020 | Datastar v1.2.2 (datastar-go) | PocketBase v0.39.5 (embedded, ncruces/go-sqlite3) | TailwindCSS v4.1.13 (CLI build) + DaisyUI v5.6.15 | goqite v0.4.0 | retry-go v4 | DagNats v0.0.5 (opt-in, build tag, JSON workflows over NATS JetStream) | NATS JetStream (opt-in, build tag) | age v1.3.1 | uuid v1.6.0
 
 ## Skills
 
@@ -49,8 +49,8 @@ container); load it after `app.min.css`.
 | Command | Description |
 |---------|-------------|
 | `make dev` | Live reload with Air (post-build: gofumpt + go vet + golangci-lint info) |
-| `make build` / `build-jetstream` / `build-turbine` / `build-all` | Build binary with optional tags |
-| `make test` / `test-jetstream` / `test-turbine` | Run tests with race detector |
+| `make build` / `build-jetstream` / `build-dagnats` / `build-all` | Build binary with optional tags |
+| `make test` / `test-jetstream` / `test-dagnats` | Run tests with race detector |
 | `make templ` | Generate Templ components |
 | `make fmt` | Check formatting (gofumpt + goimports) |
 | `make datastar-lint` | Lint `.templ` / `.html` via [datastar-lint](https://github.com/calionauta/datastar-lint) |
@@ -97,10 +97,10 @@ Options: `WithResponse`, `WithStreamChunks`, `WithStatusSequence` (retry tests),
 ## Architecture
 
 ```
-cmd/web/                  Entry point (PB + goqite + SSE Hub). Builds: jetstream | turbine (opt-in).
+cmd/web/                  Entry point (PB + goqite + SSE Hub). Builds: jetstream | dagnats (opt-in).
 config/                   Env-based config
 db/                       PocketBase setup + ensureTodosCollection seed
-internal/{secrets,queue,nats,workflow,llm,datastar}/
+internal/{secrets,queue,nats,dagnats,llm,datastar}/
 features/app/             Application core: AppContext + cross-cutting middleware
 features/todo/            Example: Todo MVC (Datastar + DaisyUI + PocketBase + SSE Hub)
 web/resources/            Static assets (embedded)
@@ -171,7 +171,7 @@ docs/                     Decision logs and guides
 ```
 
 Three async layers (complementary, not alternatives):
-`goqite` → background jobs + SSE; `turbine` → durable workflows; `JetStream` → multi-user real-time.
+`goqite` → background jobs + SSE; `dagnats` → durable workflows (JSON over NATS JetStream); `JetStream` → multi-user real-time.
 
 ### PocketBase admin UI
 
@@ -185,10 +185,10 @@ The default build (`go build ./cmd/web`) is the recommended starting point for a
 |---|---|---|---|
 | _(default)_ | baseline | `goqite` queue + `InMemoryBroadcaster` (single-process cross-client SSE) + demo Todo app + auth + LLM | `router/router.go` |
 | `-tags jetstream` | +9 MB | Above + an embedded NATS server + durable `TODOS` JetStream stream for multi-instance realtime (NATS enabled by default under this tag; `NATS_ENABLED=false` opts out) | `cmd/web/nats.go` (`//go:build jetstream`) + `cmd/web/nats_noop.go` (`//go:build !jetstream`) |
-| `-tags turbine` | +2 MB | Above + durable multi-step workflows (e.g. `WelcomeOnboarding`) and the Turbine executor in PocketBase SQLite (Turbine enabled by default under this tag; `WORKFLOW_ENABLED=false` opts out) | `cmd/web/turbine.go` + `cmd/web/turbine_noop.go` |
-| `-tags "jetstream turbine"` | +11 MB | Both opt-ins stacked | sum of the above |
+| `-tags dagnats` | +2 MB | Above + the DagNats durable-workflow engine running in the same binary on its own HTTP port (`:8090`) with a declarative JSON onboarding workflow + worker handlers that write example todos. DagNats is enabled by default under this tag; `DAGNATS_ENABLED=false` opts out. **DagNats owns the embedded NATS on `:4222`** — when combined with `-tags jetstream`, the realtime broadcaster connects to that same NATS instead of starting a second one (single-NATS convention). | `cmd/web/dagnats.go` (`//go:build dagnats`) + `cmd/web/dagnats_noop.go` (`//go:build !dagnats`) + `internal/dagnats/` |
+| `-tags "jetstream dagnats"` | +11 MB | Both opt-ins, **one shared NATS**: DagNats boots it on `:4222`, the realtime broadcaster attaches to it. This is the recommended production combo. | sum of the above |
 
-The build-tag pattern is **file-level** in `cmd/web/`. Each tag has a noop stub (e.g. `turbine_noop.go`) so the default build never references the heavy deps. The router checks `cfg.NATS.Enabled` (defaults to true under `-tags jetstream`, override with `NATS_ENABLED=false`) / `cfg.Workflow.Enabled` (defaults to true under `-tags turbine`, override with `WORKFLOW_ENABLED=false`) runtime flags to decide whether to call the wiring functions; feature handlers (`features/todo/handlers/admin.go`, `.../onboarding.go`) gate their behaviour on `h.llm != nil && h.llm.Configured()` and the cfg flags, so routes 404 cleanly when features are off rather than crash.
+The build-tag pattern is **file-level** in `cmd/web/`. Each tag has a noop stub (e.g. `dagnats_noop.go`) so the default build never references the heavy deps. The router checks `cfg.NATS.Enabled` (defaults to true under `-tags jetstream`, override with `NATS_ENABLED=false`) / `cfg.DagNats.Enabled` (defaults to true under `-tags dagnats`, override with `DAGNATS_ENABLED=false`) runtime flags to decide whether to call the wiring functions; feature handlers (`features/todo/handlers/admin.go`, `.../onboarding.go`) gate their behaviour on `h.llm != nil && h.llm.Configured()` and the cfg flags, so routes 404 cleanly when features are off rather than crash.
 
 When adding a new feature with an optional dependency, follow the same shape: `internal/feature/<name>.go` (real impl) + `internal/feature/<name>_noop.go` (default build stub) + a `cfg.<Name>.Enabled` flag. See `docs/decisions.md` for the rationale.
 

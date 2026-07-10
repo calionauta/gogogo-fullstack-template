@@ -28,4 +28,4 @@ q.Delete(ctx, msg.ID)
 - Always set visibility timeout on Receive
 - Always Delete after successful processing
 - Use separate `queue.db` (not PocketBase's DB) to avoid lock contention
-- goqite is for fire-and-forget; use turbine or JetStream for durable orchestration
+- goqite is for fire-and-forget; use DagNats (build tag dagnats) or JetStream for durable orchestration

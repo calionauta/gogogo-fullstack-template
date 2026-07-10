@@ -31,11 +31,15 @@ pattern keyless.
 ### Phase 0 — Prereqs already done (this branch)
 - JetStream realtime fixed + auto-enabled under `-tags jetstream`
   (`internal/nats/embedded.go`, `config/nats_default.go`).
-- Turbine auto-enabled under `-tags turbine` (`config/workflow_default.go`).
+- DagNats durable workflows auto-enabled under `-tags dagnats`
+  (`config/dagnats_default.go`). DagNats replaces the old Turbine layer:
+  workflows are declarative JSON (not Go), so handler renames never orphan
+  an in-flight run, and it has a native in-step signal/wait primitive
+  (`WaitForSignal`) that Turbine lacked.
 - JetStream broadcasting e2e test (`internal/nats/realtime_test.go`,
   `//go:build jetstream`) — guards the path that was previously silently
   broken.
-- Turbine stepper + per-step toasts (`onboarding.go`, `todo_sse.go`
+- DagNats stepper + per-step toasts (`onboarding.go`, `todo_sse.go`
   `"progress"` case, `todo_list.templ`) — shows durable workflow live.
 
 ### Phase 1 — Add becomes synchronous (no queue)
@@ -73,7 +77,7 @@ synchronous e2e asserting the new todo appears in the list patch.
   in `dispatchStreamMessage`).
 
 **Build tags:** none. **Tests:** add `features/todo/suggest_test.go`
-(`//go:build turbine` not needed) using `internal/llm/fakeserver` with a real
+(`//go:build dagnats` not needed) using `internal/llm/fakeserver` with a real
 key-free client pointed at the fake; assert suggestions land via SSE.
 
 ### Phase 3 — Simulated LLM mode (fake server in-process)
@@ -143,16 +147,15 @@ toasts), `todo_list.templ` (suggest UI states).
 
 Each phase is independently testable and keeps `make check` green.
 
-## Known limitation: Turbine has no in-workflow delay/schedule primitive
+## Known limitation: onboarding uses a signal-wait, not a long sleep
 
-The event-driven onboarding flow (`OnboardingContinue`) uses `time.Sleep(60s)`
-*inside* the `scheduled_pause` durable step for the deliberate 1-minute
-pause between the user's first todo and the completion alert. Turbine
-v0.3.0 only exposes `WithSchedule(cronExpr)` at **workflow registration**
-time — there is no per-step `turbine.Delay` / `turbine.Schedule` primitive
-to pause a running workflow mid-flight. We deliberately do NOT use
-`WithSchedule` here because it is **recurring cron** (`*/1 * * * *` would
-fire every minute forever), whereas the onboarding flow wants a
-**one-shot** 1-minute pause that ends the workflow. The sleep runs only on
-the first execution of the step; on crash-recovery Turbine replays the
-recorded step without re-sleeping — recovery stays fast.
+The event-driven onboarding flow pauses at the `onboarding-await-first-todo`
+step via `ctx.WaitForSignal("first-todo")`, which blocks the step in-process
+until the app delivers the signal (when the user creates their first todo).
+Under the old Turbine layer this was impossible — Turbine v0.3.0 had no
+in-workflow suspend primitive, so the flow was split into two workflows plus
+an in-memory flag. DagNats' `WaitForSignal` makes the durable suspend
+explicit and crash-safe: if the process restarts while the step is waiting,
+the signal KV retains the value and the step resumes on redelivery. The
+per-step `time.Sleep` pacing in the `greet`/`create-todo` handlers is a demo
+concern only and is skipped on crash-recovery replay.

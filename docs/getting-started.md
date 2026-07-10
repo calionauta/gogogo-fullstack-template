@@ -27,7 +27,7 @@ make dev
 | DaisyUI + TailwindCSS | ✅ Default |
 | age secrets management | ✅ Default |
 | GoAI LLM SDK | ✅ Default |
-| Turbine durable workflows | 🔲 Opt-in (`make build-turbine`) |
+| DagNats durable workflows | 🔲 Opt-in (`make build-dagnats`) |
 | NATS JetStream (multi-user real-time) | 🔲 Opt-in (`make build-jetstream`) |
 
 ## Project Structure
@@ -40,6 +40,7 @@ internal/
   secrets/                # age-decrypt loader
   queue/                  # goqite + SSE Hub + workers
   nats/                   # NATS JetStream (build-tag gated)
+  dagnats/                # DagNats durable workflow client (build-tag gated)
   llm/                    # GoAI client
   datastar/               # Datastar render helpers
 features/app/             # Application feature modules
@@ -54,11 +55,11 @@ references/               # Reference documentation
 make templ            # Generate Templ components
 make build            # Build the binary
 make build-jetstream  # Build with JetStream support
-make build-turbine    # Build with Turbine workflow support
-make build-all        # Build with both JetStream and Turbine
+make build-dagnats    # Build with DagNats durable workflow support
+make build-all        # Build with JetStream + DagNats
 make dev              # Live reload with Air
 make test             # Run tests
-make test-turbine     # Run tests with Turbine tag
+make test-dagnats     # Run tests with DagNats tag
 make lint             # Run linters
 ```
 
@@ -73,16 +74,28 @@ go run -tags jetstream ./cmd/web/
 NATS_ENABLED=true ./gogogo-fullstack-template
 ```
 
-## Adding Turbine Workflows
+## Adding DagNats Workflows
+
+DagNats is a DAG-based durable workflow engine built on NATS JetStream.
+Workflows are **declarative JSON** (not Go), so renaming Go handlers never
+breaks an in-flight run. The engine runs in the same binary on its own
+port (`DAGNATS_HTTP_ADDR`, default `127.0.0.1:8090`) so its API/console
+never collides with the app on `:8080`. It boots its own embedded NATS —
+the `jetstream` and `dagnats` build tags are mutually exclusive.
 
 ```bash
-# Build with Turbine support
-make build-turbine
+# Build with DagNats support
+make build-dagnats
 
 # Or run in dev mode
-go run -tags turbine ./cmd/web/
-WORKFLOW_ENABLED=true ./gogogo-fullstack-template
+go run -tags dagnats ./cmd/web/
+DAGNATS_ENABLED=true ./gogogo-fullstack-template
 ```
+
+The onboarding demo workflow lives in
+`internal/dagnats/workflow.go` and is registered idempotently on startup.
+Worker handlers (which write example todos to PocketBase) are registered
+in `cmd/web/dagnats.go` via the `server.EmbeddedWorker` shim.
 
 ## Secrets Setup
 

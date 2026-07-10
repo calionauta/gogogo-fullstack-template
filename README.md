@@ -32,14 +32,14 @@ Everything you need to build a modern web app, in a single binary:
 | **CSS** | [DaisyUI v5](https://daisyui.com) + TailwindCSS | Ready components, customizable, ~34kB minified |
 | **Task queue** | [goqite](https://github.com/maragudk/goqite) + SSE Hub | Background jobs streamed to the browser, no Redis |
 | **Retries** | [avast/retry-go v4](https://github.com/avast/retry-go) | Exponential backoff with jitter, no boilerplate |
-| **Workflows** | [Turbine](https://turbine.yakir.io) | Multi-step durable workflows embedded in PocketBase SQLite (build-tag gated) |
+| **Workflows** | [DagNats](https://github.com/danmestas/dagnats) | Multi-step durable workflows as declarative JSON over NATS JetStream (build-tag gated) |
 | **LLM SDK** | [GoAI](https://github.com/zendev-sh/goai) | Any provider: OpenAI, Anthropic, Groq, Ollama… |
 | **Real-time** | [NATS JetStream](https://nats.io) (opt-in) | Multi-user real-time, only enabled when you need it |
 | **Secrets** | [age](https://age-encryption.org) + `~/.secrets/` | Local encryption, no vault, no cloud |
 | **IDs** | [google/uuid](https://github.com/google/uuid) | Stable request/job IDs |
 | **Live reload** | [Air](https://github.com/air-verse/air) | `make dev` regenerates templ and restarts the binary |
 | **Linting** | [golangci-lint](https://golangci-lint.run) | `errcheck`, `staticcheck`, `gosec`, `revive`, `gocritic` (see `.golangci.yml`) |
-| **CI/CD** | GitHub Actions | `ci.yml` (lint + test + build, tag matrix `""`/`jetstream`/`turbine`) + `deploy.yml` (multi-arch Docker to ghcr.io, runs on `master`) |
+| **CI/CD** | GitHub Actions | `ci.yml` (lint + test + build, tag matrix `""`/`jetstream`/`dagnats`) + `deploy.yml` (multi-arch Docker to ghcr.io, runs on `master`) |
 
 ## Stack in layers, not silos
 
@@ -49,13 +49,13 @@ This template solves it with **three complementary async layers**:
 
 ```
 goqite    → background jobs + SSE to the browser (default, always on)
-turbine   → durable multi-step workflows (opt-in, build tag)
+dagnats   → durable multi-step workflows as JSON (opt-in, build tag)
 JetStream → multi-user real-time (opt-in, build tag)
 ```
 
 They coexist in the same binary. They don't compete.
 
-The `goqite` queue is the **only async layer with a build tag off** — it's core and always on. Turbine and JetStream are opt-in heavyweight features: enable them when you actually need durable multi-step workflows or multi-instance realtime. The default build (`go build ./cmd/web`) is the recommended starting point for almost every project.
+The `goqite` queue is the **only async layer with a build tag off** — it's core and always on. DagNats and JetStream are opt-in heavyweight features: enable them when you actually need durable multi-step workflows or multi-instance realtime. The default build (`go build ./cmd/web`) is the recommended starting point for almost every project.
 
 ## The example: Todo App with SSE
 
@@ -67,7 +67,7 @@ The template ships with a working Todo App:
 - Stacked toast notifications (auto-dismiss, manual close, progress bar)
 - Async jobs: `handleCreate` enqueues a `todo_created` job; a worker picks it up and streams a success toast to the right browser tab via the SSE Hub (`clientID` routing)
 - Retries with exponential backoff and jitter (`internal/queue/retry.go`, retry-go v4) — SSE-aware: a retry emits a `lastRetry` signal so the UI can show "retrying…"
-- `WelcomeOnboarding` Turbine workflow (with `-tags turbine`) that creates 3 example todos via durable steps — kill the server mid-run, restart, watch it resume at the last incomplete step
+- `WelcomeOnboarding` DagNats workflow (with `-tags dagnats`) that creates 3 example todos via durable steps — kill the server mid-run, restart, watch it resume at the last incomplete step. The workflow is declarative JSON (`internal/dagnats/workflow.go`), so renaming Go handlers never orphans an in-flight run.
 - **Admin unlock** via `age` + `~/.secrets/`. The Todo example wires a master-password path: when `ADMIN_UNLOCK_TOKEN` is set (in the age-encrypted secrets file), the UI shows a "Clear all" form; the handler compares constant-time and clears all todos on match. Demonstrates the age flow end-to-end.
 - **AI suggest** via GoAI. When `GOAI_API_KEY` is set, the input gets a "Suggest" button that enqueues an async suggest job (see queue below) and streams the 3 completions back via SSE. Provider is configurable (Groq, OpenRouter, Together, Cloudflare, OpenAI). Retries with exponential backoff; same `internal/queue/retry.go` used by the SSE toast path. For a **keyless** demo of the exact same queue + retry path, set `SIMULATE_LLM=true`: a "Suggest (simulated)" button enqueues a job that hits an in-process fake LLM scripting 500 → 200 + delay, so you can watch the retry feedback toasts (enqueued → attempt failed → slow → result).
 - Tests run with `-race`
@@ -77,7 +77,7 @@ The template ships with a working Todo App:
 > 2. **goqite job** for any work that takes more than ~50ms (LLM, email, exports).
 > 3. **SSE toast** for async feedback to the originating client via `clientID` routing.
 > 4. **age-encrypted secret** if the feature needs a credential.
-> Every existing feature (toast on create, AI suggest, admin unlock, Turbine onboarding) follows this exact shape.
+> Every existing feature (toast on create, AI suggest, admin unlock, DagNats onboarding) follows this exact shape.
 
 Enough to understand the pattern and start your own feature module.
 
@@ -102,10 +102,10 @@ A running deployment of this exact template is live. You can touch every feature
 
 | What | URL | What you can do |
 |------|-----|-----------------|
-| **Todo demo app** | `https://<your-demo-domain>/` | Log in with the seeded demo account (`demo@demo.app` / `demo`), then watch the **event-driven Turbine onboarding** kick off automatically: step 1 greet → step 2 awaits your first todo → create a todo → step 3 captures it → step 4 scheduled 1-min pause → step 5 complete + alert. Per-user (only your browser session is scoped to you, not global), event-driven (the create-todo event resumes the workflow), durable (a crash mid-pause resumes on restart). With `GOAI_API_KEY` set, the AI "Suggest" button appears; with `SIMULATE_LLM=true`, a keyless "Suggest (simulated)" button exercises the same queue + retry path against an in-process fake LLM (error → retry → slow). Open two browser tabs to see the **self vs. remote** animations: items you create slide in from the top with a primary tint; items other tabs create slide in from the left with an info pulse + "from someone else" indicator. Delete and reorder use the browser View Transitions API for a free cross-fade. |
+| **Todo demo app** | `https://<your-demo-domain>/` | Log in with the seeded demo account (`demo@demo.app` / `demo`), then watch the **event-driven DagNats onboarding** kick off automatically: step 1 greet → step 2 awaits your first todo (blocks on a `WaitForSignal`) → create a todo → the signal resumes the flow → steps 3–5 create 3 example todos + complete. Per-user (only your browser session is scoped to you, not global), event-driven (the create-todo event signals the waiting step), durable (a crash mid-wait resumes on restart because the signal KV retains the value). With `GOAI_API_KEY` set, the AI "Suggest" button appears; with `SIMULATE_LLM=true`, a keyless "Suggest (simulated)" button exercises the same queue + retry path against an in-process fake LLM (error → retry → slow). Open two browser tabs to see the **self vs. remote** animations: items you create slide in from the top with a primary tint; items other tabs create slide in from the left with an info pulse + "from someone else" indicator. Delete and reorder use the browser View Transitions API for a free cross-fade. |
 | **Live PocketBase admin dashboard** | `https://<your-demo-domain>/_/` | Open the embedded PocketBase UI to browse the `todos` + `users` collections, run the REST/JS SDK playground, and inspect logs. The demo's `users` collection is **locked** — visitors can log in as the demo user but cannot create or delete accounts through the API or this dashboard (only the superuser can). |
 
-> The demo runs `make build-jetstream` (NATS embedded, JetStream realtime on) and `-tags turbine` (durable workflows). To stand up your own, see [Deploy](#deploy).
+> The demo runs `-tags dagnats` (durable workflows on `:8090`) combined with `-tags jetstream` (multi-user realtime). The two share a **single embedded NATS** on `:4222` — DagNats boots it and the realtime broadcaster attaches to it, so there is only one NATS process in the binary. To stand up your own, see [Deploy](#deploy).
 
 ## Free LLM providers (OpenAI-compatible, no card required)
 
@@ -159,11 +159,11 @@ Open `http://localhost:8080` and see the Todo App running.
 ```bash
 make build            # Build binary (default: goqite + SSE Hub)
 make build-jetstream  # Build with NATS JetStream (multi-user real-time). JetStream is enabled automatically under this tag — no extra env needed; set NATS_ENABLED=false to opt out.
-make build-turbine    # Build with Turbine durable workflows. Turbine is enabled automatically under this tag — no extra env needed; set WORKFLOW_ENABLED=false to opt out.
-make build-all        # Build with both JetStream + Turbine
+make build-dagnats    # Build with DagNats durable workflows (JSON over NATS). DagNats is enabled automatically under this tag — no extra env needed; set DAGNATS_ENABLED=false to opt out. The engine listens on DAGNATS_HTTP_ADDR (default 127.0.0.1:8090). When built WITH -tags jetstream, the realtime broadcaster reuses the NATS that DagNats already owns on :4222 (single NATS).
+make build-all        # Build with both JetStream + DagNats
 make test             # Run tests with race detector (default tags)
 make test-jetstream   # Run tests with JetStream tag
-make test-turbine     # Run tests with Turbine tag
+make test-dagnats     # Run tests with DagNats tag
 make check            # Lint + size limits + dead code + CSS check
 make css              # Build app.min.css (Tailwind v4 + DaisyUI v5)
 make dev              # Live reload with Air
@@ -263,8 +263,8 @@ and overwritten on every run — there is no history of secrets on disk.
 cmd/web/
   main.go               # Entry point — only initializes and wires pieces
   nats.go               # NATS JetStream bootstrap (build-tag gated)
-  turbine.go            # Turbine runtime bootstrap (build-tag gated)
-  turbine_noop.go       # No-op stub when -tags turbine absent
+  dagnats.go            # DagNats runtime bootstrap (build-tag gated)
+  dagnats_noop.go       # No-op stub when -tags dagnats absent
 config/                 # Per-environment config (dev/prod)
 db/                     # PocketBase setup + seed
 internal/
@@ -276,13 +276,12 @@ internal/
     retry.go            #   exponential backoff + jitter (retry-go v4)
     handlers.go         #   HandlerRegistry: job-type to handler dispatch
   nats/                 # JetStream (build-tag gated)
-  workflow/             # Turbine durable workflows (build-tag gated)
-    turbine.go          #   embedded in PocketBase SQLite, WithName step decoupling
+  dagnats/              # DagNats durable workflow client + onboarding JSON (build-tag gated)
   llm/                  # GoAI LLM SDK helpers
   datastar/             # Datastar rendering helpers
 features/
   todo/                 # Working example: Todo MVC
-    handlers/           #   HTTP + SSE handlers, onboarding (turbine-gated)
+    handlers/           #   HTTP + SSE handlers, onboarding (dagnats-gated)
     components/         #   Templ components (layout, todo_list, todo_item, toast)
 web/resources/          # Static assets (embedded JS)
 router/                 # Routes registered on PocketBase
