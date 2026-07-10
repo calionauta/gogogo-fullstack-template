@@ -15,11 +15,13 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 
@@ -72,6 +74,34 @@ func main() {
 		} else {
 			log.Printf("desktop: published collab update for %s", demoDoc.ID())
 		}
+
+		// Ephemeral presence: broadcast this desktop's cursor on the demo
+		// doc so other edges / the browser see it live. A real whiteboard
+		// UI would call PublishCursor on pointer move; here we tick a demo
+		// cursor so the presence path is exercised end-to-end.
+		pres := collab.NewPresence(nats.Conn(), "desktop-demo", "desktop", 0, 0)
+		presCtx, presCancel := context.WithCancel(context.Background())
+		defer presCancel()
+		go func() {
+			_ = pres.Subscribe(presCtx)
+		}()
+		go func() {
+			t := time.NewTicker(2 * time.Second)
+			defer t.Stop()
+			var x float64
+			for {
+				select {
+				case <-presCtx.Done():
+					return
+				case <-t.C:
+					x = (x + 0.1)
+					if x > 1 {
+						x = 0
+					}
+					_ = pres.PublishCursor(x, 0.5)
+				}
+			}
+		}()
 	}
 
 	addr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)

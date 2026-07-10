@@ -5,7 +5,18 @@ All notable changes to this template are documented here. The format is based on
 ## [0.6.4] - 2026-07-10
 
 ### Added
-- **Phase C: Loro CRDT collaborative sync worker.** `internal/collab` wraps `aholstenson/loro-go` with a mutex-guarded `Doc` (`EncodeSnapshot`/`EncodeUpdate`/`ApplyUpdate`/`StateVersion`). The `SyncWorker` subscribes to `app.sync.>` on the embedded NATS, merges each Loro update into the per-doc CRDT, and persists the resolved snapshot via a `Persister` (`PocketBasePersister` → new `whiteboards` collection, upsert by `doc_id`). Wired in `router/collab_jetstream.go` (build tag `jetstream`); no-op otherwise. `db/seed.go` ensures the `whiteboards` collection exists.
+- **Phase C (presence):** `internal/collab.Presence` (jetstream) broadcasts
+  ephemeral multi-user cursors over `app.presence.<docID>` — heartbeat
+  join/leave + cursor `{doc,x,y}` with a roster that expires stale peers
+  via TTL. A central SSE bridge `GET /api/collab/presence/{docID}`
+  (`router/collab_jetstream.go`) streams NATS presence to browser clients,
+  so desktop-edge cursors (including Leaf Node replicas) show live in the
+  web UI. The desktop edge starts a `Presence` session and ticks a demo
+  cursor to exercise the path end-to-end.
+  - **Regression guard `TestPresence_TwoPeersConverge`** (in `make test-combined`):
+    two `Presence` sessions over a real embedded NATS each receive the
+    other's cursor + join — proves the volatile cursor broadcast works.
+- **Phase C (Loro CRDT sync worker).** `internal/collab` wraps `aholstenson/loro-go` with a mutex-guarded `Doc` (`EncodeSnapshot`/`EncodeUpdate`/`ApplyUpdate`/`StateVersion`). The `SyncWorker` subscribes to `app.sync.>` on the embedded NATS, merges each Loro update into the per-doc CRDT, and persists the resolved snapshot via a `Persister` (`PocketBasePersister` → new `whiteboards` collection, upsert by `doc_id`). Wired in `router/collab_jetstream.go` (build tag `jetstream`); no-op otherwise. `db/seed.go` ensures the `whiteboards` collection exists.
 - **Edge publisher.** `internal/collab.Publisher.PublishUpdate` exports the delta since a version vector and publishes it on `app.sync.<docID>`. `cmd/desktop` (build tag `jetstream`) builds a publisher over the Leaf Node connection and publishes on boot, so offline edits replicate to central on reconnect.
 - **Regression guard `TestCollab_SyncWorkerPersists`.** Publishes a real Loro update on `app.sync.wb-123` against an embedded NATS JetStream; asserts the worker applies + persists a snapshot that round-trips back as a valid Loro doc. This is in `make test-combined` (`-tags "jetstream dagnats"`), so the full edge→central path is covered alongside the DagNats/JetStream guards.
 

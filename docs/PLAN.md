@@ -98,7 +98,9 @@
    PocketBase `whiteboards` collection (base64). Idempotent by `DocID`+
    version.
 9. Presence/cursors: NATS pub/sub on `app.presence.>` (ephemeral, no
-   persistence) — lightweight multi-user cursor broadcast.
+   persistence) — lightweight multi-user cursor broadcast. Done: a
+   `Presence` type (heartbeat join/leave + cursor with roster TTL) plus a
+   central SSE bridge so browser clients receive edge cursors live.
 
 **Phase D — CI + mobile stretch**
 10. `.github/workflows/build-platforms.yml`: matrix builds `.dmg`,
@@ -138,7 +140,14 @@
       - `internal/collab.Publisher.PublishUpdate` exports the delta since a
         version vector and publishes it. `cmd/desktop` (jetstream) builds
         a publisher over the Leaf Node connection and publishes on boot.
-- [ ] Presence/cursors broadcast over `app.presence.>` (Phase C)
+- [x] Presence/cursors broadcast over `app.presence.>` (Phase C done 2026-07-10)
+      - `internal/collab.Presence` (jetstream): pub/sub on `app.presence.<docID>`:
+        heartbeat join/leave + cursor `{doc,x,y}` with roster TTL expiry.
+        `TestPresence_TwoPeersConverge` guards two peers receiving each
+        other's cursor + join over a real embedded NATS.
+      - Central SSE bridge `GET /api/collab/presence/{docID}`
+        (`router/collab_jetstream.go`) streams NATS presence to browser
+        clients. Desktop edge starts a `Presence` session + demo cursor.
 - [ ] `.github/workflows/build-platforms.yml` builds 4 desktop
       artifacts and uploads them (Phase D)
 - [ ] README has a "Desktop & Mobile" section
