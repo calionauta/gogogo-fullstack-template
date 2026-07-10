@@ -32,6 +32,11 @@ jobs:
         # DagNats boots an embedded NATS + workflow engine per package under
         # test; under -race, parallel packages starve the engine and cause
         # flaky timeouts. Serialize packages (-p 1) for the dagnats tags.
+        # Pin the working directory explicitly: some runner images report a
+        # doubled checkout path, which makes `go test ./...` resolve to a dir
+        # with no Go files. github.workspace + the repo name is where the
+        # checkout actually lands (per the git safe.directory log).
+        working-directory: ${{ github.workspace }}/${{ github.event.repository.name }}
         run: |
           case "${{ matrix.tag }}" in
             "dagnats"|"jetstream dagnats") P=-p1 ;;
@@ -39,4 +44,5 @@ jobs:
           esac
           go test -tags "${{ matrix.tag }}" $P ./... -v -count=1
       - name: Build
+        working-directory: ${{ github.workspace }}/${{ github.event.repository.name }}
         run: go build -tags "${{ matrix.tag }}" -o /dev/null ./cmd/web/

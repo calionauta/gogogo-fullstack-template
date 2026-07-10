@@ -52,19 +52,22 @@ jobs:
         with:
           go-version: "1.26"
 
-      - name: Install wails CLI
-        run: go install github.com/wailsapp/wails/v3/cmd/wails@latest
-        shell: bash
-
       - name: Generate templ
         run: go tool templ generate
         shell: bash
 
       - name: Build desktop bundle
+        # wails v3 alpha2.117 does not publish the `cmd/wails` CLI binary,
+        # so native packaging (wails build) is unavailable on CI for this
+        # version. We build the desktop binary directly with `go build`
+        # (same as `make desktop`) under the jetstream tag, emitting a
+        # platform-named executable. Native .dmg/.exe/.AppImage packaging
+        # can be done locally with a wails CLI that ships the cmd/wails
+        # package.
         run: |
-          wails build -app ./cmd/desktop -config ./wails.json \
-            -tags jetstream -platform ${{ matrix.platform }} \
-            -outputname ${{ matrix.artifact }}
+          OUT="build/gogogo-desktop-${{ matrix.artifact }}${{ matrix.ext }}"
+          mkdir -p build
+          go build -tags jetstream -o "$OUT" ./cmd/desktop
         shell: bash
 
       - name: Upload artifact
@@ -72,6 +75,5 @@ jobs:
         with:
           name: ${{ matrix.artifact }}${{ matrix.ext }}
           path: |
-            build/**/${{ matrix.artifact }}${{ matrix.ext }}
-            build/bin/${{ matrix.artifact }}${{ matrix.ext }}
+            build/gogogo-desktop-${{ matrix.artifact }}${{ matrix.ext }}
           if-no-files-found: warn
