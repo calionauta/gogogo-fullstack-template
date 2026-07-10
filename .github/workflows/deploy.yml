@@ -89,7 +89,7 @@ jobs:
         run: |
           mkdir -p bin
           CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build \
-              -tags "jetstream turbine" \
+          -tags "jetstream dagnats" \
               -trimpath -ldflags="-s -w" \
               -o bin/gogogo-fullstack-template.new ./cmd/web/
 

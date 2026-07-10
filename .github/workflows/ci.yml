@@ -10,7 +10,7 @@ jobs:
   ci:
     strategy:
       matrix:
-        tag: ["", "jetstream", "turbine"]
+        tag: ["", "jetstream", "dagnats", "jetstream dagnats"]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
