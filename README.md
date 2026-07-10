@@ -13,9 +13,32 @@ This template is my attempt at a starting point that already resolves those choi
 
 > **Made with intent to be useful, not to be right.** This template optimizes for shipping something that runs today over being philosophically correct. Decisions here are pragmatic, not dogmatic.
 
+## Contents
+
+- [Who this template is for](#who-this-template-is-for)
+- [What's in the package](#whats-in-the-package)
+- [Stack in layers, not silos](#stack-in-layers-not-silos)
+- [The example: Todo App with SSE](#the-example-todo-app-with-sse)
+- [PocketBase admin UI (built in)](#pocketbase-admin-ui-built-in)
+- [Try it live](#try-it-live)
+- [Free LLM providers](#free-llm-providers-openai-compatible-no-card-required)
+- [Getting started](#getting-started)
+- [Desktop & Mobile](#desktop--mobile-wails-v3--loro-crdt--nats-leaf-node)
+- [Deploy to your own box](#deploy-to-your-own-box)
+- [Structure](#structure)
+
 ---
 
 Every Go web project I start ends up in the same conversation: pick a database, auth, router, reactive UI framework, task queue… and the project stalls at the decisions, installations, and configurations — not the code.
+
+## Who this template is for
+
+- **You who get tired of configuring the same stack over and over**
+- **You who want a single binary for deploy, with no Redis, Postgres, or SaaS**
+- **You who want an LLM client wired in without pulling in a whole orchestration framework** — `internal/llm` wraps GoAI (any provider: OpenAI, Anthropic, Groq, Ollama) behind an injectable interface, callable from handlers. It calls a *remote* provider API; it is **not** a local-model runtime.
+- **You who prefer server-rendered HTML over 2MB SPAs**
+
+It's not a framework. There's no lock-in. Each piece can be replaced individually.
 
 ## What's in the package
 
@@ -25,8 +48,6 @@ Everything you need to build a modern web app, in a single binary:
 |-------|--------|-----|
 | **Language** | Go 1.26 | Fast compilation, easy deploy, lean runtime |
 | **Database + Auth + API** | [PocketBase](https://pocketbase.io) (embedded, on `ncruces/go-sqlite3`) | Zero-config auth, REST, [admin UI at `/_/`](https://<your-domain>/_/), file storage — all in SQLite |
-
-> **Why `ncruces/go-sqlite3`?** It's the pure-Go (no cgo) SQLite build that bundles the extensions this template leans on — FTS5, `spellfix1`, `unicode` collations — which the stock driver leaves out. That's why the `//go:build`/driver init in `db/pocketbase.go` pins it instead of `modernc.org/sqlite` directly.
 | **Templating** | [Templ](https://templ.guide) | Type-safe Go components, generated at build time |
 | **Reactive UI** | [Datastar](https://data-star.dev) (SSE) | Server-rendered over SSE, single ~12 KiB client. CSS built once via Tailwind v4 CLI; no JS runtime. |
 | **CSS** | [DaisyUI v5](https://daisyui.com) + TailwindCSS | Ready components, customizable, ~34kB minified |
@@ -40,6 +61,8 @@ Everything you need to build a modern web app, in a single binary:
 | **Live reload** | [Air](https://github.com/air-verse/air) | `make dev` regenerates templ and restarts the binary |
 | **Linting** | [golangci-lint](https://golangci-lint.run) | `errcheck`, `staticcheck`, `gosec`, `revive`, `gocritic` (see `.golangci.yml`) |
 | **CI/CD** | GitHub Actions | `ci.yml` (lint + test + build, tag matrix `""`/`jetstream`/`dagnats`) + `deploy.yml` (multi-arch Docker to ghcr.io, runs on `master`) |
+
+> **Why `ncruces/go-sqlite3`?** It's the pure-Go (no cgo) SQLite build that bundles the extensions this template leans on — FTS5, `spellfix1`, `unicode` collations — which the stock driver leaves out. That's why the `//go:build`/driver init in `db/pocketbase.go` pins it instead of `modernc.org/sqlite` directly.
 
 ## Stack in layers, not silos
 
@@ -104,6 +127,7 @@ A running deployment of this exact template is live. You can touch every feature
 |------|-----|-----------------|
 | **Todo demo app** | `https://<your-demo-domain>/` | Log in with the seeded demo account (`demo@demo.app` / `demo`), then watch the **event-driven DagNats onboarding** kick off automatically: step 1 greet → step 2 awaits your first todo (blocks on a `WaitForSignal`) → create a todo → the signal resumes the flow → steps 3–5 create 3 example todos + complete. Per-user (only your browser session is scoped to you, not global), event-driven (the create-todo event signals the waiting step), durable (a crash mid-wait resumes on restart because the signal KV retains the value). With `GOAI_API_KEY` set, the AI "Suggest" button appears; with `SIMULATE_LLM=true`, a keyless "Suggest (simulated)" button exercises the same queue + retry path against an in-process fake LLM (error → retry → slow). Open two browser tabs to see the **self vs. remote** animations: items you create slide in from the top with a primary tint; items other tabs create slide in from the left with an info pulse + "from someone else" indicator. Delete and reorder use the browser View Transitions API for a free cross-fade. |
 | **Live PocketBase admin dashboard** | `https://<your-demo-domain>/_/` | Open the embedded PocketBase UI to browse the `todos` + `users` collections, run the REST/JS SDK playground, and inspect logs. The demo's `users` collection is **locked** — visitors can log in as the demo user but cannot create or delete accounts through the API or this dashboard (only the superuser can). |
+| **Durable workflow engine (DagNats)** | `https://<your-demo-domain>:8090` | The DagNats HTTP API where the `WelcomeOnboarding` workflow runs (declarative JSON over NATS JetStream). Inspect runs/steps or trigger them via the API; the Todo demo drives it automatically on first login. |
 
 > The demo runs `-tags dagnats` (durable workflows on `:8090`) combined with `-tags jetstream` (multi-user realtime). The two share a **single embedded NATS** on `:4222` — DagNats boots it and the realtime broadcaster attaches to it, so there is only one NATS process in the binary. To stand up your own, see [Deploy](#deploy).
 
@@ -130,15 +154,6 @@ GOAI_API_KEY=gsk_...
 If `GOAI_API_KEY` is empty, the AI suggest route is **not registered** and the UI button is hidden. The Todo example keeps working — AI is opt-in, not required.
 
 **Note on truly keyless services:** [mlvoca.com](https://mlvoca.github.io/free-llm-api/) offers a free, keyless LLM API, but it exposes the **Ollama** API shape (`POST /api/generate`), not OpenAI Chat Completions. GoAI's `compat` provider speaks OpenAI; a thin Ollama-shim would be needed to use mlvoca. The mlvoca terms also forbid commercial use, so it would not be a sensible default for a reusable template.
-
-## Who this template is for
-
-- **You who get tired of configuring the same stack over and over**
-- **You who want a single binary for deploy, with no Redis, Postgres, or SaaS**
-- **You who want an LLM client wired in without pulling in a whole orchestration framework** — `internal/llm` wraps GoAI (any provider: OpenAI, Anthropic, Groq, Ollama) behind an injectable interface, callable from handlers. It calls a *remote* provider API; it is **not** a local-model runtime.
-- **You who prefer server-rendered HTML over 2MB SPAs**
-
-It's not a framework. There's no lock-in. Each piece can be replaced individually.
 
 ## Getting started
 
@@ -204,7 +219,7 @@ make desktop            # go build -tags jetstream ./cmd/desktop  →  gogogo-de
 make wails-build        # wails build -app ./cmd/desktop -config ./wails.json -tags jetstream
 ```
 
-**Edge sync (Phase B + C).** Build the desktop with `-tags jetstream`. If
+**Edge sync.** Build the desktop with `-tags jetstream`. If
 `NATS_LEAFNODE_URL` is set, the desktop boots as a **NATS Leaf Node** that
 syncs its JetStream streams with your central server — offline edits replay
 on reconnect. Without it, it runs a standalone embedded NATS for local

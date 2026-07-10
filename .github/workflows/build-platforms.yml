@@ -45,6 +45,8 @@ jobs:
             artifact: gogogo-desktop-linux-amd64
             ext: .AppImage
     runs-on: ${{ matrix.runner }}
+    env:
+      GOTOOLCHAIN: local
     steps:
       - uses: actions/checkout@v4
 

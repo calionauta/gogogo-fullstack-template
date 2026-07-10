@@ -12,6 +12,8 @@ jobs:
       matrix:
         tag: ["", "jetstream", "dagnats", "jetstream dagnats"]
     runs-on: ubuntu-latest
+    env:
+      GOTOOLCHAIN: local
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -33,13 +35,6 @@ jobs:
           # which aborts the whole job on infra flake rather than lint
           # failure. Disable the cache so lint runs every time.
           skip-cache: true
-      - name: Debug checkout path
-        run: |
-          echo "GITHUB_WORKSPACE=$GITHUB_WORKSPACE"
-          pwd
-          ls -la
-          echo "--- find go.mod ---"
-          find /home/runner/work -maxdepth 4 -name go.mod 2>/dev/null
       - name: Test
         # DagNats boots an embedded NATS + workflow engine per package under
         # test; under -race, parallel packages starve the engine and cause
