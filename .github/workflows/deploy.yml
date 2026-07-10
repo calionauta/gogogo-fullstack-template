@@ -149,10 +149,14 @@ jobs:
           name: gogogo-fullstack-template-linux-amd64
           path: dist/
 
-      # Write the secrets file with mode 600 BEFORE any container
+  # Write the secrets file with mode 600 BEFORE any container
       # could read it. The secrets are sourced from GitHub Secrets;
       # the file is regenerated on every deploy and is never
       # committed to the repo.
+      #
+      # GOAI_BASE_URL / GOAI_MODEL are GitHub Variables (not secrets —
+      # the URL/model are not sensitive) so the demo can target Groq
+      # (or any OpenAI-compatible provider) without editing code.
       - name: Write secrets file (mode 600)
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
@@ -160,6 +164,8 @@ jobs:
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           GOAI_API_KEY: ${{ secrets.GOAI_API_KEY }}
           ADMIN_UNLOCK_TOKEN: ${{ secrets.ADMIN_UNLOCK_TOKEN }}
+          GOAI_BASE_URL: ${{ vars.GOAI_BASE_URL }}
+          GOAI_MODEL: ${{ vars.GOAI_MODEL }}
         run: |
           set -euo pipefail
           # Tailscale SSH (port 2222) on this server is in userspace
@@ -191,6 +197,8 @@ jobs:
             umask 077
             cat > \"$SECRETS_DIR/${APP_NAME}.env.tmp\" <<EOF2
           GOAI_API_KEY=$GOAI_API_KEY
+          GOAI_BASE_URL=${GOAI_BASE_URL:-https://api.groq.com/openai/v1}
+          GOAI_MODEL=${GOAI_MODEL:-llama-3.1-8b-instant}
           ADMIN_UNLOCK_TOKEN=$ADMIN_UNLOCK_TOKEN
           EOF2
             mv \"$SECRETS_DIR/${APP_NAME}.env.tmp\" \"$SECRETS_DIR/${APP_NAME}.env\"

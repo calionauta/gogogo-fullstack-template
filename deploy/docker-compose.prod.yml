@@ -29,17 +29,19 @@ services:
       PORT: "8080"
       ENVIRONMENT: ${ENVIRONMENT:-production}
       DATA_DIR: /var/lib/gogogo-fullstack-template/data
-      # LLM (these three lines are wired by the GH Action; the
-      # production .env may also override).
-      GOAI_BASE_URL: ${GOAI_BASE_URL:-https://api.openai.com/v1}
-      GOAI_MODEL: ${GOAI_MODEL:-gpt-4o-mini}
+      # LLM (these three lines are wired by the GH Action deploy;
+      # GOAI_API_KEY + GOAI_BASE_URL + GOAI_MODEL come from the
+      # secrets env_file below, never committed). GOAI_BASE_URL /
+      # GOAI_MODEL default to Groq (OpenAI-compatible) when unset.
+      GOAI_BASE_URL: ${GOAI_BASE_URL:-https://api.groq.com/openai/v1}
+      GOAI_MODEL: ${GOAI_MODEL:-llama-3.1-8b-instant}
       # Realtime — binary built with -tags jetstream.
       NATS_ENABLED: "true"
       NATS_STORE_DIR: /var/lib/${APP_NAME:-gogogo-fullstack-template}/data/nats
       # Durable workflow — build with -tags dagnats. DagNats boots its
-      # own embedded NATS (separate from the jetstream tag's NATS) and
-      # its HTTP API/console on DAGNATS_HTTP_ADDR (default 127.0.0.1:8090),
-      # so the two tags are mutually exclusive.
+      # own embedded NATS and its HTTP API/console on DAGNATS_HTTP_ADDR
+      # (default 127.0.0.1:8090). Under -tags "jetstream dagnats" it owns
+      # the same NATS the realtime broadcaster uses (single-NATS).
       DAGNATS_ENABLED: "true"
       DAGNATS_HTTP_ADDR: "127.0.0.1:8090"
       DAGNATS_STORE_DIR: /var/lib/${APP_NAME:-gogogo-fullstack-template}/data/dagnats
