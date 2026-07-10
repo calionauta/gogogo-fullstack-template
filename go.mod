@@ -1,12 +1,13 @@
 module github.com/calionauta/gogogo-fullstack-template
 
-go 1.26
+go 1.26.5
 
 tool github.com/a-h/templ/cmd/templ
 
 require (
 	filippo.io/age v1.3.1
 	github.com/a-h/templ v0.3.1020
+	github.com/aholstenson/loro-go v0.5.0
 	github.com/avast/retry-go/v4 v4.7.0
 	github.com/danmestas/dagnats v0.0.5
 	github.com/google/uuid v1.6.0
@@ -26,7 +27,6 @@ require (
 	github.com/CAFxX/httpcompression v0.0.9 // indirect
 	github.com/a-h/parse v0.0.0-20250122154542-74294addb73e // indirect
 	github.com/adrg/xdg v0.5.3 // indirect
-	github.com/aholstenson/loro-go v0.5.0 // indirect
 	github.com/andybalholm/brotli v1.2.0 // indirect
 	github.com/antithesishq/antithesis-sdk-go v0.7.0-default-no-op // indirect
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
