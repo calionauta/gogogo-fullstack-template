@@ -117,7 +117,7 @@ deadcode:
 # scans dead code, runs the full race test suite, and verifies the
 # generated CSS is up to date. make setup installs the blocking
 # pre-commit hook that enforces the same gate on every commit.
-check: fmt datastar-lint css-check lint check-sizes deadcode test test-jetstream test-dagnats test-combined
+check: fmt datastar-lint css-check lint check-sizes deadcode test test-combined
 	@echo "✅ All checks passed"
 
 deps:

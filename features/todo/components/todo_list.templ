@@ -44,12 +44,12 @@ templ TodoList(signals todo.Signals) {
 						<path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"/>
 					</svg>
 					Todo App
-					<span class="badge badge-ghost ml-2 text-sm font-normal" data-text="$itemCount + ' items | td=' + $techDone + ' ts=' + $techStep"></span>
+					<span class="badge badge-ghost ml-2 text-sm font-normal" data-text="$itemCount + ' items'"></span>
 				</h2>
 
 				@createForm(signals)
 
-				@suggestionsList(signals.Suggestions)
+				@SuggestionsList(signals.Suggestions)
 
 				@filterTabs(signals)
 				@TodoListRegion(signals)
@@ -175,32 +175,33 @@ templ TechstackPanel(signals todo.Signals) {
 		<div class="flex flex-col gap-4">
 			<div class="flex items-center gap-2 flex-wrap text-xs">
 				<span class="badge badge-sm badge-primary">Realtime</span>
-				<span class="opacity-70">NATS JetStream / in-memory fan-out — every mutation broadcasts.</span>
+				<span class="opacity-70">NATS <span data-text="$realtimeKind"></span> fan-out — every mutation broadcasts.</span>
 				<span class="badge badge-sm" data-text="$connectedClients + ' online'"></span>
 			</div>
 
-			<ul class="steps steps-vertical w-full">
-				<li
-					class="step"
-					data-class={ stepClass("suggest") }
-				>
-					AI suggest
-				</li>
-				<li
-					class="step"
-					data-class={ stepClass("retry-demo") }
-				>
-					Queue + retry
-				</li>
+			<div class="flex flex-col gap-4">
+				<div>
+					<div class="text-xs font-semibold opacity-70 mb-2">Queue + retry <span class="opacity-50">(goqite + retry-go + fake LLM)</span></div>
+					<ul class="steps steps-vertical w-full">
+						<li class="step" data-class={ stepClass("retry-demo") }>Enqueue suggest job</li>
+						<li class="step" data-class={ stepClass("retry-demo") }>Retry on simulated error</li>
+						<li class="step" data-class={ stepClass("retry-demo") }>Return suggestions</li>
+					</ul>
+				</div>
 				if signals.DagNatsEnabled {
-					<li
-						class="step"
-						data-class={ stepClass("workflow") }
-					>
-						Durable workflow
-					</li>
+					<div>
+						<div class="text-xs font-semibold opacity-70 mb-2">Durable workflow <span class="opacity-50">(DagNats)</span></div>
+						<ul class="steps steps-vertical w-full">
+							<li class="step" data-class={ stepClass("workflow") }>Greeting</li>
+							<li class="step" data-class={ stepClass("workflow") }>Waiting for your first todo</li>
+							<li class="step" data-class={ stepClass("workflow") }>Create example todo 1/3</li>
+						<li class="step" data-class={ stepClass("workflow") }>Create example todo 2/3</li>
+						<li class="step" data-class={ stepClass("workflow") }>Create example todo 3/3</li>
+							<li class="step" data-class={ stepClass("workflow") }>Finalize</li>
+						</ul>
+					</div>
 				}
-			</ul>
+			</div>
 
 			<div class="flex flex-wrap gap-2">
 				<button
@@ -330,10 +331,17 @@ templ adminUnlockForm() {
 
 // suggestionsList renders the AI-suggested completions as clickable
 // buttons. Clicking a suggestion fills the newTitle signal so the
-// user can review and submit. It is always rendered (empty when there
-// are no suggestions); the SSE patch populates $suggestions live.
-templ suggestionsList(suggestions []string) {
-	<div class="mb-4 p-3 bg-base-200/40 rounded-lg" data-show="$suggestions">
+// user can review and submit. It carries id="suggestions-region" so the
+// SSE dispatcher can re-render it with PatchElements when $suggestions
+// arrives (a bare MergeSignals would only toggle visibility, never
+// populate the buttons). The container is always present; visibility is
+// driven by $suggestions being non-empty.
+templ SuggestionsList(suggestions []string) {
+	<div
+		class="mb-4 p-3 bg-base-200/40 rounded-lg"
+		id="suggestions-region"
+		data-show="$suggestions && $suggestions.length > 0"
+	>
 		<div class="text-xs text-base-content/50 mb-2">AI suggestions — click to use:</div>
 		<div class="flex flex-wrap gap-2">
 			for _, s := range suggestions {

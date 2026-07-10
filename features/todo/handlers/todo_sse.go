@@ -10,6 +10,7 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 	sdk "github.com/starfederation/datastar-go/datastar"
 
+	"github.com/calionauta/gogogo-fullstack-template/features/auth"
 	"github.com/calionauta/gogogo-fullstack-template/features/todo"
 	"github.com/calionauta/gogogo-fullstack-template/features/todo/components"
 	dshelpers "github.com/calionauta/gogogo-fullstack-template/internal/datastar"
@@ -17,6 +18,14 @@ import (
 )
 
 func (h *TodoHandler) handleSSEStream(c *core.RequestEvent) error {
+	// The global auth middleware skips /api/* paths (PocketBase owns
+	// those), so c.Auth is nil here by default. Load the app session
+	// cookie explicitly so listTodos scopes to the logged-in owner
+	// instead of falling back to the single-tenant "all todos" view.
+	if err := auth.LoadAppAuth(c); err != nil {
+		slog.Debug("todo: sse auth load", "error", err)
+	}
+
 	clientID := c.Request.URL.Query().Get("clientID")
 	if clientID == "" {
 		clientID = uuid.New().String()
@@ -205,6 +214,16 @@ func (h *TodoHandler) streamSuggestResult(sse *sdk.ServerSentEventGenerator, pay
 		signalSuggestPending: p.SuggestPending,
 	}
 	if err := dshelpers.MergeSignals(sse, merge); err != nil {
+		return err
+	}
+	// Re-render the suggestions region with the actual buttons. A bare
+	// MergeSignals($suggestions) only toggles the container's visibility
+	// (data-show) — it never populates the buttons, which were SSR'd
+	// empty. PatchElements with the live suggestions makes the clickable
+	// buttons appear. This is the fix for "AI suggestions — click to use:
+	// but no button shows up".
+	if err := dshelpers.RenderAndPatch(sse, components.SuggestionsList(p.Suggestions),
+		sdk.WithSelector("#suggestions-region")); err != nil {
 		return err
 	}
 	// Techstack diagnostic panel: highlight the single "Queue + retry"

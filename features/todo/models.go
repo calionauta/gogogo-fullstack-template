@@ -92,6 +92,12 @@ type Signals struct {
 	// the UI renders the "Run durable workflow" button.
 	DagNatsEnabled bool `json:"dagNatsEnabled"`
 
+	// RealtimeKind describes the active broadcast transport so the
+	// diagnostics panel can label it accurately: "JetStream" when the
+	// binary was built with -tags jetstream and NATS is enabled, else
+	// "in-memory". The default build uses the InMemoryBroadcaster.
+	RealtimeKind string `json:"realtimeKind"`
+
 	// Onboarding progress (DagNats durable workflow). Streamed as the
 	// workflow advances so the UI can render a live stepper. Each event
 	// carries the current step, total steps, phase, and a human-readable

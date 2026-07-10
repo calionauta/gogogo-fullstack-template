@@ -158,6 +158,18 @@ func (h *TodoHandler) RegisterRoutes(se *core.ServeEvent) {
 	}
 }
 
+// realtimeTransport returns the label for the active broadcast transport.
+// JetStream when NATS is enabled (and the binary was built with the
+// jetstream tag, which is the only way NATS is wired), otherwise the
+// in-process InMemoryBroadcaster. Used by the diagnostics panel so the
+// badge reflects what is actually running rather than a hardcoded string.
+func realtimeLabel(cfg *config.Config) string {
+	if cfg != nil && cfg.NATS.Enabled {
+		return "JetStream"
+	}
+	return "in-memory"
+}
+
 // handleIndex serves the demo Todo page. Wraps the TodoList signal
 // patch in the auth.Navbar + Layout. Requires login: guests are
 // bounced to /login by the RequireAuthOrRedirect middleware applied
@@ -186,6 +198,7 @@ func (h *TodoHandler) handleIndex(c *core.RequestEvent) error {
 		ConnectedClients: h.q.Hub().Stats().Clients,
 		Suggestions:      []string{},
 		SuggestErr:       "",
+		RealtimeKind:     realtimeLabel(h.cfg),
 	}
 	c.Response.Header().Set("Content-Type", "text/html; charset=utf-8")
 	return components.Layout(

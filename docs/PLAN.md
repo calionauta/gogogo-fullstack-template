@@ -176,9 +176,19 @@
         goal. Not attempted in CI; non-blocking. See README "Desktop &
         Mobile".
 - [x] README has a "Desktop & Mobile" section (Phase D done 2026-07-10)
-- [ ] Future: real whiteboard UI (canvas + multi-cursor rendering) binding
-      to `collab.Doc` / `collab.Presence`. The transport + CRDT + presence
-      layers are done; the UI is a follow-up.
+- [ ] PENDING (post-Phase D follow-ups, not started):
+  - [ ] **Whiteboard UI scaffold** — real canvas component binding to
+    `collab.Doc` (Loro) with multi-cursor rendering from `collab.Presence`.
+    The transport + CRDT + presence layers are done (e2e-guarded); the UI is
+    the remaining surface. Should render/edit nodes, broadcast via
+    `Publisher.PublishUpdate`, and show live peer cursors from the SSE bridge.
+  - [ ] **Wire desktop Leaf Node to a real central** — a smoke/integration
+    test (or manual run) where `cmd/desktop` boots with `NATS_LEAFNODE_URL`
+    pointing at a running central and offline edits replicate + persist. The
+    transport path is e2e-guarded in `TestCollab_LeafNodeE2E`; the live
+    desktop→central wiring is only lightly exercised (demo cursor publish).
+  - [ ] **Mobile (experimental)** — `wails build -platform android`/`ios`
+    documented stretch goal; native UI bindings unproven, non-blocking.
 
 ### Open questions resolved
 

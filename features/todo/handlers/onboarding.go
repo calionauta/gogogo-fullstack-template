@@ -147,10 +147,16 @@ func (h *OnboardingHandler) handleStart(c *core.RequestEvent) error {
 }
 
 // pollRun watches the DagNats run and streams progress to the UI until
-// the run reaches a terminal state, reading DagNats' REST status.
+// the run reaches a terminal state, reading DagNats' REST status. It is
+// driven by the REAL run state (not a fixed sleep countdown), so the
+// stepper reflects what the durable workflow is actually doing — including
+// the "waiting for your first todo" suspend, which can last indefinitely
+// until the user creates a todo. The button is re-enabled (OnboardingActive
+// cleared) on completion, failure, or a hard timeout so the user is never
+// trapped in a permanently disabled state.
 func (h *OnboardingHandler) pollRun(runID string) {
 	ctx := context.Background()
-	steps := []string{
+	stepLabels := []string{
 		"Greeting user",
 		"Waiting for your first todo",
 		"Creating example todo 1/3",
@@ -158,24 +164,60 @@ func (h *OnboardingHandler) pollRun(runID string) {
 		"Creating example todo 3/3",
 		"Finalizing onboarding",
 	}
-	for i := 0; i < len(steps); i++ {
-		h.publishProgress(ctx, i+1, 6, "running", "Step "+itoa(i+1)+"/6 — "+steps[i])
-		time.Sleep(1600 * time.Millisecond)
-	}
-	// Confirm terminal state, then announce completion.
-	for attempt := 0; attempt < 20; attempt++ {
-		st, err := h.client.GetRun(ctx, runID)
-		if err == nil && (st.Status == "completed" || st.Status == "failed") {
-			if st.Status == "completed" {
-				h.publishProgress(ctx, 6, 6, "finalize", "Step 6/6 — Onboarding complete")
-				if h.broadcaster != nil {
-					_ = h.broadcaster.PublishTodoUpdate(ctx,
-						todoUpdateJob("workflow-completed", "remote", "", "", false))
-				}
+	timeout := time.After(5 * time.Minute)
+	ticker := time.NewTicker(700 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-timeout:
+			// Give up: re-enable the button so the user isn't stuck.
+			h.publishProgress(ctx, 0, 0, "idle", "Onboarding timed out")
+			if h.broadcaster != nil {
+				_ = h.broadcaster.PublishTodoUpdate(ctx,
+					todoUpdateJob("workflow-timeout", "remote", "", "", false))
 			}
 			return
+		case <-ticker.C:
 		}
-		time.Sleep(500 * time.Millisecond)
+		st, err := h.client.GetRun(ctx, runID)
+		if err != nil {
+			// Transient engine error — keep polling unless timed out.
+			continue
+		}
+		total := st.Total
+		if total <= 0 {
+			total = len(stepLabels)
+		}
+		switch st.Status {
+		case "completed":
+			h.publishProgress(ctx, total, total, "finalize", "Step "+itoa(total)+"/"+itoa(total)+" — Onboarding complete")
+			if h.broadcaster != nil {
+				_ = h.broadcaster.PublishTodoUpdate(ctx,
+					todoUpdateJob("workflow-completed", "remote", "", "", false))
+			}
+			return
+		case "failed":
+			h.publishProgress(ctx, st.Step, total, "error", "Onboarding failed: "+st.Detail)
+			if h.broadcaster != nil {
+				_ = h.broadcaster.PublishTodoUpdate(ctx,
+					todoUpdateJob("workflow-error", "remote", "", st.Detail, false))
+			}
+			return
+		case "waiting":
+			// Suspended on WaitForSignal("first-todo"). Show the prompt
+			// and keep polling — it will resume when the user creates a todo.
+			h.publishProgress(ctx, st.Step, total, "workflow",
+				"Step "+itoa(st.Step)+"/"+itoa(total)+" — Waiting for your first todo (create one to continue)")
+		default:
+			label := ""
+			if st.Step >= 1 && st.Step <= len(stepLabels) {
+				label = stepLabels[st.Step-1]
+			} else {
+				label = "Working"
+			}
+			h.publishProgress(ctx, st.Step, total, "workflow",
+				"Step "+itoa(st.Step)+"/"+itoa(total)+" — "+label)
+		}
 	}
 }
 
