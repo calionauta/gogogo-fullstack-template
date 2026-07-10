@@ -17,7 +17,7 @@ func marshalSignals(s todo.Signals) string {
 
 // TodoList is the full application card with the create form, AI suggest
 // buttons, filter tabs, todo list, clear-completed footer, and a
-// Techstack / Diagnostics panel at the bottom.
+// contextual sidebar with async-layer demo cards.
 //
 // Signal flow (all defined via `data-signals` so they live across patches):
 //   - $newTitle: bound to the title input
@@ -36,74 +36,270 @@ func marshalSignals(s todo.Signals) string {
 // signals and re-rendering the `<div id="todo-list">` region so the
 // other browser tabs share the same view via the broadcaster.
 templ TodoList(signals todo.Signals) {
-	<div class="max-w-2xl mx-auto mt-8 px-4 animate-in fade-in zoom-in-95 animate-duration-500">
-		<div class="card bg-base-100 shadow-xl" data-signals={ marshalSignals(signals) }>
-			<div class="card-body">
-				<h2 class="card-title text-2xl mb-4">
-					<svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-primary" viewBox="0 0 20 20" fill="currentColor">
-						<path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"/>
-					</svg>
-					Todo App
-					<span class="badge badge-ghost ml-2 text-sm font-normal" data-text="$itemCount + ' items'"></span>
-				</h2>
+	<div class="max-w-5xl mx-auto mt-8 px-4 animate-in fade-in zoom-in-95 animate-duration-500">
+		<div data-signals={ marshalSignals(signals) }>
 
-				@createForm(signals)
-
-				@SuggestionsList(signals.Suggestions)
-
-				@filterTabs(signals)
-				@TodoListRegion(signals)
-
-				if signals.ItemCount > 0 {
-					<div class="flex justify-between items-center mt-4 pt-4 border-t border-base-200">
-						<span class="text-sm text-base-content/50" data-text="$itemCount + ' items'"></span>
-						<button
-							class="btn btn-ghost btn-xs text-error"
-							data-on:click="@post('/api/todos/completed/delete')"
-						>
-							Clear completed
-						</button>
+			<!-- ═══════════════ HEADER ═══════════════ -->
+			<div class="flex items-center justify-between mb-6">
+				<div class="flex items-center gap-3">
+					<div class="w-9 h-9 rounded-xl bg-primary text-primary-content flex items-center justify-center shadow-sm">
+						<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+							<path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"/>
+						</svg>
 					</div>
-				}
-
-				if signals.AdminEnabled {
-					@adminUnlockForm()
-				}
-
-				@TechstackPanel(signals)
-
-				@deleteConfirmModal()
+					<div>
+						<h1 class="text-xl font-bold">Todo App</h1>
+						<p class="text-xs text-base-content/50">Full-stack Go demo — explore every async layer</p>
+					</div>
+				</div>
+				<div class="flex items-center gap-2" data-show="$connectedClients >= 0">
+					<!-- animated live dot -->
+					<span class="relative flex h-2.5 w-2.5">
+						<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"></span>
+						<span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-success"></span>
+					</span>
+					<span class="text-xs text-base-content/50">
+						<span data-text="$connectedClients + ' online'"></span>
+						<span class="hidden sm:inline"> · <span data-text="$realtimeKind"></span></span>
+					</span>
+				</div>
 			</div>
+
+			<!-- ═══════════════ MAIN GRID ═══════════════ -->
+			<div class="grid grid-cols-1 lg:grid-cols-5 gap-5">
+
+				<!-- ──────────── LEFT: TODO LIST (3/5) ──────────── -->
+				<div class="lg:col-span-3 space-y-5">
+					<div class="card bg-base-100 shadow-md transition-shadow hover:shadow-lg duration-300">
+						<div class="card-body p-5">
+
+							<h2 class="card-title text-lg mb-1">
+								Tasks
+								<span class="badge badge-ghost badge-sm" data-text="$itemCount + ' items'"></span>
+							</h2>
+
+							@createForm(signals)
+
+							@SuggestionsList(signals.Suggestions)
+
+							@filterTabs(signals)
+							@TodoListRegion(signals)
+
+							if signals.ItemCount > 0 {
+								<div class="flex justify-between items-center mt-4 pt-3 border-t border-base-200">
+									<span class="text-xs text-base-content/50" data-text="$itemCount + ' items'"></span>
+									<button
+										class="btn btn-ghost btn-xs text-error transition-all hover:scale-105 active:scale-95"
+										data-on:click="while (document.querySelector('.todo-item')) { @post('/api/todos/completed/delete'); break; }"
+									>
+										Clear completed
+									</button>
+								</div>
+							}
+
+						</div>
+					</div>
+
+					if signals.AdminEnabled {
+						@adminUnlockForm()
+					}
+				</div>
+
+				<!-- ──────────── RIGHT: ASYNC LAYERS (2/5) ──────────── -->
+				<div class="lg:col-span-2 space-y-4">
+
+					<!-- ─── Realtime Card ─── -->
+					<div class="card bg-base-100 shadow-sm border border-base-200 transition-all hover:shadow-md duration-300">
+						<div class="card-body p-4">
+							<div class="flex items-center justify-between">
+								<div class="flex items-center gap-2">
+									<div class="w-7 h-7 rounded-lg bg-info/10 text-info flex items-center justify-center">
+										<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+											<path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd"/>
+										</svg>
+									</div>
+									<span class="text-xs font-semibold">Realtime</span>
+								</div>
+								<span class="badge badge-xs badge-ghost" data-text="$realtimeKind"></span>
+							</div>
+							<div class="mt-2 flex items-center justify-between">
+								<div class="flex items-center gap-2">
+									<span class="text-2xl font-bold tabular-nums" data-text="$connectedClients"></span>
+									<span class="text-xs text-base-content/40" data-text="$connectedClients + ' online'"></span>
+								</div>
+								<div class="flex items-center gap-1.5 text-xs text-base-content/40">
+									<span>NATS broadcast</span>
+								</div>
+							</div>
+							<div class="mt-2 text-[0.6rem] text-base-content/30 leading-relaxed">
+								Every CRUD mutation is broadcast to all connected clients via SSE. Open this page in two tabs to see todos sync in real time.
+							</div>
+						</div>
+					</div>
+
+					<!-- ─── Queue + Retry + AI Suggest Card ─── -->
+					<div class="card bg-base-100 shadow-sm border border-base-200 transition-all hover:shadow-md duration-300 overflow-visible">
+						<div class="card-body p-4">
+							<div class="flex items-center justify-between mb-2">
+								<div class="flex items-center gap-2">
+									<div class="w-7 h-7 rounded-lg bg-secondary/10 text-secondary flex items-center justify-center">
+										<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+											<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/>
+										</svg>
+									</div>
+									<span class="text-xs font-semibold">Queue + Retry</span>
+								</div>
+								<div class="flex gap-1">
+									<span class="badge badge-xs badge-secondary">goqite</span>
+									<span class="badge badge-xs badge-ghost">retry-go</span>
+								</div>
+							</div>
+
+							<!-- Steps component -->
+							<ul class="steps steps-vertical w-full mb-3 text-xs">
+								<li
+									class="step transition-all duration-500"
+									data-class={ "{'step-primary text-base-content': $techStep === 'retry-demo' && $suggestPending, 'step-success': $techStep === 'retry-demo' && !$suggestPending && $techPhase !== 'error', 'step-error': $techStep === 'retry-demo' && $techPhase === 'error'}" }
+								>Enqueue suggest job</li>
+								<li
+									class="step transition-all duration-500"
+									data-class={ "{'step-primary': $techStep === 'retry-demo' && $suggestPending, 'step-success': $techStep === 'retry-demo' && !$suggestPending && $techPhase !== 'error', 'step-error': $techStep === 'retry-demo' && $techPhase === 'error'}" }
+								>Retry on simulated error</li>
+								<li
+									class="step transition-all duration-500"
+									data-class={ "{'step-primary': $techStep === 'retry-demo' && $suggestPending, 'step-success': $techStep === 'retry-demo' && !$suggestPending && $techPhase !== 'error', 'step-error': $techStep === 'retry-demo' && $techPhase === 'error'}" }
+								>Return suggestions</li>
+							</ul>
+
+							<!-- Button + spinner -->
+							<button
+								class="btn btn-secondary btn-sm w-full transition-all duration-200 hover:scale-[1.02] active:scale-98"
+								data-on:click="$techStep = 'retry-demo'; $suggestPending = true; @post('/api/todos/suggest-simulated')"
+								title="Queue a job (goqite) that runs through retry-go against an in-process fake LLM (no API key needed): error → retry → slow response"
+							>
+								<span class="inline-flex items-center gap-2">
+									<span data-show="!$suggestPending">Queue + retry</span>
+									<span data-show="$suggestPending" class="inline-flex items-center gap-1.5">
+										<span class="loading loading-spinner loading-xs"></span>
+										<span>Running demo…</span>
+									</span>
+								</span>
+							</button>
+
+							<!-- Success badge (shown briefly after completion) -->
+							<div
+								class="mt-2 flex items-center gap-1.5 text-xs text-success transition-all duration-500"
+								data-show="$techStep === 'retry-demo' && !$suggestPending && $techPhase !== 'error'"
+								data-init__delay.3s="$techStep = ''"
+							>
+								<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+									<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+								</svg>
+								<span>Demo completed</span>
+							</div>
+						</div>
+					</div>
+
+					<!-- ─── Durable Workflow Card ─── -->
+					if signals.DagNatsEnabled {
+						<div class="card bg-base-100 shadow-sm border border-base-200 transition-all hover:shadow-md duration-300">
+							<div class="card-body p-4">
+								<div class="flex items-center justify-between mb-2">
+									<div class="flex items-center gap-2">
+										<div class="w-7 h-7 rounded-lg bg-accent/10 text-accent flex items-center justify-center">
+											<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+												<path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/>
+												<path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd"/>
+											</svg>
+										</div>
+										<span class="text-xs font-semibold">Durable Workflow</span>
+									</div>
+									<span class="badge badge-xs badge-accent">DagNats</span>
+								</div>
+
+								<ul class="steps steps-vertical w-full mb-3 text-xs">
+									<li class="step step-neutral transition-all duration-500"
+										data-class={ "{'step-primary': $techStep === 'workflow' && $onboardingActive && !$workflowCompleted && $onboardingPhase === 'greet', 'step-success': $workflowCompleted}" }
+									>Greeting</li>
+									<li class="step step-neutral transition-all duration-500"
+										data-class={ "{'step-primary': $techStep === 'workflow' && $onboardingActive && !$workflowCompleted && $onboardingStep === 2, 'step-success': $workflowCompleted}" }
+									>Waiting for first todo</li>
+									<li class="step step-neutral transition-all duration-500"
+										data-class={ "{'step-primary': $techStep === 'workflow' && $onboardingActive && !$workflowCompleted && $onboardingStep >= 3 && $onboardingStep <= 5, 'step-success': $workflowCompleted}" }
+									>Create example todos (×3)</li>
+									<li class="step step-neutral transition-all duration-500"
+										data-class={ "{'step-primary': $techStep === 'workflow' && $onboardingActive && !$workflowCompleted && $onboardingPhase === 'finalize', 'step-success': $workflowCompleted}" }
+									>Finalize</li>
+								</ul>
+
+								<button
+									class="btn btn-accent btn-sm w-full transition-all duration-200 hover:scale-[1.02] active:scale-98"
+									data-attr:disabled="$onboardingActive && !$workflowCompleted"
+									data-on:click="$techStep = 'workflow'; $onboardingActive = true; $workflowCompleted = false; @post('/api/onboarding/start')"
+								>
+									<span class="inline-flex items-center gap-2">
+										<span data-show="!$onboardingActive || $workflowCompleted">
+											<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 inline -mt-0.5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+												<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"/>
+											</svg>
+											Run durable workflow
+										</span>
+										<span data-show="$onboardingActive && !$workflowCompleted" class="inline-flex items-center gap-1.5">
+											<span class="loading loading-spinner loading-xs"></span>
+											<span data-text="'Running ' + ($onboardingStep || 1) + '/' + ($onboardingTotal || 6) + '…'"></span>
+										</span>
+									</span>
+								</button>
+
+								if signals.OnboardingActive && signals.WorkflowCompleted {
+									<div class="mt-2 flex items-center gap-1.5 text-xs text-success transition-all duration-500 animate-in fade-in slide-in-from-bottom-1">
+										<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+											<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+										</svg>
+										<span>Workflow completed — 3 example todos created via DagNats.</span>
+									</div>
+								}
+							</div>
+						</div>
+					}
+
+				</div><!-- /right sidebar -->
+			</div><!-- /grid -->
+
+			@deleteConfirmModal()
 		</div>
 
 		<div class="toast toast-end" id="retry-toast" data-show="$loading"></div>
 	</div>
 }
 
-// createForm owns the title input + Add + Suggest buttons. The submit
+// createForm owns the title input + Add button. The submit
 // handler uses `data-on:submit__prevent` to stop the browser from also
 // performing a native GET submit (which previously created extra rows
 // for every create). Buttons disable themselves via Datastar signals so
 // the user can't double-fire.
 templ createForm(signals todo.Signals) {
 	<form
-		class="join w-full mb-6"
+		class="join w-full mb-4"
 		data-on:submit__prevent="if (!$loading) { $loading = true; @post('/api/todos', {contentType: 'form'}); }"
 	>
 		<input
 			type="text"
 			name="title"
-			class="input join-item flex-1"
+			class="input join-item flex-1 input-sm sm:input-md"
 			placeholder="Add a new todo..."
 			data-bind="newTitle"
 		/>
 		<button
 			type="submit"
-			class="btn btn-primary join-item"
+			class="btn btn-primary join-item btn-sm sm:btn-md"
 			data-attr:disabled="$loading || !$newTitle.trim()"
 		>
 			<span class="inline-flex items-center gap-2">
-				<span>Add</span>
+				<span class="hidden sm:inline">Add</span>
+				<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:hidden" viewBox="0 0 20 20" fill="currentColor">
+					<path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
+				</svg>
 				<span class="loading loading-spinner loading-xs" data-show="$loading"></span>
 			</span>
 		</button>
@@ -111,11 +307,10 @@ templ createForm(signals todo.Signals) {
 }
 
 // filterTabs renders the DaisyUI tabs (All / Active / Completed). Click
-// fires `@get('/api/todos?filter=...')` which (in the new handlers)
-// patches BOTH the $filter signal AND the `#todo-list` region, so the
-// active state and the visible rows update in lockstep. The active
-// state reads from the `$filter` signal so remote patches from the
-// broadcaster flip the right tab.
+// fires `@get('/api/todos?filter=...')` which patches BOTH the $filter signal
+// AND the `#todo-list` region, so the active state and the visible rows update
+// in lockstep. The active state reads from the `$filter` signal so remote
+// patches from the broadcaster flip the right tab.
 templ filterTabs(signals todo.Signals) {
 	<div class="tabs tabs-box mb-4 w-full" role="tablist">
 		@filterTab("All", "all", "/api/todos?filter=all")
@@ -131,7 +326,7 @@ templ filterTab(label, value, endpoint string) {
 	<a
 		href="#"
 		role="tab"
-		class="tab"
+		class="tab tab-sm sm:tab-md transition-all"
 		data-class={ "{ 'tab-active': $filter === '" + value + "' }" }
 		data-on:click__prevent={ "$loading = true; @get('" + endpoint + "')" }
 	>
@@ -151,6 +346,7 @@ templ TodoListRegion(signals todo.Signals) {
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
 				</svg>
 				<p>No todos here yet.</p>
+				<p class="text-xs mt-1">Add one above to get started, or click "Run durable workflow" in the sidebar to auto-create examples.</p>
 			</div>
 		}
 		for _, item := range signals.Todos {
@@ -159,104 +355,46 @@ templ TodoListRegion(signals todo.Signals) {
 	</div>
 }
 
-// TechstackPanel is a diagnostics section that exercises every async
-// layer of the stack from the todo UI (Realtime, Queue + retry, Durable
-// workflow). Each action transitions the same `<ul class="steps">`
-// DaisyUI component: one step per layer, the active step gets
-// `step-primary`, the latest completed step gets `step-success`.
-//
-// The data-class expressions are emitted as single-key templ strings
-// (the same shape that the filter tabs use and that is known-working)
-// so Datastar reliably registers the signal dependencies and re-applies
-// the classes when the SSE patch flips $techStep / $techDone.
-templ TechstackPanel(signals todo.Signals) {
-	<div class="mt-4 pt-4 border-t border-base-200 text-sm">
-		<div class="font-semibold select-none mb-3">Techstack &amp; diagnostics</div>
-		<div class="flex flex-col gap-4">
-			<div class="flex items-center gap-2 flex-wrap text-xs">
-				<span class="badge badge-sm badge-primary">Realtime</span>
-				<span class="opacity-70">NATS <span data-text="$realtimeKind"></span> fan-out — every mutation broadcasts.</span>
-				<span class="badge badge-sm" data-text="$connectedClients + ' online'"></span>
-			</div>
-
-			<div class="flex flex-col gap-4">
-				<div>
-					<div class="text-xs font-semibold opacity-70 mb-2">Queue + retry <span class="opacity-50">(goqite + retry-go + fake LLM)</span></div>
-					<ul class="steps steps-vertical w-full">
-						<li class="step" data-class={ stepClass("retry-demo") }>Enqueue suggest job</li>
-						<li class="step" data-class={ stepClass("retry-demo") }>Retry on simulated error</li>
-						<li class="step" data-class={ stepClass("retry-demo") }>Return suggestions</li>
-					</ul>
-				</div>
-				if signals.DagNatsEnabled {
-					<div>
-						<div class="text-xs font-semibold opacity-70 mb-2">Durable workflow <span class="opacity-50">(DagNats)</span></div>
-						<ul class="steps steps-vertical w-full">
-							<li class="step" data-class={ stepClass("workflow") }>Greeting</li>
-							<li class="step" data-class={ stepClass("workflow") }>Waiting for your first todo</li>
-							<li class="step" data-class={ stepClass("workflow") }>Create example todo 1/3</li>
-						<li class="step" data-class={ stepClass("workflow") }>Create example todo 2/3</li>
-						<li class="step" data-class={ stepClass("workflow") }>Create example todo 3/3</li>
-							<li class="step" data-class={ stepClass("workflow") }>Finalize</li>
-						</ul>
-					</div>
-				}
-			</div>
-
-			<div class="flex flex-wrap gap-2">
+// SuggestionsList renders the AI-suggested completions as clickable
+// buttons. Clicking a suggestion fills the newTitle signal so the
+// user can review and submit. It carries id="suggestions-region" so the
+// SSE dispatcher can re-render it with PatchElements when $suggestions
+// arrives (a bare MergeSignals would only toggle visibility, never
+// populate the buttons). The container is always present; visibility is
+// driven by $suggestions being non-empty.
+templ SuggestionsList(suggestions []string) {
+	<div
+		class="mb-4 p-3 bg-base-200/40 rounded-lg transition-all duration-500 animate-in fade-in slide-in-from-top-2"
+		id="suggestions-region"
+		data-show="$suggestions && $suggestions.length > 0"
+	>
+		<div class="text-xs text-base-content/50 mb-2">
+			<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 inline -mt-0.5 mr-1 text-secondary" viewBox="0 0 20 20" fill="currentColor">
+				<path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd"/>
+			</svg>
+			AI suggestions — click to use:
+		</div>
+		<div class="flex flex-wrap gap-2">
+			for _, s := range suggestions {
 				<button
-					class="btn btn-sm btn-outline"
-					data-on:click="$techStep = 'retry-demo'; $suggestPending = true; @post('/api/todos/suggest-simulated')"
-					title="Queue a job (goqite) that runs through retry-go against an in-process fake LLM (no API key): error → retry → slow response"
+					type="button"
+					class="btn btn-xs btn-outline btn-secondary transition-all hover:scale-105 active:scale-95 animate-in fade-in slide-in-from-bottom-1"
+					style="animation-delay: 0.05s"
+					data-on:click={ "$newTitle = " + safeJSString(s) }
 				>
-					<span class="inline-flex items-center gap-2">
-						<span>Queue + retry</span>
-						<span class="loading loading-spinner loading-xs" data-show="$suggestPending"></span>
-					</span>
+					{ s }
 				</button>
-				if signals.DagNatsEnabled {
-					<button
-						class="btn btn-sm btn-outline"
-						data-attr:disabled="$onboardingActive"
-						data-on:click="$techStep = 'workflow'; $onboardingActive = true; $workflowCompleted = false; @post('/api/onboarding/start')"
-					>
-						<span class="inline-flex items-center gap-2">
-							<span>Run durable workflow</span>
-							<span class="loading loading-spinner loading-xs" data-show="$techStep === 'workflow' && !$workflowCompleted && $onboardingActive"></span>
-						</span>
-					</button>
-				}
-			</div>
-
-			if signals.DagNatsEnabled && signals.OnboardingActive && signals.WorkflowCompleted {
-				<div class="alert alert-success text-xs py-2">
-					<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-					<span>Workflow completed — 3 example todos created via DagNats.</span>
-				</div>
 			}
 		</div>
 	</div>
 }
 
-// stepClass returns the data-class expression for a diagnostics step.
-// The "active" (step-primary) state is driven by the in-flight signal
-// ($suggestPending for suggest/retry, $onboardingActive for workflow)
-// which the SSE patches reliably; the "done" (step-success) state is
-// driven by the same signal flipping back (suggestPending=false) or by
-// $workflowCompleted. We deliberately avoid $techDone for the colour
-// because Datastar's SSE patch-merge only flips signals that are also
-// referenced by a live expression — $suggestPending/$workflowCompleted
-// are, so they update dependably.
-func stepClass(kind string) string {
-	switch kind {
-	case "suggest":
-		return "{ 'step-primary': $techStep === 'suggest' && $suggestPending, 'step-success': $techStep === 'suggest' && !$suggestPending && $suggestions !== null, 'step-error': $techStep === 'suggest' && $techPhase === 'error' }"
-	case "retry-demo":
-		return "{ 'step-primary': $techStep === 'retry-demo' && $suggestPending, 'step-success': $techStep === 'retry-demo' && !$suggestPending, 'step-error': $techStep === 'retry-demo' && $techPhase === 'error' }"
-	case "workflow":
-		return "{ 'step-success': $workflowCompleted, 'step-primary': $techStep === 'workflow' && $onboardingActive && !$workflowCompleted, 'step-error': $techStep === 'workflow' && $techPhase === 'error' }"
-	}
-	return "{}"
+// safeJSString returns s as a JSON string literal with surrounding
+// double quotes, suitable for embedding inside a Datastar
+// data-on:click expression. We use strconv.Quote so Go's standard
+// escaping handles control characters and quotes consistently.
+func safeJSString(s string) string {
+	return strconv.Quote(s)
 }
 
 // deleteConfirmModal renders the single DaisyUI dialog used for every
@@ -266,9 +404,14 @@ func stepClass(kind string) string {
 // broadcaster patches every client. Single modal instance handles
 // every row — far simpler than per-row dialogs.
 templ deleteConfirmModal() {
-	<dialog class="modal" data-class="{ 'modal-open': !!$confirmingDeleteId }">
+	<dialog class="modal transition-all duration-300" data-class="{ 'modal-open': !!$confirmingDeleteId }">
 		<div class="modal-box">
-			<h3 class="font-bold text-lg text-error">Delete this todo?</h3>
+			<h3 class="font-bold text-lg text-error flex items-center gap-2">
+				<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+					<path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+				</svg>
+				Delete this todo?
+			</h3>
 			<p class="py-4 text-sm">
 				This will permanently remove <span class="font-semibold" data-text="$confirmingDeleteTitle"></span>.
 				This can't be undone.
@@ -276,14 +419,14 @@ templ deleteConfirmModal() {
 			<div class="modal-action">
 				<button
 					type="button"
-					class="btn btn-ghost"
+					class="btn btn-ghost btn-sm"
 					data-on:click="$confirmingDeleteId = ''; $confirmingDeleteTitle = ''"
 				>
 					Cancel
 				</button>
 				<button
 					type="button"
-					class="btn btn-error"
+					class="btn btn-error btn-sm transition-all"
 					data-attr:disabled="$deleting"
 					data-on:click="$deleting = true; @post('/api/todos/' + $confirmingDeleteId + '/delete'); $confirmingDeleteId = ''; $deleting = false"
 				>
@@ -306,12 +449,12 @@ templ deleteConfirmModal() {
 // /api/admin/unlock, which compares the token constant-time and clears
 // all todos on match. Wrong token returns 403.
 templ adminUnlockForm() {
-	<details class="mt-4 pt-4 border-t border-base-200">
-		<summary class="text-sm text-base-content/40 cursor-pointer hover:text-base-content/60">
+	<details class="card bg-base-100 shadow-sm border border-base-200">
+		<summary class="card-body p-4 cursor-pointer text-sm text-base-content/50 hover:text-base-content/70 transition-colors">
 			Admin unlock
 		</summary>
 		<form
-			class="join w-full mt-2"
+			class="join w-full px-4 pb-4"
 			data-on:submit__prevent="@post('/api/admin/unlock', {contentType: 'form'})"
 		>
 			<input
@@ -329,38 +472,4 @@ templ adminUnlockForm() {
 	</details>
 }
 
-// suggestionsList renders the AI-suggested completions as clickable
-// buttons. Clicking a suggestion fills the newTitle signal so the
-// user can review and submit. It carries id="suggestions-region" so the
-// SSE dispatcher can re-render it with PatchElements when $suggestions
-// arrives (a bare MergeSignals would only toggle visibility, never
-// populate the buttons). The container is always present; visibility is
-// driven by $suggestions being non-empty.
-templ SuggestionsList(suggestions []string) {
-	<div
-		class="mb-4 p-3 bg-base-200/40 rounded-lg"
-		id="suggestions-region"
-		data-show="$suggestions && $suggestions.length > 0"
-	>
-		<div class="text-xs text-base-content/50 mb-2">AI suggestions — click to use:</div>
-		<div class="flex flex-wrap gap-2">
-			for _, s := range suggestions {
-				<button
-					type="button"
-					class="btn btn-xs btn-outline"
-					data-on:click={ "$newTitle = " + safeJSString(s) }
-				>
-					{ s }
-				</button>
-			}
-		</div>
-	</div>
-}
 
-// safeJSString returns s as a JSON string literal with surrounding
-// double quotes, suitable for embedding inside a Datastar
-// data-on:click expression. We use strconv.Quote so Go's standard
-// escaping handles control characters and quotes consistently.
-func safeJSString(s string) string {
-	return strconv.Quote(s)
-}
