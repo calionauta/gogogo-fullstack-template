@@ -9,13 +9,13 @@ import (
 	"time"
 
 	"github.com/nats-io/nats-server/v2/server"
-	"github.com/nats-io/nats.go"
+	natsio "github.com/nats-io/nats.go"
 )
 
 var (
 	NS *server.Server
-	NC *nats.Conn
-	JS nats.JetStreamContext
+	NC *natsio.Conn
+	JS natsio.JetStreamContext
 )
 
 // StartEmbedded starts an embedded NATS server with JetStream enabled
@@ -37,7 +37,7 @@ func StartEmbedded(storeDir string) error {
 	ns.Start()
 	NS = ns
 
-	nc, err := nats.Connect(ns.ClientURL())
+	nc, err := natsio.Connect(ns.ClientURL())
 	if err != nil {
 		return err
 	}
@@ -68,7 +68,7 @@ func StartEmbedded(storeDir string) error {
 // waitForJetStream polls AccountInfo until the JetStream API is serving
 // or the timeout expires. AccountInfo issues a request to $JS.API.INFO,
 // which errors with "no responders" until JetStream is initialized.
-func waitForJetStream(js nats.JetStreamContext, timeout time.Duration) error {
+func waitForJetStream(js natsio.JetStreamContext, timeout time.Duration) error {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	ticker := time.NewTicker(100 * time.Millisecond)
@@ -92,6 +92,12 @@ func Stop() {
 	if NS != nil {
 		NS.Shutdown()
 	}
+}
+
+// JetStream returns the JetStream context established by StartEmbedded.
+// It is nil until StartEmbedded has succeeded.
+func JetStream() natsio.JetStreamContext {
+	return JS
 }
 
 func ClientURL() string {

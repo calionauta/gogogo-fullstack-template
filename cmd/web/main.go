@@ -100,7 +100,7 @@ func run() error {
 	workers := q.StartWorkers()
 	_ = workers // held for parity with turbine runtime var; unused at call site
 
-	startNATS(cfg)
+	js := startNATS(cfg)
 
 	startTurbine(pb, cfg)
 	defer shutdownTurbine()
@@ -111,7 +111,7 @@ func run() error {
 			workflowRt = typed
 		}
 	}
-	router.Init(pb, q, cfg, workflowRt, todoH)
+	router.Init(pb, q, cfg, workflowRt, js, todoH)
 
 	addr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
 	// PocketBase v0.39+ uses a Cobra root command. pb.Start() calls

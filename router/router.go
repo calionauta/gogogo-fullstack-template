@@ -11,6 +11,7 @@ import (
 	"github.com/calionauta/gogogo-fullstack-template/config"
 	"github.com/calionauta/gogogo-fullstack-template/features/auth"
 	"github.com/calionauta/gogogo-fullstack-template/features/todo/handlers"
+	"github.com/calionauta/gogogo-fullstack-template/internal/nats"
 	"github.com/calionauta/gogogo-fullstack-template/internal/queue"
 	"github.com/calionauta/gogogo-fullstack-template/web/resources"
 )
@@ -35,6 +36,7 @@ func Init(
 	q *queue.Queue,
 	cfg *config.Config,
 	workflowRt WorkflowRuntime,
+	js nats.JetStreamLike,
 	todoH *handlers.TodoHandler,
 ) {
 	app.OnServe().BindFunc(func(se *core.ServeEvent) error {
@@ -93,7 +95,17 @@ func Init(
 		// in-memory fan-out otherwise). Build it ONCE and share it:
 		// constructing it twice in one process makes the second
 		// JetStream durable consumer fail with "already bound".
-		broadcaster := newTodoBroadcaster(q.Hub())
+		//
+		// The jetstream broadcaster must Subscribe to its stream BEFORE
+		// any publish, so it re-emits every mutation to the SSE Hub that
+		// fans out to all connected tabs. Without Subscribe the published
+		// events sit in JetStream unread and the demo shows no realtime
+		// sync (the bug we hit: broadcasts registered but never reached
+		// remote clients).
+		broadcaster := newTodoBroadcaster(js, q.Hub())
+		if jsBroadcaster, ok := broadcaster.(interface{ Subscribe(*queue.SSEHub) }); ok {
+			jsBroadcaster.Subscribe(q.Hub())
+		}
 		if todoH != nil {
 			// Use the same handler instance the caller registered for
 			// background jobs so route state (PocketBase app ref, queue

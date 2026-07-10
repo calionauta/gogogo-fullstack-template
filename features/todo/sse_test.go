@@ -35,7 +35,7 @@ const clientIDSuffixFormat = "150405.000"
 // todo immediately (no queue round-trip). Realtime fan-out to other
 // clients is handled by the broadcaster separately.
 func TestIntegration_CreateRendersInList(t *testing.T) {
-	base, _, _, cleanup := testFixture(t)
+	base, _, _, _, cleanup := testFixture(t)
 	defer cleanup()
 	ctx := newTestCtx(t)
 

@@ -160,6 +160,29 @@ func (h *TodoHandler) handleToggle(c *core.RequestEvent) error {
 	return h.patchTodoListWithSelfOrigin(sse, todos)
 }
 
+func (h *TodoHandler) handleConfirmDelete(c *core.RequestEvent) error {
+	rec, err := h.app.FindRecordById("todos", c.Request.PathValue("id"))
+	if err != nil {
+		return c.String(statusNotFound, "not found")
+	}
+	// Owner-scoped: a user can only confirm-delete their own todos.
+	if c.Auth != nil && rec.GetString("owner") != "" && rec.GetString("owner") != c.Auth.Id {
+		return c.String(statusNotFound, "not found")
+	}
+	sse := sdk.NewSSE(c.Response, c.Request)
+	// Open the shared confirmation modal by setting the two signals the
+	// <dialog> reads. Using an SSE signal merge (rather than an inline
+	// data-on:click assignment) keeps the behaviour identical across
+	// every client and is trivially testable.
+	if err := dshelpers.MergeSignals(sse, map[string]any{
+		"confirmingDeleteId":    rec.Id,
+		"confirmingDeleteTitle": rec.GetString("title"),
+	}); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (h *TodoHandler) handleDelete(c *core.RequestEvent) error {
 	rec, err := h.app.FindRecordById("todos", c.Request.PathValue("id"))
 	if err != nil {
@@ -183,6 +206,14 @@ func (h *TodoHandler) handleDelete(c *core.RequestEvent) error {
 		return c.String(statusInternal, "error listing todos")
 	}
 	sse := sdk.NewSSE(c.Response, c.Request)
+	// Close the confirmation modal on every client by clearing the
+	// two signals the <dialog> reads.
+	if err := dshelpers.MergeSignals(sse, map[string]any{
+		"confirmingDeleteId":    "",
+		"confirmingDeleteTitle": "",
+	}); err != nil {
+		return err
+	}
 	if err := h.patchTodoListWithSelfOrigin(sse, todos); err != nil {
 		return err
 	}

@@ -70,7 +70,7 @@ func hasRetrySuccess(events []map[string]any) bool {
 // the HTTP → queue → worker → SSE pipeline is wired correctly with
 // exponential backoff + SSE feedback.
 func TestIntegration_RetryFeedbackExercisesSSE(t *testing.T) {
-	base, q, _, cleanup := testFixture(t)
+	base, q, _, _, cleanup := testFixture(t)
 	defer cleanup()
 
 	var attempts atomic.Int32

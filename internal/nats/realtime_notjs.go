@@ -25,9 +25,14 @@ type TodoBroadcaster interface {
 	PublishTodoUpdate(ctx context.Context, payload []byte) error
 }
 
+// JetStreamLike is the shape startNATS returns on jetstream builds. On
+// non-jetstream builds it is an unused nil type so callers can pass the
+// result straight into NewTodoBroadcaster without build-tag branching.
+type JetStreamLike = any
+
 // NewTodoBroadcaster returns the default (in-memory) broadcaster bound to
 // hub. With -tags jetstream the same call returns a JetStream-backed
 // broadcaster; the signature is identical so callers don't branch.
-func NewTodoBroadcaster(_ any, hub *queue.SSEHub) TodoBroadcaster {
+func NewTodoBroadcaster(_ JetStreamLike, hub *queue.SSEHub) TodoBroadcaster {
 	return NewInMemoryBroadcaster(hub)
 }

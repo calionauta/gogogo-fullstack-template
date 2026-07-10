@@ -9,7 +9,7 @@ import (
 
 // newTodoBroadcaster builds the default in-memory broadcaster. Todo
 // mutations are fanned out to every client connected to this process
-// via the SSE Hub.
-func newTodoBroadcaster(hub *queue.SSEHub) nats.TodoBroadcaster {
+// via the SSE Hub. The js argument is ignored on non-jetstream builds.
+func newTodoBroadcaster(_ nats.JetStreamLike, hub *queue.SSEHub) nats.TodoBroadcaster {
 	return nats.NewTodoBroadcaster(nil, hub)
 }

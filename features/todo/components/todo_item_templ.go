@@ -144,9 +144,9 @@ func TodoItem(item todo.Todo) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var7 string
-		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.ResolveAttributeValue("$confirmingDeleteId = '" + item.ID + "'; $confirmingDeleteTitle = " + safeJSString(item.Title))
+		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.ResolveAttributeValue("@get('/api/todos/" + item.ID + "/confirm-delete')")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_item.templ`, Line: 45, Col: 114}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_item.templ`, Line: 45, Col: 70}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
 		if templ_7745c5c3_Err != nil {
