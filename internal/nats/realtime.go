@@ -19,14 +19,24 @@ import (
 	"github.com/calionauta/gogogo-fullstack-template/internal/queue"
 )
 
-// TodoBroadcaster publishes todo mutations so every connected client
-// receives them in real time. Defined identically in both builds so the
-// caller's type stays stable across tags.
-type TodoBroadcaster interface {
-	// PublishTodoUpdate broadcasts a serialized todo event (JSON) to all
-	// connected clients.
-	PublishTodoUpdate(ctx context.Context, payload []byte) error
-}
+// JetStreamLike is the shape startNATS returns. On jetstream builds it
+// is natsio.JetStreamContext; the nojs build aliases it to any. Keeping
+// the name lets callers pass the result into NewTodoBroadcaster without
+// build-tag branching.
+type (
+	JetStreamLike = natsio.JetStreamContext
+	// receives them in real time. Defined identically in both builds so the
+	// caller's type stays stable across tags.
+	TodoBroadcaster interface {
+		// PublishTodoUpdate broadcasts a serialized todo event (JSON) to all
+		// connected clients.
+		PublishTodoUpdate(ctx context.Context, payload []byte) error
+		// Subscribe binds the broadcaster's transport to hub so published
+		// events are re-emitted to every connected client. No-op for the
+		// in-memory variant (which already holds the hub directly).
+		Subscribe(hub *queue.SSEHub)
+	}
+)
 
 // todoStream is the JetStream stream that carries todo mutations. The
 // subject layout `todos.>` lets us subscribe to all mutations with one
@@ -114,7 +124,7 @@ func (b *JetStreamBroadcaster) Close() {
 // The caller must call Subscribe(hub) before publishing. With the default
 // build tag the same call returns an in-memory broadcaster; the signature
 // is identical so callers don't branch.
-func NewTodoBroadcaster(js any, hub *queue.SSEHub) TodoBroadcaster {
+func NewTodoBroadcaster(js JetStreamLike, hub *queue.SSEHub) TodoBroadcaster {
 	jsCtx, ok := js.(natsio.JetStreamContext)
 	if !ok {
 		return NewInMemoryBroadcaster(hub)

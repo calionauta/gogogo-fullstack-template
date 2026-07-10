@@ -13,7 +13,7 @@ import (
 // through the test fixture.
 func TestIntegration_Auth_GuestIsRedirectedToLogin(t *testing.T) {
 	ctx := t.Context()
-	base, _, _, cleanup := testFixture(t)
+	base, _, _, _, cleanup := testFixture(t)
 	defer cleanup()
 
 	client := &http.Client{
@@ -45,7 +45,7 @@ func TestIntegration_Auth_GuestIsRedirectedToLogin(t *testing.T) {
 // prefilled. The user just has to click the Sign in button.
 func TestIntegration_Auth_LoginFormIsShown(t *testing.T) {
 	ctx := t.Context()
-	base, _, _, cleanup := testFixture(t)
+	base, _, _, _, cleanup := testFixture(t)
 	defer cleanup()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+"/login", nil)
@@ -79,7 +79,7 @@ func TestIntegration_Auth_LoginFormIsShown(t *testing.T) {
 // error message — does NOT set the gogogo_auth cookie.
 func TestIntegration_Auth_BadPasswordIsRejected(t *testing.T) {
 	ctx := t.Context()
-	base, _, _, cleanup := testFixture(t)
+	base, _, _, _, cleanup := testFixture(t)
 	defer cleanup()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, base+"/login",
@@ -116,7 +116,7 @@ func TestIntegration_Auth_BadPasswordIsRejected(t *testing.T) {
 // page proves the auth let us past the login wall.
 func TestIntegration_Auth_GoodCredentialsSetsCookie(t *testing.T) {
 	ctx := t.Context()
-	base, _, _, cleanup := testFixture(t)
+	base, _, _, _, cleanup := testFixture(t)
 	defer cleanup()
 
 	var authCookie *http.Cookie

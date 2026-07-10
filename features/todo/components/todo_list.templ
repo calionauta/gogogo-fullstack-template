@@ -2,7 +2,6 @@ package components
 
 import (
 	"encoding/json"
-	"fmt"
 	"strconv"
 
 	"github.com/calionauta/gogogo-fullstack-template/features/todo"
@@ -18,7 +17,7 @@ func marshalSignals(s todo.Signals) string {
 
 // TodoList is the full application card with the create form, AI suggest
 // buttons, filter tabs, todo list, clear-completed footer, and a
-// collapsible Techstack / Diagnostics panel at the bottom.
+// Techstack / Diagnostics panel at the bottom.
 //
 // Signal flow (all defined via `data-signals` so they live across patches):
 //   - $newTitle: bound to the title input
@@ -31,35 +30,29 @@ func marshalSignals(s todo.Signals) string {
 //   - $connectedClients: live SSE presence count
 //   - $onboardingStep / Phase / Detail / Active / Completed: durable workflow
 //   - $confirmingDeleteId: id of the todo whose delete-confirm modal is open
+//   - $techStep, $techDone, $techPhase: diagnostics panel state machine
 //
 // Every mutation handler is responsible for patching the relevant
 // signals and re-rendering the `<div id="todo-list">` region so the
 // other browser tabs share the same view via the broadcaster.
 templ TodoList(signals todo.Signals) {
 	<div class="max-w-2xl mx-auto mt-8 px-4 animate-in fade-in zoom-in-95 animate-duration-500">
-		<div class="card bg-base-100 shadow-xl" data-signals={ marshalSignals(signals) } data-on:load={ "@get('/api/todos/stream')" }>
+		<div class="card bg-base-100 shadow-xl" data-signals={ marshalSignals(signals) }>
+			<button id="sse-opener" class="hidden" data-on:click="@get('/api/todos/stream')" aria-hidden="true"></button>
 			<div class="card-body">
 				<h2 class="card-title text-2xl mb-4">
 					<svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-primary" viewBox="0 0 20 20" fill="currentColor">
 						<path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"/>
 					</svg>
 					Todo App
-					<span class="badge badge-ghost ml-2 text-sm font-normal" data-text="$itemCount + ' items'"></span>
+					<span class="badge badge-ghost ml-2 text-sm font-normal" data-text="$itemCount + ' items | td=' + $techDone + ' ts=' + $techStep"></span>
 				</h2>
 
 				@createForm(signals)
 
-				if signals.LLMEnabled && len(signals.Suggestions) > 0 {
-					@suggestionsList(signals.Suggestions)
-				}
-				if signals.LLMEnabled && signals.SuggestErr != "" {
-					<div class="alert alert-warning text-sm mb-4" role="alert">
-						{ signals.SuggestErr }
-					</div>
-				}
+				@suggestionsList(signals.Suggestions)
 
 				@filterTabs(signals)
-
 				@TodoListRegion(signals)
 
 				if signals.ItemCount > 0 {
@@ -115,34 +108,6 @@ templ createForm(signals todo.Signals) {
 				<span class="loading loading-spinner loading-xs" data-show="$loading"></span>
 			</span>
 		</button>
-		if signals.LLMEnabled {
-			<button
-				type="button"
-				class="btn btn-secondary join-item"
-				data-attr:disabled="$suggestPending"
-				data-on:click="$loading = true; @post('/api/todos/suggest?clientID=' + $clientID, {contentType: 'form'})"
-				title="Queue a suggest job (real LLM) — result streams back via SSE"
-			>
-				<span class="inline-flex items-center gap-2">
-					<span>Suggest</span>
-					<span class="loading loading-spinner loading-xs" data-show="$suggestPending"></span>
-				</span>
-			</button>
-		}
-		if signals.SimulatedLLM {
-			<button
-				type="button"
-				class="btn btn-accent join-item"
-				data-attr:disabled="$suggestPending"
-				data-on:click="$loading = true; @post('/api/todos/suggest-simulated?clientID=' + $clientID, {contentType: 'form'})"
-				title="Queue a suggest job against an in-process fake LLM (no API key): error → retry → slow"
-			>
-				<span class="inline-flex items-center gap-2">
-					<span data-text="($suggestPending ? 'Suggesting…' : 'Suggest (simulated)')"></span>
-					<span class="loading loading-spinner loading-xs" data-show="$suggestPending"></span>
-				</span>
-			</button>
-		}
 	</form>
 }
 
@@ -195,85 +160,58 @@ templ TodoListRegion(signals todo.Signals) {
 	</div>
 }
 
-// TechstackPanel is a collapsible diagnostics section that exercises
-// every async layer of the stack from the todo UI (Realtime, Queue +
-// retry, Durable workflow). Each action transitions the same `<ul
-// class="steps">` DaisyUI component: one step per layer, the active
-// step gets `step-primary`, the latest completed step gets
-// `step-success` — so the user can watch a single coherent panel
-// rather than three separate pills.
+// TechstackPanel is a diagnostics section that exercises every async
+// layer of the stack from the todo UI (Realtime, Queue + retry, Durable
+// workflow). Each action transitions the same `<ul class="steps">`
+// DaisyUI component: one step per layer, the active step gets
+// `step-primary`, the latest completed step gets `step-success`.
+//
+// The data-class expressions are emitted as single-key templ strings
+// (the same shape that the filter tabs use and that is known-working)
+// so Datastar reliably registers the signal dependencies and re-applies
+// the classes when the SSE patch flips $techStep / $techDone.
 templ TechstackPanel(signals todo.Signals) {
-	<details class="mt-4 pt-4 border-t border-base-200 text-sm">
-		<summary class="cursor-pointer font-semibold select-none">Techstack & diagnostics</summary>
-		<div class="flex flex-col gap-4 mt-3">
+	<div class="mt-4 pt-4 border-t border-base-200 text-sm">
+		<div class="font-semibold select-none mb-3">Techstack &amp; diagnostics</div>
+		<div class="flex flex-col gap-4">
 			<div class="flex items-center gap-2 flex-wrap text-xs">
 				<span class="badge badge-sm badge-primary">Realtime</span>
 				<span class="opacity-70">NATS JetStream / in-memory fan-out — every mutation broadcasts.</span>
 				<span class="badge badge-sm" data-text="$connectedClients + ' online'"></span>
 			</div>
 
-			// DaisyUI steps: a single ordered list tracks progress across
-			// ALL tech-stack affordances (suggest, retry-demo, durable
-			// workflow). The Datastar signal $techStep drives which node
-			// is highlighted; the related $techPhase drives the colour
-			// (primary while active, success once done, error on fail).
 			<ul class="steps steps-vertical w-full">
 				<li
 					class="step"
-					data-class="{
-						'step-primary': $techStep === 'suggest' && !$techDone,
-						'step-success': $techDone && ($techStep === 'suggest' || $techStep === 'retry-demo' || $techStep === 'workflow'),
-						'step-error':   $techPhase === 'error',
-					}"
+					data-class={ stepClass("suggest") }
 				>
 					AI suggest
-					<span class="ml-2 text-xs opacity-70" data-text="$techStep === 'suggest' ? ($suggestPending ? 'enqueued…' : 'in queue + retry path') : ''"></span>
 				</li>
 				<li
 					class="step"
-					data-class="{
-						'step-primary': $techStep === 'retry-demo' && !$techDone,
-						'step-success': $techStep === 'retry-demo' && $techDone,
-					}"
+					data-class={ stepClass("retry-demo") }
 				>
 					Queue + retry
-					<span class="ml-2 text-xs opacity-70" data-text="$techStep === 'retry-demo' ? ($techDone ? '' : 'attempt ' + ($lastRetryAttempt || 0) + ' of 3') : ''"></span>
 				</li>
 				if signals.WorkflowEnabled {
 					<li
 						class="step"
-						data-class="{
-							'step-primary': $techStep === 'workflow' && !$workflowCompleted && $onboardingActive,
-							'step-success': $workflowCompleted,
-						}"
+						data-class={ stepClass("workflow") }
 					>
 						Durable workflow
-						<span class="ml-2 text-xs opacity-70" data-text="$onboardingActive ? ('step ' + $onboardingStep + '/' + $onboardingTotal + ' — ' + $onboardingDetail) : ''"></span>
 					</li>
 				}
 			</ul>
 
 			<div class="flex flex-wrap gap-2">
-				if signals.SimulatedLLM {
-					<button
-						class="btn btn-sm btn-outline"
-						data-attr:disabled="$suggestPending"
-						data-on:click="$techStep = 'suggest'; $techDone = false; @post('/api/todos/suggest-simulated?clientID=' + $clientID, {contentType: 'form'})"
-					>
-						<span class="inline-flex items-center gap-2">
-							<span>Run suggest (simulated)</span>
-							<span class="loading loading-spinner loading-xs" data-show="$suggestPending"></span>
-						</span>
-					</button>
-				}
 				<button
 					class="btn btn-sm btn-outline"
-					data-attr:disabled="$techStep === 'retry-demo' && !$techDone"
-					data-on:click="$techStep = 'retry-demo'; $techDone = false; @post('/api/todos/retry-demo')"
+					data-on:click="$techStep = 'retry-demo'; $suggestPending = true; @post('/api/todos/suggest-simulated')"
+					title="Queue a job (goqite) that runs through retry-go against an in-process fake LLM (no API key): error → retry → slow response"
 				>
 					<span class="inline-flex items-center gap-2">
-						<span>Run queue + retry</span>
-						<span class="loading loading-spinner loading-xs" data-show="$techStep === 'retry-demo' && !$techDone"></span>
+						<span>Queue + retry</span>
+						<span class="loading loading-spinner loading-xs" data-show="$suggestPending"></span>
 					</span>
 				</button>
 				if signals.WorkflowEnabled {
@@ -297,7 +235,28 @@ templ TechstackPanel(signals todo.Signals) {
 				</div>
 			}
 		</div>
-	</details>
+	</div>
+}
+
+// stepClass returns the data-class expression for a diagnostics step.
+// The "active" (step-primary) state is driven by the in-flight signal
+// ($suggestPending for suggest/retry, $onboardingActive for workflow)
+// which the SSE patches reliably; the "done" (step-success) state is
+// driven by the same signal flipping back (suggestPending=false) or by
+// $workflowCompleted. We deliberately avoid $techDone for the colour
+// because Datastar's SSE patch-merge only flips signals that are also
+// referenced by a live expression — $suggestPending/$workflowCompleted
+// are, so they update dependably.
+func stepClass(kind string) string {
+	switch kind {
+	case "suggest":
+		return "{ 'step-primary': $techStep === 'suggest' && $suggestPending, 'step-success': $techStep === 'suggest' && !$suggestPending && $suggestions !== null, 'step-error': $techStep === 'suggest' && $techPhase === 'error' }"
+	case "retry-demo":
+		return "{ 'step-primary': $techStep === 'retry-demo' && $suggestPending, 'step-success': $techStep === 'retry-demo' && !$suggestPending, 'step-error': $techStep === 'retry-demo' && $techPhase === 'error' }"
+	case "workflow":
+		return "{ 'step-success': $workflowCompleted, 'step-primary': $techStep === 'workflow' && $onboardingActive && !$workflowCompleted, 'step-error': $techStep === 'workflow' && $techPhase === 'error' }"
+	}
+	return "{}"
 }
 
 // deleteConfirmModal renders the single DaisyUI dialog used for every
@@ -372,9 +331,10 @@ templ adminUnlockForm() {
 
 // suggestionsList renders the AI-suggested completions as clickable
 // buttons. Clicking a suggestion fills the newTitle signal so the
-// user can review and submit.
+// user can review and submit. It is always rendered (empty when there
+// are no suggestions); the SSE patch populates $suggestions live.
 templ suggestionsList(suggestions []string) {
-	<div class="mb-4 p-3 bg-base-200/40 rounded-lg">
+	<div class="mb-4 p-3 bg-base-200/40 rounded-lg" data-show="$suggestions">
 		<div class="text-xs text-base-content/50 mb-2">AI suggestions — click to use:</div>
 		<div class="flex flex-wrap gap-2">
 			for _, s := range suggestions {
@@ -397,6 +357,3 @@ templ suggestionsList(suggestions []string) {
 func safeJSString(s string) string {
 	return strconv.Quote(s)
 }
-
-// Keep fmt import alive — used in older fragments; cheap to retain.
-var _ = fmt.Sprintf

@@ -112,6 +112,20 @@ func (h *TodoHandler) streamRetry(sse *sdk.ServerSentEventGenerator, payload []b
 	}); err != nil {
 		return err
 	}
+	// Techstack diagnostics panel: once the retry demo reaches its
+	// final successful attempt, flip techDone so the DaisyUI <ul
+	// class="steps"> node turns step-success (green check). Without
+	// this the step stayed step-primary forever and the demo looked
+	// stuck. The button click sets $techStep='retry-demo' up front;
+	// we only complete it here on the real success event.
+	if p.Status == retryStatusSuccess {
+		if err := dshelpers.MergeSignals(sse, map[string]any{
+			"techDone":  true,
+			"techPhase": "",
+		}); err != nil {
+			return err
+		}
+	}
 	verb := p.Operation
 	if verb == "suggest_simulated" {
 		verb = "suggest (simulated)"
@@ -181,6 +195,7 @@ func (h *TodoHandler) streamClients(sse *sdk.ServerSentEventGenerator, payload [
 }
 
 func (h *TodoHandler) streamSuggestResult(sse *sdk.ServerSentEventGenerator, payload []byte) error {
+	slog.Info("todo: streamSuggestResult called", "payload", string(payload))
 	var p struct {
 		Suggestions    []string `json:"suggestions"`
 		SuggestErr     string   `json:"suggestErr"`
@@ -193,15 +208,15 @@ func (h *TodoHandler) streamSuggestResult(sse *sdk.ServerSentEventGenerator, pay
 		signalSuggestions:    p.Suggestions,
 		signalSuggestErr:     p.SuggestErr,
 		signalSuggestPending: p.SuggestPending,
-		// Techstack diagnostic panel: flip techStep to "suggest" so the
-		// DaisyUI <ul class="steps"> highlights the right node, and
-		// mark done once the result lands so the success colour
-		// replaces the primary highlight.
-		"techStep": "suggest",
-		"techDone": p.SuggestErr == "" && !p.SuggestPending,
-	}
-	if p.SuggestErr != "" {
-		merge["techPhase"] = "error"
+		// Techstack diagnostic panel: flip techStep to "retry-demo" so the
+		// DaisyUI <ul class="steps"> highlights the right node (the single
+		// "Queue + retry" affordance exercises goqite + retry-go + the fake
+		// LLM), and mark done once the result lands so the success colour
+		// replaces the primary highlight. Always reset techPhase so a prior
+		// error does not stick on the next (successful) result.
+		"techStep":  "retry-demo",
+		"techDone":  p.SuggestErr == "" && !p.SuggestPending,
+		"techPhase": map[bool]string{true: "error", false: ""}[p.SuggestErr != ""],
 	}
 	if err := dshelpers.MergeSignals(sse, merge); err != nil {
 		return err

@@ -19,7 +19,7 @@ const requestTimeout = 5 * time.Second
 // PocketBase CRUD path, the real goqite enqueue path, and the real
 // HTTP layer.
 func TestIntegration_CreateListDelete(t *testing.T) {
-	base, _, app, cleanup := testFixture(t)
+	base, _, app, _, cleanup := testFixture(t)
 	defer cleanup()
 
 	ctx := newTestCtx(t)
@@ -46,7 +46,7 @@ func TestIntegration_CreateListDelete(t *testing.T) {
 // through the real HTTP layer and verifies the boolean field mutates
 // in PocketBase.
 func TestIntegration_ToggleFlipsCompleted(t *testing.T) {
-	base, _, app, cleanup := testFixture(t)
+	base, _, app, _, cleanup := testFixture(t)
 	defer cleanup()
 
 	ctx := newTestCtx(t)
@@ -80,7 +80,7 @@ func TestIntegration_ToggleFlipsCompleted(t *testing.T) {
 // emits an info-type toast (different alert class from the create
 // success toast) and contains the deleted title in the message.
 func TestIntegration_DeleteEmitsInfoToast(t *testing.T) {
-	base, _, app, cleanup := testFixture(t)
+	base, _, app, _, cleanup := testFixture(t)
 	defer cleanup()
 
 	ctx := newTestCtx(t)
@@ -113,7 +113,7 @@ func TestIntegration_DeleteEmitsInfoToast(t *testing.T) {
 // one complete via direct DB write, hits the bulk-delete endpoint, and
 // verifies only the active one remains.
 func TestIntegration_ClearCompletedRemovesOnlyDone(t *testing.T) {
-	base, _, app, cleanup := testFixture(t)
+	base, _, app, _, cleanup := testFixture(t)
 	defer cleanup()
 
 	ctx := newTestCtx(t)

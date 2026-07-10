@@ -9,9 +9,12 @@ import (
 	"github.com/calionauta/gogogo-fullstack-template/internal/nats"
 )
 
-func startNATS(cfg *config.Config) {
+// startNATS boots the embedded NATS server (when NATS is enabled) and
+// returns a JetStreamContext wired to it, or nil if NATS is disabled or
+// failed to start (the caller falls back to the in-memory broadcaster).
+func startNATS(cfg *config.Config) nats.JetStreamLike {
 	if !cfg.NATS.Enabled {
-		return
+		return nil
 	}
 	if err := nats.StartEmbedded(cfg.NATS.StoreDir); err != nil {
 		// Don't take the whole app down if embedded NATS can't start
@@ -19,6 +22,8 @@ func startNATS(cfg *config.Config) {
 		// in-memory broadcaster so realtime still works within the
 		// instance.
 		log.Printf("WARN: NATS startup failed, falling back to in-memory broadcaster: %v", err)
-		return
+		return nil
 	}
+	js := nats.JetStream()
+	return js
 }

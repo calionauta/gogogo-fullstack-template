@@ -133,6 +133,7 @@ func (h *TodoHandler) RegisterRoutes(se *core.ServeEvent) {
 	se.Router.POST("/api/todos/{id}/toggle", h.handleToggle)
 	se.Router.POST("/api/todos/completed/delete", h.handleClearCompleted)
 	se.Router.POST("/api/todos/{id}/delete", h.handleDelete)
+	se.Router.GET("/api/todos/{id}/confirm-delete", h.handleConfirmDelete)
 	se.Router.GET("/api/todos/stream", h.handleSSEStream)
 	se.Router.POST("/api/todos/retry-demo", h.handleEnqueueRetryDemo)
 	if h.cfg.AdminToken != "" {
@@ -192,6 +193,7 @@ func (h *TodoHandler) RegisterRoutesOn(r *router.Router[*core.RequestEvent]) {
 	r.POST("/api/todos/{id}/toggle", h.handleToggle)
 	r.POST("/api/todos/completed/delete", h.handleClearCompleted)
 	r.POST("/api/todos/{id}/delete", h.handleDelete)
+	r.GET("/api/todos/{id}/confirm-delete", h.handleConfirmDelete)
 	r.GET("/api/todos/stream", h.handleSSEStream)
 	r.POST("/api/todos/retry-demo", h.handleEnqueueRetryDemo)
 	if h.cfg.AdminToken != "" {

@@ -27,3 +27,9 @@ func (b *InMemoryBroadcaster) PublishTodoUpdate(_ context.Context, payload []byt
 	}
 	return nil
 }
+
+// Subscribe is a no-op for the in-memory broadcaster: it already holds
+// the SSE Hub directly and fans out through it, so there is no separate
+// transport to bind. Declared so callers can call Subscribe uniformly
+// across both implementations.
+func (b *InMemoryBroadcaster) Subscribe(_ *queue.SSEHub) {}

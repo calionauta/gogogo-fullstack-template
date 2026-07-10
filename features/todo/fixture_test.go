@@ -16,6 +16,7 @@ import (
 	"github.com/calionauta/gogogo-fullstack-template/features/auth"
 	"github.com/calionauta/gogogo-fullstack-template/features/todo/handlers"
 	"github.com/calionauta/gogogo-fullstack-template/internal/llm"
+	"github.com/calionauta/gogogo-fullstack-template/internal/nats"
 	"github.com/calionauta/gogogo-fullstack-template/internal/queue"
 
 	_ "github.com/ncruces/go-sqlite3/driver"
@@ -29,14 +30,14 @@ const (
 	demoPassword = "demo1234456"
 )
 
-func testFixture(t *testing.T) (string, *queue.Queue, *pocketbase.PocketBase, func()) {
+func testFixture(t *testing.T) (string, *queue.Queue, *pocketbase.PocketBase, *handlers.TodoHandler, func()) {
 	return buildFixture(t, nil)
 }
 
 // testFixtureSimulated is like testFixture but wires an in-process
 // simulated LLM client, so the /api/todos/suggest-simulated route is
 // live and the full queue + retry + SSE path can be exercised keyless.
-func testFixtureSimulated(t *testing.T) (string, *queue.Queue, *pocketbase.PocketBase, func()) {
+func testFixtureSimulated(t *testing.T) (string, *queue.Queue, *pocketbase.PocketBase, *handlers.TodoHandler, func()) {
 	return buildFixture(t, llm.NewSimulated())
 }
 
@@ -45,7 +46,9 @@ func testFixtureSimulated(t *testing.T) (string, *queue.Queue, *pocketbase.Pocke
 // production wiring from db.Init + queue.New + router.Init +
 // handlers.New. When simClient is non-nil it is wired as the simulated
 // LLM so the suggest-simulated route is live (and Closed on cleanup).
-func buildFixture(t *testing.T, simClient *llm.Client) (string, *queue.Queue, *pocketbase.PocketBase, func()) {
+func buildFixture(t *testing.T, simClient *llm.Client) (
+	string, *queue.Queue, *pocketbase.PocketBase, *handlers.TodoHandler, func(),
+) {
 	t.Helper()
 
 	tmpDir, err := os.MkdirTemp("", "todo-int-*")
@@ -86,6 +89,11 @@ func buildFixture(t *testing.T, simClient *llm.Client) (string, *queue.Queue, *p
 	if simClient != nil {
 		h.SetSimulatedLLMClient(simClient)
 	}
+	// Mirror router.Init: share the SSE hub via the in-memory broadcaster
+	// so todo mutations fan out to every connected client (the realtime
+	// path the demo relies on). Without this, broadcastTodo is a no-op
+	// and cross-tab sync silently fails.
+	h.SetBroadcaster(nats.NewInMemoryBroadcaster(q.Hub()))
 
 	workers := q.StartWorkers()
 
@@ -136,7 +144,7 @@ func buildFixture(t *testing.T, simClient *llm.Client) (string, *queue.Queue, *p
 		mustReset(t, app)
 		os.RemoveAll(tmpDir)
 	}
-	return server.URL, q, app, cleanup
+	return server.URL, q, app, h, cleanup
 }
 
 // mustReset rolls back PocketBase bootstrap state on test failure.

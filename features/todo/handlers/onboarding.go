@@ -192,6 +192,10 @@ func (h *OnboardingHandler) handleStart(c *core.RequestEvent) error {
 		handle, err := turbine.Run(h.rt.T(), workflow.OnboardingStart, user)
 		if err != nil {
 			slog.Error("onboarding: workflow start failed", "user", user, "error", err)
+			// Surface the failure to the user instead of failing silently.
+			if h.broadcaster != nil {
+				_ = h.broadcaster.PublishTodoUpdate(context.Background(), todoUpdateJob("workflow-error", "remote", "", err.Error(), false))
+			}
 			return
 		}
 		for {

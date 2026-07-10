@@ -65,6 +65,14 @@ type Signals struct {
 	// provider (without leaking internals). Empty on success.
 	SuggestErr string `json:"suggestErr"`
 
+	// SuggestPending is true while a suggest job (simulated or real)
+	// is in flight. Drives the button spinner + disabled state so the
+	// user can't double-fire. Seeded false so the button is enabled
+	// on first paint (Datastar's data-attr:disabled treats an
+	// undefined signal as falsy, but seeding it explicitly avoids a
+	// one-frame flash of the disabled state).
+	SuggestPending bool `json:"suggestPending"`
+
 	// ConnectedClients is the number of browser tabs/clients currently
 	// connected to the SSE stream. Streamed on connect and on every
 	// connect/disconnect so the UI can show realtime presence.
