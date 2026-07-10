@@ -59,8 +59,13 @@ type JetStreamBroadcaster struct {
 	closed bool
 }
 
-// NewJetStreamBroadcaster ensures the TODOS stream exists and returns a
-// broadcaster bound to hub. Call Subscribe before publishing.
+// NewJetStreamBroadcaster ensures the TODOS stream exists, subscribes the
+// broadcaster to it, and returns a broadcaster bound to hub. Subscription
+// happens here (not in the caller) so the realtime path cannot silently
+// miss mutations because a caller forgot to Subscribe — that was the bug
+// where broadcasts were registered on the server but never reached remote
+// clients. Safe to construct once per process (a second consumer on the
+// same durable name is rejected by JetStream).
 func NewJetStreamBroadcaster(js natsio.JetStreamContext, hub *queue.SSEHub) (*JetStreamBroadcaster, error) {
 	if _, err := js.AddStream(&natsio.StreamConfig{
 		Name:     todoStream,
@@ -73,7 +78,10 @@ func NewJetStreamBroadcaster(js natsio.JetStreamContext, hub *queue.SSEHub) (*Je
 			return nil, err
 		}
 	}
-	return &JetStreamBroadcaster{js: js, hub: hub}, nil
+	b := &JetStreamBroadcaster{js: js, hub: hub}
+	// Auto-subscribe so the broadcaster is live the moment it is built.
+	b.Subscribe(hub)
+	return b, nil
 }
 
 // PublishTodoUpdate publishes payload to the TODOS stream. Any process
@@ -121,9 +129,10 @@ func (b *JetStreamBroadcaster) Close() {
 }
 
 // NewTodoBroadcaster returns a JetStream-backed broadcaster bound to hub.
-// The caller must call Subscribe(hub) before publishing. With the default
-// build tag the same call returns an in-memory broadcaster; the signature
-// is identical so callers don't branch.
+// It auto-subscribes to the TODOS stream, so published events are
+// re-emitted to the SSE Hub without any further caller action. With the
+// default build tag the same call returns an in-memory broadcaster; the
+// signature is identical so callers don't branch.
 func NewTodoBroadcaster(js JetStreamLike, hub *queue.SSEHub) TodoBroadcaster {
 	jsCtx, ok := js.(natsio.JetStreamContext)
 	if !ok {

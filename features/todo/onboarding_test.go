@@ -189,6 +189,53 @@ func TestOnboarding_CreateResumesFlow(t *testing.T) {
 	}
 }
 
+// TestOnboarding_ProgressStreamsToUI is a regression guard for the
+// turbine + realtime path: when the durable workflow advances a step it
+// publishes a "progress" event through the broadcaster, which must reach
+// every connected SSE client so the UI stepper lights up live. Previously
+// a missing Subscribe (or a broken broadcaster wiring) let the workflow
+// run to completion on the server while the browser showed nothing.
+//
+// This test opens a real SSE stream, starts onboarding, and asserts the
+// progress signal (onboardingStep + techStep=workflow) arrives on the
+// stream — proving the turbine step updates are observable in the UI.
+func TestOnboarding_ProgressStreamsToUI(t *testing.T) {
+	base, _, cleanup := turbineFixture(t)
+	defer cleanup()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+
+	const user = "carol"
+	workflow.SetOnboardingPendingForTest(user, false)
+	defer workflow.SetOnboardingPendingForTest(user, false)
+
+	clientID := "onboard-ui-" + time.Now().Format(clientIDSuffixFormat)
+	stream := openSSEWithCtx(ctx, t, base, clientID)
+	defer func() { _ = stream.Body.Close() }()
+	time.Sleep(100 * time.Millisecond)
+
+	resp, err := postForm(ctx, base+"/api/onboarding/start", url.Values{"user": {user}})
+	if err != nil {
+		t.Fatalf("onboarding start: %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != 200 {
+		t.Fatalf("onboarding start status=%d", resp.StatusCode)
+	}
+
+	// Wait for the progress signal (step 1/5) to reach the SSE client.
+	full := pumpSSEUntil(t, stream, 15*time.Second, func(s string) bool {
+		return containsStr(s, "\"onboardingStep\"") && containsStr(s, "\"techStep\":\"workflow\"")
+	})
+	if !containsStr(full, "\"onboardingStep\"") {
+		t.Fatalf("onboarding progress (onboardingStep) never reached SSE client: %s", tailString(full, 600))
+	}
+	if !containsStr(full, "\"techStep\":\"workflow\"") {
+		t.Fatalf("onboarding progress missing techStep=workflow on SSE client: %s", tailString(full, 600))
+	}
+}
+
 // containsStr reports whether substr is inside s (kept local to avoid a
 // strings import in the turbine-only build).
 func containsStr(s, substr string) bool {

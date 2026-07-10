@@ -21,6 +21,12 @@ import (
 // It spins up the embedded NATS server (StartEmbedded already enables
 // JetStream and waits for readiness) with an ephemeral StoreDir, so it
 // validates the production path without a standing server.
+//
+// NOTE: NewJetStreamBroadcaster auto-subscribes in its constructor (the
+// fix for the "broadcasts registered but never reached remote clients"
+// bug). This test therefore does NOT call Subscribe explicitly — if a
+// regression removes the auto-subscribe, this test fails because the
+// published event would sit unread in JetStream.
 func TestJetStreamBroadcasterFanout(t *testing.T) {
 	if err := nats.StartEmbedded(t.TempDir()); err != nil {
 		t.Fatalf("start embedded nats: %v", err)
@@ -32,7 +38,6 @@ func TestJetStreamBroadcasterFanout(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new broadcaster: %v", err)
 	}
-	b.Subscribe(hub)
 	t.Cleanup(b.Close)
 
 	const payload = `{"event":"created","id":"abc123","title":"hello"}`

@@ -66,6 +66,18 @@ func TestIntegration_SuggestSimulatedEnqueuesAndStreamsResult(t *testing.T) {
 	if !strings.Contains(full, "Got 3 suggestions") {
 		t.Fatalf("suggest-simulated: success toast missing: %s", tailString(full, 600))
 	}
+	// Regression guard for the Techstack diagnostic panel: the goqite +
+	// retry-go + fake-LLM run must flip the UI step signal to
+	// "retry-demo" (the single Queue + retry affordance) and mark it done
+	// once the result lands. If the streamSuggestResult merge stops
+	// emitting techStep, the browser stepper stays frozen on the wrong
+	// node even though the pipeline succeeded.
+	if !strings.Contains(full, "\"techStep\":\"retry-demo\"") {
+		t.Fatalf("suggest-simulated: techStep=retry-demo UI signal missing: %s", tailString(full, 600))
+	}
+	if !strings.Contains(full, "\"techDone\":true") {
+		t.Fatalf("suggest-simulated: techDone not flipped true on success: %s", tailString(full, 600))
+	}
 }
 
 // TestIntegration_SuggestSimulatedShowsRetryFeedback asserts the worker's
