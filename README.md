@@ -220,7 +220,8 @@ extension that stamps a green commit status after your local tests pass.
 # one-time: install the extension
 gh extension install basecamp/gh-signoff
 
-# before every push: run the full CI matrix locally, then sign off
+# before pushing: run the full CI matrix locally, then stamp the commit
+# green (force so it stamps even before the commit is pushed)
 make signoff
 ```
 

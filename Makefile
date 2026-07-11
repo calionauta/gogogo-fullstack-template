@@ -158,7 +158,7 @@ ci-local: templ datastar-lint css-check
 # If/when we move to a PR-based flow, enable `gh signoff install` too.
 signoff: ci-local
 	@echo "→ stamping commit green via gh signoff..."
-	@gh signoff
+	@gh signoff -f
 	@echo "✅ signed off — safe to push"
 
 .PHONY: ci-local signoff
