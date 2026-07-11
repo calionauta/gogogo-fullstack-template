@@ -47,6 +47,21 @@ jobs:
           # which aborts the whole job on infra flake rather than lint
           # failure. Disable the cache so lint runs every time.
           skip-cache: true
+      - name: Datastar-lint
+        # Catches Datastar attribute/expression mistakes (e.g. data-on:click
+        # vs data-on-click) that golangci-lint cannot see and that only
+        # surface at runtime. -only-errors tolerates intentional custom
+        # attributes like data-tool.
+        run: make datastar-lint
+      - name: Set up Node (CSS build)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: CSS check
+        # Fails if web/resources/static/app.min.css is out of sync with the
+        # .templ sources. Rebuilds and diffs so a stale stylesheet can never
+        # reach main unnoticed.
+        run: make css-check
       - name: Diagnose go test with tags
         run: |
           go version

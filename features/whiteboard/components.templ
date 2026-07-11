@@ -70,14 +70,14 @@ templ Board(docID string) {
 		<body>
 			@auth.Navbar("")
 			<main class="flex flex-col h-[calc(100vh-4rem)]">
-				<div class="toolbar flex gap-2 p-2 bg-base-200 border-b border-base-content/10"
+				<div class="toolbar flex flex-wrap gap-2 p-2 bg-base-200 border-b border-base-content/10 overflow-x-auto"
 				     data-signals="{ clientID: '' }">
 					<button class="btn btn-sm" data-tool="rect" data-on:click="$tool='rect'">Rectangle</button>
 					<button class="btn btn-sm" data-tool="ellipse" data-on:click="$tool='ellipse'">Ellipse</button>
 					<button class="btn btn-sm" data-tool="line" data-on:click="$tool='line'">Line</button>
 					<button class="btn btn-sm" data-tool="pen" data-on:click="$tool='pen'">Pen</button>
 					<input class="input input-sm w-16" type="color" value="#1f2937"
-					       name="color" data-bind="color" data-on:input="$color = $evt.target.value"/>
+					       id="color-input" name="color" aria-label="Shape color" data-bind="color" data-on:input="$color = $evt.target.value"/>
 					<div class="flex items-center gap-1 ml-2 text-xs text-base-content/70" title="People connected to this board">
 						<span class="inline-block h-2 w-2 rounded-full bg-success animate-pulse"></span>
 						<span id="peer-count">1</span>
