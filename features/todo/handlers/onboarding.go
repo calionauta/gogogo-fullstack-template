@@ -167,7 +167,7 @@ func (h *OnboardingHandler) pollRun(runID string) {
 	ctx := context.Background()
 	stepLabels := []string{
 		"Greeting user",
-		"Waiting for your first todo",
+		"Waiting for your next to-do",
 		"Creating example todo 1/3",
 		"Creating example todo 2/3",
 		"Creating example todo 3/3",
@@ -216,7 +216,7 @@ func (h *OnboardingHandler) pollRun(runID string) {
 			// Suspended on WaitForSignal("first-todo"). Show the prompt
 			// and keep polling — it will resume when the user creates a todo.
 			h.publishProgress(ctx, st.Step, total, "workflow",
-				"Step "+itoa(st.Step)+"/"+itoa(total)+" — Waiting for your first todo (create one to continue)")
+				"Step "+itoa(st.Step)+"/"+itoa(total)+" — Waiting for your next to-do (create one to continue)")
 		default:
 			label := ""
 			if st.Step >= 1 && st.Step <= len(stepLabels) {

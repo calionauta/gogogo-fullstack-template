@@ -6991,6 +6991,9 @@
       }
     }
   }
+  .cursor-crosshair {
+    cursor: crosshair;
+  }
   .cursor-pointer {
     cursor: pointer;
   }

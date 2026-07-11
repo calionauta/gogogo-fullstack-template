@@ -76,6 +76,10 @@ func (h *Handler) handleIndex(c *core.RequestEvent) error {
 	if err := auth.RequireAuthOrRedirect(c); err != nil {
 		return err
 	}
+	email := ""
+	if c.Auth != nil {
+		email = c.Auth.Email()
+	}
 	records, err := h.app.FindRecordsByFilter("whiteboards", "", "-updated", whiteboardListLimit, 0)
 	if err != nil {
 		records = nil
@@ -87,20 +91,21 @@ func (h *Handler) handleIndex(c *core.RequestEvent) error {
 			DocVer: r.GetInt("version"),
 		})
 	}
-	if err := renderBoardList(c, boards); err != nil {
+	if err := renderBoardList(c, email, boards); err != nil {
 		return err
 	}
 	return nil
 }
 
 // handleNew creates a new whiteboard doc id and redirects to its board.
+// Uses a real 302 redirect (not HX-Redirect) so a plain <a href>
+// navigation from the index page works without HTMX.
 func (h *Handler) handleNew(c *core.RequestEvent) error {
 	if err := auth.RequireAuthOrRedirect(c); err != nil {
 		return err
 	}
 	docID := uuid.NewString()
-	c.Response.Header().Set("HX-Redirect", "/whiteboard/"+docID)
-	return c.NoContent(http.StatusNoContent)
+	return c.Redirect(http.StatusFound, "/whiteboard/"+docID)
 }
 
 // handleBoard renders the interactive canvas for one doc. It rehydrates
@@ -114,12 +119,16 @@ func (h *Handler) handleBoard(c *core.RequestEvent) error {
 	if docID == "" {
 		return c.String(http.StatusBadRequest, "missing doc id")
 	}
+	email := ""
+	if c.Auth != nil {
+		email = c.Auth.Email()
+	}
 	// Rehydrate the in-memory CRDT from the persisted snapshot so live
 	// clients converge onto saved state before receiving new updates.
 	if snap, ok := h.worker.LoadSnapshot(docID); ok {
 		slog.Info("whiteboard: rehydrated doc", "doc", docID, "bytes", len(snap))
 	}
-	if err := renderBoard(c, docID); err != nil {
+	if err := renderBoard(c, email, docID); err != nil {
 		return err
 	}
 	return nil
@@ -150,11 +159,19 @@ func (h *Handler) handleStream(c *core.RequestEvent) error {
 	fmt.Fprintf(c.Response, ": connected %s\n\n", docID)
 	flusher.Flush()
 
+	// Announce this client joined so every other peer's "X online" count
+	// increments. Without this, a second tab opening the same board never
+	// received any event and the count stayed stuck at 1.
+	joinMsg, _ := json.Marshal(collab.PresenceMsg{Doc: docID, User: "client-" + clientID, Type: "join"})
+	h.hub.BroadcastExcept(joinMsg, clientID)
+	defer func() {
+		leaveMsg, _ := json.Marshal(collab.PresenceMsg{Doc: docID, User: "client-" + clientID, Type: "leave"})
+		h.hub.BroadcastExcept(leaveMsg, clientID)
+	}()
+
 	ch := make(chan []byte, sseChanBuf)
 	h.hub.Register(clientID, ch)
 	defer h.hub.Unregister(clientID)
-
-	// Send the initial snapshot once so the client can render existing
 	// shapes immediately (in case it opened before any live update).
 	if shapes := h.worker.Shapes(docID); len(shapes) > 0 {
 		payload, err := json.Marshal(collab.WebShapesEvent{Type: "shapes", Doc: docID, From: "", Shapes: shapes})
@@ -241,13 +258,13 @@ func (h *Handler) handleSnapshot(c *core.RequestEvent) error {
 }
 
 // renderBoardList writes the index page.
-func renderBoardList(c *core.RequestEvent, boards []BoardMeta) error {
+func renderBoardList(c *core.RequestEvent, email string, boards []BoardMeta) error {
 	c.Response.Header().Set("Content-Type", "text/html; charset=utf-8")
-	return BoardList(boards).Render(c.Request.Context(), c.Response)
+	return BoardList(email, boards).Render(c.Request.Context(), c.Response)
 }
 
 // renderBoard writes the interactive board page.
-func renderBoard(c *core.RequestEvent, docID string) error {
+func renderBoard(c *core.RequestEvent, email, docID string) error {
 	c.Response.Header().Set("Content-Type", "text/html; charset=utf-8")
-	return Board(docID).Render(c.Request.Context(), c.Response)
+	return Board(email, docID).Render(c.Request.Context(), c.Response)
 }

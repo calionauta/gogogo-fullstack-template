@@ -228,8 +228,7 @@ func (h *TodoHandler) streamTodo(c *core.RequestEvent, sse *sdk.ServerSentEventG
 			return fmt.Errorf("list todos for broadcast: %w", err)
 		}
 		return dshelpers.RenderAndPatch(sse, h.renderTodoList(todos),
-			sdk.WithSelector("#todo-list"),
-			sdk.WithViewTransitions())
+			sdk.WithSelector("#todo-list"))
 	}
 }
 
@@ -325,14 +324,26 @@ func (h *TodoHandler) streamProgress(sse *sdk.ServerSentEventGenerator, payload 
 //
 //	(dagnats). Empty keeps the current node.
 //
-// done  — true once the action succeeded (green check).
+// done  — true once the action succeeded (green check) OR reached a
+//
+//	terminal error. When done we ALSO reset $suggestPending=false so the
+//	spinner on the Queue+Retry / AI Suggest buttons stops — without this
+//	the button clicked true and never released, leaving every tab's
+//	action button spinning indefinitely (the "running demo" never
+//	resets bug).
+//
 // phase — "error" on failure, "" otherwise.
 func (h *TodoHandler) applyTechStep(sse *sdk.ServerSentEventGenerator, step string, done bool, phase string) error {
-	return dshelpers.MergeSignals(sse, map[string]any{
+	merge := map[string]any{
 		"techStep":  step,
 		"techDone":  done,
 		"techPhase": phase,
-	})
+	}
+	if done {
+		// Terminal state (success or hard error): release the spinner.
+		merge[signalSuggestPending] = false
+	}
+	return dshelpers.MergeSignals(sse, merge)
 }
 
 // applyOnboarding centralises the durable-workflow (DagNats) progress

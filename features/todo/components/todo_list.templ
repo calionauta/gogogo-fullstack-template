@@ -273,6 +273,7 @@ templ TodoList(signals todo.Signals) {
 
 								<button
 									class="btn btn-primary btn-sm w-full transition-all duration-200 hover:scale-[1.02] active:scale-98"
+									data-attr:disabled="$newTitle.trim() === ''"
 									data-on:click="$techStep = 'retry-demo'; $suggestPending = true; @post('/api/todos/suggest?partial=' + encodeURIComponent($newTitle))"
 									title="Ask the configured LLM (Groq) for 3 todo suggestions via goqite + retry-go"
 								>
@@ -324,7 +325,7 @@ templ TodoList(signals todo.Signals) {
 										>Greeting</li>
 										<li class="step transition-all duration-500"
 											data-class={ "{'step-primary': $techStep === 'workflow' && $onboardingActive && !$workflowCompleted && ($onboardingStep === 2 || $onboardingPhase === 'workflow'), 'step-success': $workflowCompleted}" }
-										>Waiting for first todo</li>
+										>Waiting for the next to-do</li>
 										<li class="step transition-all duration-500"
 											data-class={ "{'step-primary': $techStep === 'workflow' && $onboardingActive && !$workflowCompleted && $onboardingStep >= 3 && $onboardingStep <= 5, 'step-success': $workflowCompleted}" }
 										>Create example todos (×3)</li>
@@ -340,7 +341,7 @@ templ TodoList(signals todo.Signals) {
 										<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" viewBox="0 0 20 20" fill="currentColor">
 											<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-2a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
 										</svg>
-										<span>Waiting for your first todo. Add any task above to continue the workflow.</span>
+										<span>Waiting for your next to-do. Add any task above to continue the workflow.</span>
 									</div>
 
 									<button

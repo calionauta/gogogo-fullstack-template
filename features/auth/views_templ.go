@@ -68,7 +68,7 @@ func Navbar(userEmail string) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</span></li><li><a href=\"/_/\" class=\"flex items-center gap-2\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"h-4 w-4 shrink-0\" viewBox=\"0 0 20 20\" fill=\"currentColor\"><path d=\"M10 2a8 8 0 100 16 8 8 0 000-16zm1 11H9v-4h2v4zm0-6H9V5h2v2z\"></path></svg> Dashboard</a></li><li><form method=\"POST\" action=\"/logout\" data-on:submit=\"$loading = true\"><button type=\"submit\" class=\"w-full text-left flex items-center gap-2\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"h-4 w-4 shrink-0\" viewBox=\"0 0 20 20\" fill=\"currentColor\"><path fill-rule=\"evenodd\" d=\"M3 10a1 1 0 011-1h10a1 1 0 110 2H4a1 1 0 01-1-1zM9 4a1 1 0 011-1h7a1 1 0 011 1v12a1 1 0 01-1 1h-7a1 1 0 01-1-1V4z\" clip-rule=\"evenodd\"></path></svg> Sign out</button></form></li></ul></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</span></li><li><a href=\"/_/\" class=\"flex items-center gap-2\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"h-4 w-4 shrink-0\" viewBox=\"0 0 20 20\" fill=\"currentColor\"><path d=\"M10 2a8 8 0 100 16 8 8 0 000-16zm1 11H9v-4h2v4zm0-6H9V5h2v2z\"></path></svg> Dashboard</a></li><li><a data-on:click=\"window.open(location.protocol + '//' + location.hostname + ':8090/', '_blank')\" class=\"flex items-center gap-2 cursor-pointer\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"h-4 w-4 shrink-0\" viewBox=\"0 0 20 20\" fill=\"currentColor\"><path fill-rule=\"evenodd\" d=\"M3 5a2 2 0 012-2h10a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V5zm2-1a1 1 0 00-1 1v3h10V5a1 1 0 00-1-1H5zm10 6H5v5a1 1 0 001 1h8a1 1 0 001-1v-5z\" clip-rule=\"evenodd\"></path></svg> DagNats</a></li><li><form method=\"POST\" action=\"/logout\" data-on:submit=\"$loading = true\"><button type=\"submit\" class=\"w-full text-left flex items-center gap-2\"><svg xmlns=\"http://www.w3.org/2000/svg\" class=\"h-4 w-4 shrink-0\" viewBox=\"0 0 20 20\" fill=\"currentColor\"><path fill-rule=\"evenodd\" d=\"M3 10a1 1 0 011-1h10a1 1 0 110 2H4a1 1 0 01-1-1zM9 4a1 1 0 011-1h7a1 1 0 011 1v12a1 1 0 01-1 1h-7a1 1 0 01-1-1V4z\" clip-rule=\"evenodd\"></path></svg> Sign out</button></form></li></ul></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -125,7 +125,7 @@ func LoginPage(next string, errMsg string) templ.Component {
 			var templ_7745c5c3_Var5 string
 			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(errMsg)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/auth/views.templ`, Line: 104, Col: 21}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/auth/views.templ`, Line: 112, Col: 21}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 			if templ_7745c5c3_Err != nil {
@@ -143,7 +143,7 @@ func LoginPage(next string, errMsg string) templ.Component {
 		var templ_7745c5c3_Var6 string
 		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.ResolveAttributeValue(next)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/auth/views.templ`, Line: 109, Col: 51}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/auth/views.templ`, Line: 117, Col: 51}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var6)
 		if templ_7745c5c3_Err != nil {

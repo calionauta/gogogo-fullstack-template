@@ -35,7 +35,11 @@ func (h *TodoHandler) handleSuggest(c *core.RequestEvent) error {
 		partial = c.Request.FormValue("title")
 	}
 	if partial == "" {
-		return c.String(http.StatusBadRequest, "partial is required")
+		// No context provided — still useful to suggest generic next
+		// steps rather than 400'ing the request (which would surface as a
+		// console error). The button is also disabled when the input is
+		// empty, so this branch is purely defensive.
+		partial = "Plan my next tasks"
 	}
 	return h.enqueueSuggest(c, "suggest", partial)
 }

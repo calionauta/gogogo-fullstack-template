@@ -543,3 +543,125 @@ func readAll(resp *http.Response) string {
 	}
 	return string(buf)
 }
+
+// TestWhiteboard_BoardPageRendersValidDocID is the regression guard for
+// the "WB_DOC_ID missing / Unexpected token '.'" crash.
+//
+// Root cause: the board template emitted
+//   window.WB_DOC_ID = { templ.URL(docID) };
+// templ.URL() escapes the doc id into a full URL (scheme://host/docID),
+// which is invalid JS — the browser threw "Unexpected token '.'" and the
+// entire whiteboard.js init aborted, so no shapes/presence/cursors ever
+// worked. The fix emits a quoted JS string via templ.JSEscape.
+//
+// This test fetches the board page HTML and asserts the inline script is
+// syntactically valid (window.WB_DOC_ID = "<docID>";) — i.e. it contains
+// the doc id wrapped in quotes, not a templ.URL artifact like
+// "https://".
+func TestWhiteboard_BoardPageRendersValidDocID(t *testing.T) {
+	baseURL, _, cleanup := webFixture(t)
+	defer cleanup()
+
+	jar, _ := cookiejar.New(nil)
+	client := &http.Client{
+		Jar: jar,
+		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+	}
+	login(t, client, baseURL)
+
+	docID := "doc-render-" + time.Now().Format("150405.000")
+	resp, err := client.Get(baseURL + "/whiteboard/" + docID)
+	if err != nil {
+		t.Fatalf("GET /whiteboard/%s: %v", docID, err)
+	}
+	body := readAll(resp)
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("board page status = %d", resp.StatusCode)
+	}
+
+	// The doc id must be carried on <main data-doc-id> (templ escapes
+	// attribute values safely). The inline script then reads it into
+	// window.WB_DOC_ID from the DOM. A previous bug emitted
+	// `window.WB_DOC_ID = { templ.URL(docID) };` which rendered a full
+	// URL (invalid JS -> "Unexpected token '.'").
+	if !strings.Contains(body, `data-doc-id="`+docID+`"`) {
+		t.Fatalf("board page missing data-doc-id attribute for %s\nbody (first 400):\n%s", docID, body[:minLocal(len(body), 400)])
+	}
+	// The script must read the id from the DOM, not from a templ.URL()
+	// artifact. The broken form would contain "window.WB_DOC_ID = https://".
+	if strings.Contains(body, "window.WB_DOC_ID = https://") {
+		t.Fatalf("WB_DOC_ID still uses templ.URL (invalid JS):\n%s", body[:minLocal(len(body), 400)])
+	}
+	if !strings.Contains(body, "dataset.docId") {
+		t.Fatalf("board page does not read WB_DOC_ID from the DOM")
+	}
+}
+
+// TestWhiteboard_NewBoardRedirect covers the "New whiteboard does
+// nothing" bug. The handler previously returned an HX-Redirect header +
+// 204, which a plain <a href> navigation ignores (HTMX only). The fix
+// returns a real 302 Location so the browser follows it to the new
+// board. This asserts the redirect lands on a valid /whiteboard/<id>.
+func TestWhiteboard_NewBoardRedirect(t *testing.T) {
+	baseURL, _, cleanup := webFixture(t)
+	defer cleanup()
+
+	jar, _ := cookiejar.New(nil)
+	client := &http.Client{
+		Jar: jar,
+		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+	}
+	login(t, client, baseURL)
+
+	resp, err := client.Get(baseURL + "/whiteboard/new")
+	if err != nil {
+		t.Fatalf("GET /whiteboard/new: %v", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusFound && resp.StatusCode != http.StatusSeeOther {
+		t.Fatalf("new board: want 302/303 redirect, got %d", resp.StatusCode)
+	}
+	loc := resp.Header.Get("Location")
+	if !strings.HasPrefix(loc, "/whiteboard/") || strings.TrimPrefix(loc, "/whiteboard/") == "" {
+		t.Fatalf("new board: Location header %q is not a valid /whiteboard/<id>", loc)
+	}
+}
+
+// TestWhiteboard_BoardPageShowsLoggedInNav is the regression guard for
+// "/whiteboard always shows Sign in even when logged in". The board and
+// index pages passed auth.Navbar("") unconditionally, so the navbar
+// rendered the logged-out state. The fix passes c.Auth.Email().
+func TestWhiteboard_BoardPageShowsLoggedInNav(t *testing.T) {
+	baseURL, _, cleanup := webFixture(t)
+	defer cleanup()
+
+	jar, _ := cookiejar.New(nil)
+	client := &http.Client{
+		Jar: jar,
+		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+	}
+	login(t, client, baseURL)
+
+	docID := "doc-nav-" + time.Now().Format("150405.000")
+	resp, err := client.Get(baseURL + "/whiteboard/" + docID)
+	if err != nil {
+		t.Fatalf("GET /whiteboard/%s: %v", docID, err)
+	}
+	body := readAll(resp)
+	resp.Body.Close()
+
+	if strings.Contains(body, ">Sign in<") {
+		t.Fatalf("board page shows 'Sign in' despite being logged in:\n%s", body[:minLocal(len(body), 300)])
+	}
+	if !strings.Contains(body, wbEmail) {
+		t.Fatalf("board page navbar does not show the logged-in email %q", wbEmail)
+	}
+}
+
+func minLocal(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}

@@ -3,6 +3,7 @@ package handlers
 import (
 	"fmt"
 	"log/slog"
+	"net/http"
 	"time"
 
 	"github.com/pocketbase/pocketbase/core"
@@ -15,6 +16,16 @@ import (
 )
 
 func (h *TodoHandler) handleList(c *core.RequestEvent) error {
+	// The global auth middleware skips /api/* paths, so c.Auth is nil
+	// here by default. Without loading the app session, listTodos would
+	// return EVERY user's todos (no owner filter) — the bug where
+	// clicking a filter tab revealed other users' tasks. LoadAppAuth is
+	// the /api-aware variant that does NOT skip /api.
+	if err := auth.LoadAppAuth(c); err != nil {
+		slog.Warn("todo: list auth load", "error", err)
+	} else if c.Auth == nil {
+		return c.Redirect(http.StatusSeeOther, "/login")
+	}
 	filter := c.Request.URL.Query().Get("filter")
 	if filter == "" {
 		filter = "all"

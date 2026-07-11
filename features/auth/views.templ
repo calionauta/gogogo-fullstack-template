@@ -58,6 +58,14 @@ templ Navbar(userEmail string) {
 							</a>
 						</li>
 						<li>
+							<a data-on:click="window.open(location.protocol + '//' + location.hostname + ':8090/', '_blank')" class="flex items-center gap-2 cursor-pointer">
+								<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+									<path fill-rule="evenodd" d="M3 5a2 2 0 012-2h10a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V5zm2-1a1 1 0 00-1 1v3h10V5a1 1 0 00-1-1H5zm10 6H5v5a1 1 0 001 1h8a1 1 0 001-1v-5z" clip-rule="evenodd"/>
+								</svg>
+								DagNats
+							</a>
+						</li>
+						<li>
 							<form method="POST" action="/logout" data-on:submit="$loading = true">
 								<button type="submit" class="w-full text-left flex items-center gap-2">
 									<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" viewBox="0 0 20 20" fill="currentColor">

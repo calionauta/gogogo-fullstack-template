@@ -33,7 +33,7 @@ type BoardMeta struct {
 }
 
 // BoardList renders the index of existing whiteboards.
-func BoardList(boards []BoardMeta) templ.Component {
+func BoardList(email string, boards []BoardMeta) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -66,7 +66,7 @@ func BoardList(boards []BoardMeta) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = auth.Navbar("").Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = auth.Navbar(email).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -136,7 +136,7 @@ func BoardList(boards []BoardMeta) templ.Component {
 // Board renders the interactive canvas for one whiteboard doc. The
 // client connects to the SSE stream and listens for shape + presence
 // events; drawing POSTs Loro updates back to the server.
-func Board(docID string) templ.Component {
+func Board(email string, docID string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -182,11 +182,24 @@ func Board(docID string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = auth.Navbar("").Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = auth.Navbar(email).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<main class=\"flex flex-col h-[calc(100vh-4rem)]\"><div class=\"toolbar flex flex-wrap gap-2 p-2 bg-base-200 border-b border-base-content/10 overflow-x-auto\" data-signals=\"{ clientID: '' }\"><button class=\"btn btn-sm\" data-tool=\"rect\" data-on:click=\"$tool='rect'\">Rectangle</button> <button class=\"btn btn-sm\" data-tool=\"ellipse\" data-on:click=\"$tool='ellipse'\">Ellipse</button> <button class=\"btn btn-sm\" data-tool=\"line\" data-on:click=\"$tool='line'\">Line</button> <button class=\"btn btn-sm\" data-tool=\"pen\" data-on:click=\"$tool='pen'\">Pen</button> <input class=\"input input-sm w-16\" type=\"color\" value=\"#1f2937\" id=\"color-input\" name=\"color\" aria-label=\"Shape color\" data-bind=\"color\" data-on:input=\"$color = $evt.target.value\"><div class=\"online-pill\" title=\"People connected to this board\"><span class=\"pulse-dot\"></span> <span id=\"peer-count\">1</span> <span>online</span></div><span id=\"net-status\" class=\"text-xs text-success\" title=\"Connection status\"></span> <a class=\"btn btn-sm btn-ghost\" href=\"/whiteboard\">Back</a></div><div class=\"relative flex-1 overflow-hidden bg-base-100\" id=\"canvas-wrap\"><canvas id=\"wb-canvas\" class=\"absolute inset-0 w-full h-full block\"></canvas><div id=\"cursors\" class=\"absolute inset-0 pointer-events-none\"></div></div></main><script src=\"/static/whiteboard.js\"></script><script>\n\t\t\t\twindow.WB_DOC_ID = { templ.URL(docID) };\n\t\t\t</script></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<main class=\"flex flex-col h-[calc(100vh-4rem)]\" data-doc-id=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var7 string
+		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.ResolveAttributeValue(docID)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/whiteboard/components.templ`, Line: 76, Col: 71}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "\"><div class=\"toolbar flex flex-wrap gap-2 p-2 bg-base-200 border-b border-base-content/10 overflow-x-auto\" data-signals=\"{ clientID: '' }\"><button class=\"btn btn-sm\" data-tool=\"rect\" data-on:click=\"$tool='rect'\">Rectangle</button> <button class=\"btn btn-sm\" data-tool=\"ellipse\" data-on:click=\"$tool='ellipse'\">Ellipse</button> <button class=\"btn btn-sm\" data-tool=\"line\" data-on:click=\"$tool='line'\">Line</button> <button class=\"btn btn-sm\" data-tool=\"pen\" data-on:click=\"$tool='pen'\">Pen</button> <input class=\"input input-sm w-16\" type=\"color\" value=\"#1f2937\" id=\"color-input\" name=\"color\" aria-label=\"Shape color\" data-bind=\"color\" data-on:input=\"$color = $evt.target.value\"><div class=\"online-pill\" title=\"People connected to this board\"><span class=\"pulse-dot\"></span> <span id=\"peer-count\">1</span> <span>online</span></div><span id=\"net-status\" class=\"text-xs text-success\" title=\"Connection status\"></span> <a class=\"btn btn-sm btn-ghost\" href=\"/whiteboard\">Back</a></div><div class=\"relative flex-1 overflow-hidden bg-base-100\" id=\"canvas-wrap\"><canvas id=\"wb-canvas\" class=\"absolute inset-0 w-full h-full block cursor-crosshair\"></canvas><div id=\"cursors\" class=\"absolute inset-0 pointer-events-none\"></div></div></main><script src=\"/static/whiteboard.js\"></script><script>\n\t\t\t\t// The doc id is carried on <main data-doc-id> (templ escapes\n\t\t\t\t// attribute values safely). Reading it from the DOM avoids the\n\t\t\t\t// earlier JS-string-escaping pitfalls (templ.URL() emitted a full\n\t\t\t\t// URL and templ.JSEscape() produced unquoted output — both threw\n\t\t\t\t// \"WB_DOC_ID missing\" / \"Unexpected token '.'\").\n\t\t\t\twindow.WB_DOC_ID = document.querySelector(\"main\")?.dataset.docId || \"\";\n\t\t\t</script></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

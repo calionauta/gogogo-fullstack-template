@@ -72,6 +72,15 @@
   stream.onopen = function () {
     flushOutbox();
     updateNetStatus();
+    // Announce our presence so peers increment their online count.
+    fetch(
+      "/api/whiteboard/" + encodeURIComponent(docID) + "/presence?clientID=" + encodeURIComponent(clientID),
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "join", doc: docID, user: user }),
+      }
+    ).catch(function () {});
   };
 
   // ---- network status indicator ----
@@ -238,7 +247,10 @@
   }
   function handlePresence(msg) {
     if (msg.user === user) return;
-    if (msg.type === "leave") {
+    // A leave from a peer we never tracked is harmless.
+    if (msg.type === "join") {
+      peers[msg.user] = msg;
+    } else if (msg.type === "leave") {
       delete peers[msg.user];
     } else {
       peers[msg.user] = msg;
