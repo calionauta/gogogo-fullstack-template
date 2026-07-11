@@ -173,10 +173,3 @@ var _ = func() {
 	// Compile-time guard: readBody helper from fixture_test.go.
 	_ = readBody
 }
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}

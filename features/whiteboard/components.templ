@@ -32,7 +32,7 @@ templ BoardList(email string, boards []BoardMeta) {
 			<script src="https://cdn.jsdelivr.net/npm/iconify-icon@2.1.0/dist/iconify-icon.min.js"></script>
 		</head>
 		<body>
-			@auth.Navbar(email)
+			@auth.Navbar(email, "whiteboard")
 			<main class="container mx-auto p-4">
 				<div class="flex items-center justify-between mb-4">
 					<h1 class="text-2xl font-bold">Whiteboards</h1>
@@ -72,7 +72,7 @@ templ Board(email string, docID string) {
 			<script src="https://cdn.jsdelivr.net/npm/roughjs@4.6.6/bundled/rough.min.js"></script>
 		</head>
 		<body>
-			@auth.Navbar(email)
+			@auth.Navbar(email, "whiteboard")
 			<main class="flex flex-col h-[calc(100vh-4rem)]" data-doc-id={ docID }>
 				<div class="toolbar flex flex-wrap gap-2 p-2 bg-base-200 border-b border-base-content/10 overflow-x-auto"
 				     data-signals="{ clientID: '' }">

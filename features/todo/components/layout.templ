@@ -119,7 +119,7 @@ templ Layout(title string, signals todo.Signals, userEmail string) {
 			</style>
 		</head>
 		<body class="bg-base-200 min-h-screen">
-			@auth.Navbar(userEmail)
+			@auth.Navbar(userEmail, "todos")
 			@TodoList(signals)
 			<div id="toast-container"></div>
 			@RealtimeStream("/api/todos/stream")

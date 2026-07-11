@@ -16,6 +16,12 @@ linters:
     - lll             # long line detection
     - dupl            # duplicated code blocks
     - mnd             # magic numbers (allow basic tolerances)
+    - tagliatelle     # struct tag conventions (json/yaml/etc.)
+    - modernize       # modern Go idioms (slices.Contains, min/max, etc.)
+    - nolintlint      # ill-formed / insufficient //nolint directives
+    # Note: stylecheck's ST* analyzers are bundled into `staticcheck` in
+    # golangci-lint v2, so enabling staticcheck (above) already covers
+    # them. `gofumpt` is a formatter, configured under `formatters:` below.
   settings:
     errcheck:
       check-type-assertions: true

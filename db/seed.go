@@ -158,18 +158,18 @@ func ensureUsersCollectionRules(app core.App) error {
 	const locked = "@request.auth.superuser = true"
 	changed := false
 	if col.CreateRule == nil || *col.CreateRule != locked {
-		col.CreateRule = ptr(locked)
+		col.CreateRule = new(locked)
 		changed = true
 	}
 	if col.DeleteRule == nil || *col.DeleteRule != locked {
-		col.DeleteRule = ptr(locked)
+		col.DeleteRule = new(locked)
 		changed = true
 	}
 	// List/View/Update: allow the record owner + superuser (default
 	// PocketBase behavior) — keep a safe non-open rule.
 	if col.ListRule == nil || *col.ListRule == "" {
 		rule := "@request.auth.superuser = true || @request.auth.id = @id"
-		col.ListRule = ptr(rule)
+		col.ListRule = new(rule)
 		changed = true
 	}
 
@@ -185,4 +185,5 @@ func ensureUsersCollectionRules(app core.App) error {
 
 // ptr returns a pointer to v. Tiny helper so rule fields (which are
 // *string) can be set without a local variable at each call site.
-func ptr(v string) *string { return &v }
+//
+//go:fix inline

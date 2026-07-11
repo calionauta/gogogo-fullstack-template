@@ -123,8 +123,10 @@
   50%      { opacity: 0.4; transform: scale(0.8); }
 }
 
-/* Theme toggle icons: show the correct one based on the current
-   data-theme on <html> (set by ThemeHead before paint + theme.js).
-   Pure CSS so it works at first paint with no JS evaluation. */
-[data-theme="light"] .icon-light-mode { display: none; }
-[data-theme="dark"] .icon-dark-mode { display: none; }
+/* Theme toggle icons: show the icon that represents the mode you can
+   SWITCH TO. In light mode show the moon (go dark); in dark mode show
+   the sun (go light). Pure CSS so it works at first paint, with JS
+   (theme.js syncIcons) as a belt-and-suspenders fallback for when
+   iconify-icon's own host styles override the cascade. */
+[data-theme="light"] .icon-dark-mode { display: none; }
+[data-theme="dark"] .icon-light-mode { display: none; }

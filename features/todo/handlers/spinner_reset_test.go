@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -8,6 +9,16 @@ import (
 
 	sdk "github.com/starfederation/datastar-go/datastar"
 )
+
+// mustCtxReq builds an httptest request with a background context (noctx
+// forbids httptest.NewRequest).
+func mustCtxReq(method, path string) *http.Request {
+	req, err := http.NewRequestWithContext(context.Background(), method, path, nil)
+	if err != nil {
+		panic(err)
+	}
+	return req
+}
 
 // TestApplyTechStep_ResetsSpinnerOnDone is the regression guard for the
 // "Running demo button spins forever" bug.
@@ -25,7 +36,7 @@ import (
 func TestApplyTechStep_ResetsSpinnerOnDone(t *testing.T) {
 	h := &TodoHandler{}
 	rec := httptest.NewRecorder()
-	sse := sdk.NewSSE(rec, httptest.NewRequest(http.MethodPost, "/api/todos/retry-demo", nil))
+	sse := sdk.NewSSE(rec, mustCtxReq(http.MethodPost, "/api/todos/retry-demo"))
 
 	if err := h.applyTechStep(sse, "retry-demo", true, ""); err != nil {
 		t.Fatalf("applyTechStep: %v", err)
@@ -46,7 +57,7 @@ func TestApplyTechStep_ResetsSpinnerOnDone(t *testing.T) {
 func TestApplyTechStep_KeepsSpinnerWhileRunning(t *testing.T) {
 	h := &TodoHandler{}
 	rec := httptest.NewRecorder()
-	sse := sdk.NewSSE(rec, httptest.NewRequest(http.MethodPost, "/api/todos/retry-demo", nil))
+	sse := sdk.NewSSE(rec, mustCtxReq(http.MethodPost, "/api/todos/retry-demo"))
 
 	if err := h.applyTechStep(sse, "retry-demo", false, ""); err != nil {
 		t.Fatalf("applyTechStep: %v", err)

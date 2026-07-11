@@ -30,4 +30,8 @@ func registerOnboarding(
 	// 127.0.0.1:8090), separate from the app. The handler client
 	// targets that addr, which comes from config (single source of truth).
 	handlers.RegisterOnboardingRoutes(app, q, dagNatsAddr, se.Router, broadcaster, todoH)
+
+	// Expose the DagNats console through the app origin at /dagnats so it
+	// is reachable via the Cloudflare Tunnel (port 8090 is not tunneled).
+	mountDagNatsDashboard(se, dagNatsAddr)
 }

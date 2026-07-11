@@ -26,7 +26,7 @@ func TestNewSSEHub_WithReplayBufferSizeZeroDisablesReplay(t *testing.T) {
 
 	// Send 5 events to a never-registered client. With buffer=0,
 	// each fires the drop callback and nothing is stored.
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		h.Send("never-connected", []byte("event"))
 	}
 
@@ -74,7 +74,7 @@ func TestSSEHub_ReplacedChannel_PreservesBuffer(t *testing.T) {
 // goroutines unboundedly.
 func TestSSEHub_SynchronousReplay_NoGoroutineLeak(t *testing.T) {
 	before := countGoroutines()
-	for i := 0; i < 200; i++ {
+	for range 200 {
 		hub := NewSSEHub()
 		ch := make(chan []byte, 10)
 		hub.Send("x", []byte("a"))

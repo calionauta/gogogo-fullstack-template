@@ -39,9 +39,27 @@
     } catch (e) {
       /* private mode / quota — non-fatal, theme still applies this session */
     }
+    syncIcons(theme);
     document.dispatchEvent(
       new CustomEvent("themechange", { detail: { theme: theme } })
     );
+  }
+
+  // Explicitly show only the icon that matches the active theme. In
+  // light mode the moon (icon-dark-mode) is shown so the button reads
+  // "switch to dark"; in dark mode the sun is shown. The CSS [data-theme]
+  // rules are the primary mechanism, but iconify-icon is a custom element
+  // whose own stylesheet can override the host display; setting it
+  // directly here guarantees exactly one icon is visible regardless of
+  // cascade order. Called on init and after every change.
+  function syncIcons(theme) {
+    var icons = document.querySelectorAll(".theme-toggle-icon");
+    icons.forEach(function (el) {
+      var isDarkIcon = el.classList.contains("icon-dark-mode");
+      // In light mode show the sun (light icon); in dark mode show the moon.
+      var active = (theme === LIGHT) !== isDarkIcon;
+      el.style.display = active ? "" : "none";
+    });
   }
 
   // Expose a stable API for the navbar toggle button.
@@ -90,4 +108,8 @@
     if (mq.addEventListener) mq.addEventListener("change", listener);
     else if (mq.addListener) mq.addListener(listener); // Safari < 14
   }
+
+  // Initial icon sync: ensure exactly one toggle icon is visible based
+  // on the theme already applied by ThemeHead before paint.
+  syncIcons(current());
 })();

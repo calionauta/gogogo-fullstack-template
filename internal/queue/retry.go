@@ -86,10 +86,7 @@ func (r *RetryConfig) Do(ctx context.Context, hub *SSEHub, clientID string, oper
 		retry.MaxJitter(time.Duration(float64(r.Delay)*r.JitterFactor)),
 		retry.DelayType(func(n uint, _ error, _ *retry.Config) time.Duration {
 			// Exponential backoff: delay * 2^(n-1) + jitter.
-			d := time.Duration(float64(r.Delay) * float64(int(1)<<(n-1)))
-			if d > r.MaxDelay {
-				d = r.MaxDelay
-			}
+			d := min(time.Duration(float64(r.Delay)*float64(int(1)<<(n-1))), r.MaxDelay)
 			return d
 		}),
 		retry.LastErrorOnly(true),

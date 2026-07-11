@@ -81,6 +81,25 @@ make signoff       # ci-local + gh signoff -f
 
 Uses golangci-lint (not standalone gofumpt) as the formatter gate — gofumpt can be a newer release than golangci-lint bundles, causing false positives. Signoff is **advisory** (push-to-master flow, not PR merge) — do NOT `gh signoff install`.
 
+### Pre-push workflow: gate locally, then ask before pushing
+
+Remote CI (4-tag matrix + deploy) is slow and runs on every push to
+`master`. To save time, **always run the local gate first** and only push
+when it is green:
+
+1. `make ci-local` (the full local gate).
+2. If it passes, **ask the user** (via `ask_user_question`) whether they
+   want to push now (triggering remote CI + deploy) or keep working
+   locally and push later. Do NOT push automatically.
+
+Rationale: a developer often wants only a local green signal before
+continuing with more changes; pushing prematurely kicks off a slow remote
+run they may not need yet. This is a *behavioral* convention, not a git
+hook — git hooks are non-interactive and cannot prompt. If you want it
+automated, wire a **pi YAML hook** (pre-push) that runs `make ci-local`
+and injects an `ask_user_question` follow-up; that is the only hook type
+that can prompt interactively.
+
 ## Deploy
 
 Push-to-`master` triggers `.github/workflows/deploy.yml` (Tailscale OIDC + Docker to single server). Server layout/deploy-user/secret tables: see `/skill:cali-ops-deploy-github-tailscale`. Two gotchas: (1) grant container write via `setfacl`/`chmod`, NEVER `chown` (non-root deploy user); (2) never `scp` into the server's repo clone — `git pull --ff-only` aborts. Scratch image healthcheck: `CMD ["/app","health"]` (no `wget`/`curl`/`CMD-SHELL`).

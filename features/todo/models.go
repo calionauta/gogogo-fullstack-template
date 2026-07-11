@@ -38,7 +38,11 @@ type Signals struct {
 	// UI uses it to route queued-job results and retry feedback back to
 	// the correct browser tab, so a Suggest triggered here lands here
 	// rather than broadcasting to every connected client.
-	ClientID string `json:"clientID"`
+	//
+	// NOTE: the JSON key is intentionally "clientID" (not the
+	// tagliatelle-preferred "clientId") — it is a public Datastar signal
+	// name bound by the frontend, so renaming would break the wire contract.
+	ClientID string `json:"clientID"` //nolint:tagliatelle // public Datastar signal name, do not rename
 	// LLMEnabled reflects whether the server was started with a
 	// non-empty GOAI_API_KEY. When true, the UI renders the "Suggest"
 	// button. When false, the entire AI pathway is hidden.
@@ -48,7 +52,11 @@ type Signals struct {
 	// SIMULATE_LLM=true. When true, the UI renders the "Suggest
 	// (simulated)" button, which exercises the same queue + retry path
 	// as Suggest but against an in-process fake LLM (no API key needed).
-	SimulatedLLM bool `json:"simulatedLLM"`
+	//
+	// NOTE: the JSON key is intentionally "simulatedLLM" (not the
+	// tagliatelle-preferred "simulatedLlm") — it is a public Datastar
+	// signal name bound by the frontend.
+	SimulatedLLM bool `json:"simulatedLLM"` //nolint:tagliatelle // public Datastar signal name, do not rename
 
 	// Suggestions is the latest AI-suggested completions, populated
 	// by POST /api/todos/suggest. Empty when no suggestions or

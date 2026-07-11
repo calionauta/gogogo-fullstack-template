@@ -66,7 +66,7 @@ func BoardList(email string, boards []BoardMeta) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = auth.Navbar(email).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = auth.Navbar(email, "whiteboard").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -182,7 +182,7 @@ func Board(email string, docID string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = auth.Navbar(email).Render(ctx, templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = auth.Navbar(email, "whiteboard").Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

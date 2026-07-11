@@ -69,7 +69,7 @@ func stripCodeFence(s string) string {
 // instead of JSON. Splits on newlines and trims bullets/dashes.
 func splitLines(s string) []string {
 	var out []string
-	for _, line := range strings.Split(s, "\n") {
+	for line := range strings.SplitSeq(s, "\n") {
 		line = strings.TrimSpace(line)
 		// Strip leading "- " or "* " bullets.
 		line = strings.TrimLeft(line, "-* \t")

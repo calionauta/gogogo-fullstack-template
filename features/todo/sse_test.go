@@ -58,11 +58,11 @@ func TestIntegration_CreateRendersInList(t *testing.T) {
 // the payload strings so callers can scan them for the lastRetry signal.
 func parseSSEData(transcript string) []string {
 	var out []string
-	for _, block := range strings.Split(transcript, "\n\n") {
-		for _, line := range strings.Split(block, "\n") {
+	for block := range strings.SplitSeq(transcript, "\n\n") {
+		for line := range strings.SplitSeq(block, "\n") {
 			line = strings.TrimSpace(line)
-			if strings.HasPrefix(line, "data:") {
-				out = append(out, strings.TrimSpace(strings.TrimPrefix(line, "data:")))
+			if after, ok := strings.CutPrefix(line, "data:"); ok {
+				out = append(out, strings.TrimSpace(after))
 			}
 		}
 	}
@@ -122,21 +122,21 @@ func openSSEWithCtx(ctx context.Context, t *testing.T, base, clientID string) *h
 func pumpSSEUntil(t *testing.T, stream *http.Response, timeout time.Duration, stop func(string) bool) string {
 	t.Helper()
 	buf := make([]byte, sseBufferSize)
-	full := ""
+	var full strings.Builder
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
 		n, err := stream.Body.Read(buf)
 		if n > 0 {
-			full += string(buf[:n])
-			if stop(full) {
-				return full
+			full.WriteString(string(buf[:n]))
+			if stop(full.String()) {
+				return full.String()
 			}
 		}
 		if err != nil {
 			break
 		}
 	}
-	return full
+	return full.String()
 }
 
 // tailString returns the last n bytes of s, or all of s if shorter.

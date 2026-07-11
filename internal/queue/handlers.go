@@ -17,7 +17,7 @@ import (
 // which is what the current "notification" path does).
 type Job struct {
 	Type     string          `json:"type"`
-	ClientID string          `json:"clientID"`
+	ClientID string          `json:"clientID"` //nolint:tagliatelle // internal job contract
 	Payload  json.RawMessage `json:"payload"`
 }
 
