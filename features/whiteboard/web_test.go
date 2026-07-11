@@ -361,6 +361,91 @@ func TestWhiteboard_PresenceBroadcast(t *testing.T) {
 	}
 }
 
+// TestWhiteboard_OfflineReplay proves the server-side contract that makes
+// the client's offline-first outbox safe: ops may arrive LATE (after the
+// peer already connected and drew) and the server still merges each into
+// the shared Loro CRDT, persists the resolved snapshot, and broadcasts to
+// peers. This is what lets the browser buffer draws while offline and
+// replay them on reconnect without losing or clobbering work.
+//
+// It mirrors the real flow: clientA draws + the op is held (simulated by
+// delaying the POST), clientB draws in the meantime; then clientA's
+// delayed op arrives and must converge on the server and reach clientB.
+func TestWhiteboard_OfflineReplay(t *testing.T) {
+	baseURL, persister, cleanup := webFixture(t)
+	defer cleanup()
+
+	jarA, errA := cookiejar.New(nil)
+	if errA != nil {
+		t.Fatalf("cookiejar A: %v", errA)
+	}
+	jarB, errB := cookiejar.New(nil)
+	if errB != nil {
+		t.Fatalf("cookiejar B: %v", errB)
+	}
+	clientA := &http.Client{
+		Jar: jarA, Timeout: 15 * time.Second,
+		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+	}
+	clientB := &http.Client{
+		Jar: jarB, Timeout: 15 * time.Second,
+		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+	}
+	login(t, clientA, baseURL)
+	login(t, clientB, baseURL)
+
+	docID := "doc-offline-" + time.Now().Format("150405.000")
+	streamA := openWBStream(t, clientA, baseURL, docID, "wbA")
+	streamB := openWBStream(t, clientB, baseURL, docID, "wbB")
+	defer streamA.close()
+	defer streamB.close()
+	time.Sleep(150 * time.Millisecond)
+
+	// clientB draws immediately (online peer).
+	bOp := collab.ShapeOp{Op: "add", Shape: collab.Shape{ID: "s-b", Type: "rect", X: 5, Y: 5, W: 40, H: 40, Color: "#000"}}
+	bBody, mErr := json.Marshal(bOp)
+	if mErr != nil {
+		t.Fatalf("marshal bOp: %v", mErr)
+	}
+	resp, err := postWithClientID(context.Background(), clientB, baseURL+"/api/whiteboard/"+docID+"/update", "wbB", bBody)
+	if err != nil {
+		t.Fatalf("peer update POST: %v", err)
+	}
+	resp.Body.Close()
+
+	// clientA "goes offline": its op is buffered, not POSTed yet.
+	aOp := collab.ShapeOp{Op: "add", Shape: collab.Shape{
+		ID: "s-a", Type: "ellipse", X: 60, Y: 60, W: 30, H: 30, Color: "#f00",
+	}}
+	aBody, mErr2 := json.Marshal(aOp)
+	if mErr2 != nil {
+		t.Fatalf("marshal aOp: %v", mErr2)
+	}
+	time.Sleep(200 * time.Millisecond) // simulate offline window
+
+	// clientA "reconnects" and flushes its buffered op.
+	updURL := baseURL + "/api/whiteboard/" + docID + "/update"
+	respA, errRA := postWithClientID(context.Background(), clientA, updURL, "wbA", aBody)
+	if errRA != nil {
+		t.Fatalf("replay POST: %v", errRA)
+	}
+	respA.Body.Close()
+
+	bEvents := streamB.drain(800 * time.Millisecond)
+	if !shapesEventContains(bEvents, "s-a") {
+		t.Fatalf("PEER did not receive the late (replayed) shape s-a.\nB events:\n%s", debugEvents(bEvents))
+	}
+
+	// Persistence must contain BOTH shapes (late op converged + saved).
+	if _, ok := persister.LoadSnapshot(docID); !ok {
+		t.Fatalf("persister did not save snapshot for %s", docID)
+	}
+	shapes := whiteboardShapes(t, baseURL, clientB, docID)
+	if !shapeInList(shapes, "s-a") || !shapeInList(shapes, "s-b") {
+		t.Fatalf("resolved shapes missing a replayed/peer shape: %+v", shapes)
+	}
+}
+
 // --- helpers ---
 
 func postWithClientID(

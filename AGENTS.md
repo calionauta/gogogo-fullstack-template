@@ -206,9 +206,81 @@ package doc in `features/app/app.go` for the full rationale.
 
 Run `make check` after each significant edit. The pre-commit hook (`make setup`) is blocking on the same gate. Pre-push adds `govulncheck`. See `docs/decisions.md` for the why.
 
+## Local CI (gh-signoff)
+
+CI runs on GitHub Actions on every push to `master` (full 4-tag matrix, then
+deploy). You can run that **exact gate locally** before pushing so you don't
+wait on remote runners and never push a broken commit. The project uses
+[gh-signoff](https://github.com/basecamp/gh-signoff) — a `gh` CLI extension
+that stamps a green commit status after your local tests pass.
+
+```bash
+# one-time: install the gh extension
+gh extension install basecamp/gh-signoff
+
+# before pushing: run the full CI matrix locally, then stamp the commit
+green (force so it stamps even before the commit is pushed)
+make ci-local      # templ gen + golangci-lint + datastar-lint + css-check + tests (all 4 tag combos) + builds
+make signoff       # ci-local + `gh signoff -f`
+```
+
+`make ci-local` mirrors CI: it uses `golangci-lint` (the same linter CI runs)
+as the authoritative formatter/lint gate rather than the standalone
+`gofumpt` binary, which can be a newer release than the one golangci-lint
+bundles and would otherwise produce false-positive listings. The dagnats-
+flavoured tag combos are serialized (`-p 1`) because DagNats boots an
+embedded NATS per package under `-race` and parallel runs starve it.
+
+> **Advisory status, by design.** This repo deploys on **push to `master`**
+> (not PR merge), so the signoff status is a *signal*, not a hard gate. We
+deliberately do NOT run `gh signoff install` (which would require the status
+for PR merge) — it would be meaningless for a push-to-deploy flow. If/when
+the workflow moves to PRs, enable `gh signoff install` to make signoff a
+merge requirement. This keeps the local gate fast and non-blocking while
+still giving you a green stamp when you've run the full matrix.
+
 ## Realtime (todo sharing across clients)
 
 Cross-client todo mutations go through `nats.TodoBroadcaster` (wired in `router.Init`). See the "Build tags" table above for the runtime vs JetStream trade-off. The `features/todo/handlers/todo.go` `broadcastTodo()` helper is the single chokepoint: it goes through `h.broadcaster` (the broadcaster field) and is silently skipped if `nil`. So a feature handler doesn't need to know whether the deployment is single-instance or multi-instance — it just calls `broadcastTodo()`.
+
+### Transport decision: PocketBase Realtime SSE vs NATS JetStream
+
+**For task data/action broadcast (todo create/edit/delete across clients),
+use the existing `SSEHub` + `InMemoryBroadcaster` (the web-only path).**
+This is the right fit:
+
+- It is already embedded, record/user-scoped, and needs zero extra
+  infrastructure. The `BroadcastExcept(clientID, ...)` primitive gives
+  correct exclude-origin (the originator already patched its own DOM, so
+  re-broadcasting to it would clobber/zero its local view — proven bug,
+  now covered by e2e tests `TestSSEBroadcast_*`).
+- PocketBase Realtime SSE (the `/api/realtime` subscription endpoint) is an
+  option for *record-level* sync, but it adds a second SSE channel beside
+  the app's custom stream and is record-centric. For action broadcast the
+  app's own SSEHub is simpler and DRY with the queue.
+
+**NATS JetStream stays necessary** — but only for what it's actually good
+at, not for task broadcast:
+
+- **DagNats** durable workflows (JSON over JetStream) — opt-in, build tag.
+- **Whiteboard collaborative CRDT**: the web-only path also uses the
+  `SSEHub` (no JetStream needed for the browser); the jetstream-tagged
+  `SyncWorker` is the desktop-edge sync path that replicates Loro updates
+  via a Leaf Node. loro-go is the CRDT; JetStream is only the transport for
+  the desktop/edge variant.
+- **Presence cursors**: web-only uses the `SSEHub` too; JetStream pub/sub
+  is the alternative for the desktop-edge path.
+
+**Do not rip out the working/tested `SSEHub`.** The recommendation is:
+keep task broadcast on SSEHub (web path), keep JetStream for DagNats + the
+optional desktop-edge whiteboard sync, and avoid standing up JetStream
+*just* to broadcast todo mutations.
+
+Relevant e2e regression tests:
+- `features/todo/sse_broadcast_e2e_test.go` — `TestSSEBroadcast_ExcludeOrigin`,
+  `TestSSEBroadcast_OriginatorListIntactAndOtherUserSees`
+- `features/whiteboard/web_test.go` — `TestWhiteboard_ShapeBroadcastAndPersist`,
+  `TestWhiteboard_PresenceBroadcast`
 
 ## LLM Integration (GoAI)
 

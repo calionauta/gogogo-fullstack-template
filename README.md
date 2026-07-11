@@ -82,6 +82,31 @@ They coexist in the same binary. They don't compete.
 
 The `goqite` queue is the **only async layer with a build tag off** — it's core and always on. DagNats and JetStream are opt-in heavyweight features: enable them when you actually need durable multi-step workflows or multi-instance realtime. The default build (`go build ./cmd/web`) is the recommended starting point for almost every project.
 
+## Feature matrix: from Lean to Full
+
+Every opt-in capability is gated by a **build tag + a runtime env flag**, with a noop stub compiled in by default so the core binary stays small and fast. Mix and match — the tags are additive and share a single embedded NATS when combined.
+
+| Capability | Build tag | Env opt-out | What you get | Default? |
+|-----------|-----------|-------------|--------------|----------|
+| **Todo app + SSE Hub** | — | — | Single-instance real-time via in-process `SSEHub`; cross-client mutations broadcast with exclude-origin | ✅ always on |
+| **Queue + retry** | — | — | `goqite` background jobs + `retry-go` (the "Queue + Retry" demo) | ✅ always on |
+| **AI Suggest** | — | `GOAI_API_KEY` unset | GoAI/Groq call from the todo UI; button hidden when no key | ✅ on, auto-hidden |
+| **Collaborative whiteboard** | — | — | Loro CRDT + Rough.js canvas, SSE broadcast, offline-first outbox replay, PocketBase-persisted snapshots | ✅ always on (web path) |
+| **Multi-user real-time** | `jetstream` | `NATS_ENABLED=false` | Durable `JetStream` stream for cross-instance todo broadcast (browser still uses SSE; JetStream is the server-side fan-out) | ❌ opt-in |
+| **Durable workflows** | `dagnats` | `DAGNATS_ENABLED=false` | DagNats JSON workflows over JetStream on `:8090` (e.g. `WelcomeOnboarding`) | ❌ opt-in |
+| **Desktop-edge whiteboard sync** | `jetstream` | `NATS_ENABLED=false` | Leaf-Node JetStream replication of Loro updates for desktop/edge clients | ❌ opt-in |
+
+**Recommended mixes**
+
+| Profile | Tags | Use when |
+|---------|------|-----------|
+| **Lean** | _(none)_ | Single-instance web app: todos, queue+retry, AI suggest, whiteboard. `make build` |
+| **Realtime** | `-tags jetstream` | You run >1 instance behind a load balancer and need todos to sync across them. Whiteboard stays SSE (web) |
+| **Workflows** | `-tags dagnats` | You need durable multi-step processes that survive restarts |
+| **Full** | `-tags "jetstream dagnats"` | Production: both realtime + workflows, sharing one embedded NATS on `:4222` (recommended combo) |
+
+> **Build-tag rule for new features.** To add your own optional capability, follow the existing shape: `internal/feature/<name>.go` (real impl) + `internal/feature/<name>_noop.go` (default-build stub) + a `cfg.<Name>.Enabled` flag. See `docs/decisions.md`.
+
 ## The example: Todo App with SSE
 
 The template ships with a working Todo App:

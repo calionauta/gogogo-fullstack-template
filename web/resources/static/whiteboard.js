@@ -66,11 +66,47 @@
     }
   };
   stream.onerror = function () {
-    /* EventSource auto-reconnects */
+    /* EventSource auto-reconnects; flush any buffered ops when it does. */
+    updateNetStatus();
+  };
+  stream.onopen = function () {
+    flushOutbox();
+    updateNetStatus();
   };
 
+  // ---- network status indicator ----
+  function updateNetStatus() {
+    const el = document.getElementById("net-status");
+    if (!el) return;
+    const online = navigator.onLine;
+    el.textContent = online ? "online" : "offline — drawing is buffered";
+    el.className = "text-xs " + (online ? "text-success" : "text-warning");
+  }
+  window.addEventListener("online", function () { updateNetStatus(); flushOutbox(); });
+  window.addEventListener("offline", updateNetStatus);
+  updateNetStatus();
+
+  // ---- offline-first outbox ----
+  // Ops drawn while offline are buffered here and replayed on reconnect
+  // (or when the browser reports it is back online). The server merges
+  // each op into the shared Loro doc, so replay is convergent and safe.
+  const outbox = [];
+  let flushing = false;
+  function flushOutbox() {
+    if (flushing || outbox.length === 0) return;
+    if (!navigator.onLine) return;
+    flushing = true;
+    const pending = outbox.splice(0, outbox.length);
+    Promise.all(pending.map(function (op) {
+      return fetch(
+        "/api/whiteboard/" + encodeURIComponent(docID) + "/update?clientID=" + encodeURIComponent(clientID),
+        { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(op) }
+      ).catch(function (e) { outbox.push(op); console.warn("op replay failed, requeued", e); });
+    })).finally(function () { flushing = false; if (outbox.length) setTimeout(flushOutbox, 300); });
+  }
   // ---- POST helpers ----
   function postOp(op) {
+    if (!navigator.onLine) { outbox.push(op); return; }
     fetch(
       "/api/whiteboard/" + encodeURIComponent(docID) + "/update?clientID=" + encodeURIComponent(clientID),
       {
@@ -79,7 +115,8 @@
         body: JSON.stringify(op),
       }
     ).catch(function (e) {
-      console.warn("op post failed", e);
+      outbox.push(op);
+      console.warn("op post failed, buffered for replay", e);
     });
   }
 
@@ -195,6 +232,10 @@
 
   // ---- presence ----
   const peers = {}; // user -> {x,y,ts}
+  function updatePeerCount() {
+    const el = document.getElementById("peer-count");
+    if (el) el.textContent = String(Object.keys(peers).length + 1); // +self
+  }
   function handlePresence(msg) {
     if (msg.user === user) return;
     if (msg.type === "leave") {
@@ -202,6 +243,7 @@
     } else {
       peers[msg.user] = msg;
     }
+    updatePeerCount();
     renderCursors();
   }
   function renderCursors() {

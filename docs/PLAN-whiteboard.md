@@ -88,6 +88,48 @@ and broadcasts them, plus loading the rough.js asset.
 - **Presence**: optional — wire `Presence` SSE bridge for live cursors.
   Low effort, high demo value.
 
+### 3b. Offline-first (why SSEHub + Loro is enough — no JetStream needed for the web path)
+
+**Question this answers:** *"If a user goes offline mid-draw, how does the
+server integrate their changes on reconnect — shouldn't we use Loro + JetStream?"*
+
+The server does NOT need JetStream to integrate offline edits, because:
+
+1. **Loro is a CRDT** — every edit is an *update* that merges
+   commutatively/associatively. The browser keeps drawing into its local
+   Loro doc while offline; on reconnect it exports the accumulated update
+   (`doc.export({mode:'update'})` since the last checkpoint) and POSTs it.
+   The server calls `Doc.ApplyUpdate` and converges — no central ordering,
+   no LWW loss. This is exactly what the CRDT is for.
+2. **The web client buffers outgoing ops while offline**
+   (`whiteboard.js` outbox + `navigator.onLine`/`window 'online'` replay,
+   guarded by a `flushing` flag so replay is idempotent). The server is
+the single merge point and is stateless w.r.t. client connectivity — it
+just accepts any update at any time and re-broadcasts to peers.
+3. **SSEHub is the transport fan-out**, not the source of truth. The
+   source of truth is the Loro `Doc` in memory + the PocketBase snapshot.
+   SSE carries live deltas; PocketBase carries durable state. Both already
+exist and are tag-agnostic (default build).
+
+**Where JetStream actually earns its place** (kept, not removed):
+- **DagNats** durable workflows (JSON over JetStream) — opt-in build tag.
+- **Desktop/edge replication** (`SyncWorker` over a NATS Leaf Node) — when a
+  *desktop* client (Wails) needs to sync a whiteboard across instances via
+  a durable stream. This is the `jetstream`-tagged path.
+- **Multi-instance todo realtime** — when >1 server instance sits behind a
+  load balancer and todos must sync across them (also `jetstream`-tagged).
+
+**Mobile/desktop battery note:** the embedded NATS server is a *server-side*
+long-running process. Clients (browser, or a Wails iOS/Android WebView)
+consume the whiteboard over SSE, which is cheap (one HTTP/2 connection,
+auto-reconnect via `EventSource`). We never run an embedded NATS server on a
+battery-powered client, so JetStream adds no mobile battery cost. SSE works
+in 97% of browsers and inside Wails' native WebView on iOS/Android.
+
+**Regression guard:** `features/whiteboard/web_test.go` →
+`TestWhiteboard_OfflineReplay` proves a late (replayed) op from an
+"offline" client still converges on the server and reaches peers + persists.
+
 ---
 
 ## 4. Data model

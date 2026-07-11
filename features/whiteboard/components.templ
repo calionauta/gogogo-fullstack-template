@@ -1,10 +1,10 @@
 // Package whiteboard renders the collaborative whiteboard UI.
 //
 //templ is used only for the page shell; the canvas drawing and the
-// Datastar/SSE wiring live in web/resources/static/whiteboard.js so the
-// hand-drawn rendering (rough.js) stays in plain JS. The shell loads two
-// scripts: rough.js from the jsDelivr CDN (no build dependency) and our
-// own whiteboard.js (embedded static asset).
+//Datastar/SSE wiring live in web/resources/static/whiteboard.js so the
+//hand-drawn rendering (rough.js) stays in plain JS. The shell loads two
+//scripts: rough.js from the jsDelivr CDN (no build dependency) and our
+//own whiteboard.js (embedded static asset).
 package whiteboard
 
 import (
@@ -20,12 +20,14 @@ type BoardMeta struct {
 // BoardList renders the index of existing whiteboards.
 templ BoardList(boards []BoardMeta) {
 	<!DOCTYPE html>
-	<html lang="en" data-theme="light">
+	<html lang="en">
 		<head>
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
 			<title>Whiteboards — gogogo-fullstack-template</title>
 			<link rel="stylesheet" href="/static/app.min.css"/>
+			@auth.ThemeHead()
+			<script defer type="module" src="/static/theme.js"></script>
 		</head>
 		<body>
 			@auth.Navbar("")
@@ -55,12 +57,14 @@ templ BoardList(boards []BoardMeta) {
 // events; drawing POSTs Loro updates back to the server.
 templ Board(docID string) {
 	<!DOCTYPE html>
-	<html lang="en" data-theme="light">
+	<html lang="en">
 		<head>
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
 			<title>Whiteboard { docID } — gogogo-fullstack-template</title>
 			<link rel="stylesheet" href="/static/app.min.css"/>
+			@auth.ThemeHead()
+			<script defer type="module" src="/static/theme.js"></script>
 			<script src="https://cdn.jsdelivr.net/npm/roughjs@4.6.6/bundled/rough.min.js"></script>
 		</head>
 		<body>
@@ -74,6 +78,12 @@ templ Board(docID string) {
 					<button class="btn btn-sm" data-tool="pen" data-on:click="$tool='pen'">Pen</button>
 					<input class="input input-sm w-16" type="color" value="#1f2937"
 					       name="color" data-bind="color" data-on:input="$color = $evt.target.value"/>
+					<div class="flex items-center gap-1 ml-2 text-xs text-base-content/70" title="People connected to this board">
+						<span class="inline-block h-2 w-2 rounded-full bg-success animate-pulse"></span>
+						<span id="peer-count">1</span>
+						<span>online</span>
+					</div>
+					<span id="net-status" class="text-xs text-success" title="Connection status"></span>
 					<a class="btn btn-sm btn-ghost" href="/whiteboard">Back</a>
 				</div>
 				<div class="relative flex-1 overflow-hidden bg-base-100" id="canvas-wrap">

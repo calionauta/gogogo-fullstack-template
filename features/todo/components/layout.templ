@@ -24,6 +24,8 @@ templ Layout(title string, signals todo.Signals, userEmail string) {
 			<title>{ title }</title>
 			<link rel="stylesheet" href="/static/app.min.css"/>
 			<link rel="stylesheet" href="/static/app.css"/>
+			@auth.ThemeHead()
+			<script defer type="module" src="/static/theme.js"></script>
 			<script defer type="module" src="/static/datastar.js"></script>
 			<style>
 				/* Stacking container: fixed bottom-right, toasts stack upward. */

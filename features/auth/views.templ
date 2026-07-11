@@ -12,8 +12,22 @@ templ Navbar(userEmail string) {
 				</a>
 				<span class="badge badge-soft badge-neutral badge-sm font-mono hidden sm:inline-flex">demo</span>
 			</div>
+			<ul class="menu menu-horizontal px-1 hidden sm:flex">
+				<li><a href="/" class="font-medium">Todos</a></li>
+				<li><a href="/whiteboard" class="font-medium">Whiteboard</a></li>
+			</ul>
 		</div>
 		<div class="navbar-end gap-2">
+			<button
+				type="button"
+				class="btn btn-ghost btn-sm"
+				aria-label="Toggle dark/light theme"
+				data-on:click="window.Theme && window.Theme.toggle()"
+			>
+				<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+					<path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4.95 2.05a1 1 0 010 1.414l-.708.708a1 1 0 01-1.414-1.414l.708-.708a1 1 0 011.414 0zM17 9a1 1 0 110 2h-1a1 1 0 110-2h1zM4 10a1 1 0 110 2H3a1 1 0 110-2h1zm10.95-4.95a1 1 0 011.414 0l.708.708A1 1 0 0115.95 8.17l-.708-.708a1 1 0 010-1.414zM10 5a5 5 0 100 10 5 5 0 000-10zm-7 5a7 7 0 1114 0H3z"/>
+				</svg>
+			</button>
 			if userEmail == "" {
 				<a
 					href="/login"
@@ -36,6 +50,9 @@ templ Navbar(userEmail string) {
 						</li>
 						<li>
 							<span class="font-mono text-xs">{ userEmail }</span>
+						</li>
+						<li>
+							<a href="/_/">Dashboard</a>
 						</li>
 						<li>
 							<form method="POST" action="/logout" data-on:submit="$loading = true">
@@ -66,6 +83,8 @@ templ LoginPage(next string, errMsg string) {
 			<title>Sign in — gogogo-fullstack-template</title>
 			<link rel="stylesheet" href="/static/app.min.css"/>
 			<link rel="stylesheet" href="/static/app.css"/>
+			@ThemeHead()
+			<script defer type="module" src="/static/theme.js"></script>
 			<script defer type="module" src="/static/datastar.js"></script>
 		</head>
 		<body class="bg-base-200 min-h-screen flex items-center justify-center p-4">
