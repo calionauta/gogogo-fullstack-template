@@ -8076,6 +8076,9 @@
   .text-warning {
     color: var(--color-warning);
   }
+  .lowercase {
+    text-transform: lowercase;
+  }
   .italic {
     font-style: italic;
   }
