@@ -6,12 +6,12 @@
 
 A starting point for web projects in Go. Single binary, zero external services, LLM-friendly.
 
-This template is my attempt at a starting point that already resolves those choices without locking you into a closed ecosystem.
+We built this template to resolve those choices up front, without locking you into a closed ecosystem.
 
 > **One binary, one process, one image.** ~30 MB, no shell, no libc, no CDN.
 > Runs on `scratch` (or `gcr.io/distroless/static-debian12:nonroot` if you need a debug base). All CSS is compiled at build time via Tailwind v4 + DaisyUI v5 and embedded via `//go:embed` — no JS runtime.
 
-> **Made with intent to be useful, not to be right.** This template optimizes for shipping something that runs today over being philosophically correct. Decisions here are pragmatic, not dogmatic.
+> **Made with intent to be useful, not to be right.** We optimize for shipping something that runs today over being philosophically correct. Decisions here are pragmatic, not dogmatic.
 
 ## Contents
 
@@ -21,7 +21,7 @@ This template is my attempt at a starting point that already resolves those choi
 - [The example: Todo App with SSE](#the-example-todo-app-with-sse)
 - [PocketBase admin UI (built in)](#pocketbase-admin-ui-built-in)
 - [Try it live](#try-it-live)
-- [Free LLM providers](#free-llm-providers-openai-compatible-no-card-required)
+- [Configuring the LLM (GoAI)](#configuring-the-llm-goai)
 - [Getting started](#getting-started)
 - [Desktop & Mobile](#desktop--mobile-wails-v3--loro-crdt--nats-leaf-node)
 - [Deploy to your own box](#deploy-to-your-own-box)
@@ -29,13 +29,13 @@ This template is my attempt at a starting point that already resolves those choi
 
 ---
 
-Every Go web project I start ends up in the same conversation: pick a database, auth, router, reactive UI framework, task queue… and the project stalls at the decisions, installations, and configurations — not the code.
+Every web project we start begins with the same conversation: pick a database, auth, router, reactive UI framework, task queue… and the project stalls at the decisions, installations, and configurations — not the code.
 
 ## Who this template is for
 
 - **You who get tired of configuring the same stack over and over**
 - **You who want a single binary for deploy, with no Redis, Postgres, or SaaS**
-- **You who want an LLM client wired in without pulling in a whole orchestration framework** — `internal/llm` wraps GoAI (any provider: OpenAI, Anthropic, Groq, Ollama) behind an injectable interface, callable from handlers. It calls a *remote* provider API; it is **not** a local-model runtime.
+- **You who want an LLM client wired in without pulling in a whole orchestration framework** — `internal/llm` wraps GoAI (any OpenAI-compatible provider) behind an injectable interface, callable from handlers. It calls a *remote* provider API; it is **not** a local-model runtime.
 - **You who prefer server-rendered HTML over 2MB SPAs**
 
 It's not a framework. There's no lock-in. Each piece can be replaced individually.
@@ -68,9 +68,9 @@ Everything you need to build a modern web app, in a single binary:
 
 ## Stack in layers, not silos
 
-Most templates force you to pick one async strategy — usually a queue, sometimes a workflow runtime, rarely both. Real apps need **a queue for background jobs**, **a workflow runtime for durable multi-step processes**, and **a real-time layer for cross-client state** — each solving a different problem. This template ships all three as build-tagged layers so you only pay for what you use.
+Most templates force you to pick one async strategy — usually a queue, sometimes a workflow runtime, rarely both. Real apps need **a queue for background jobs**, **a workflow runtime for durable multi-step processes**, and **a real-time layer for cross-client state** — each solving a different problem. We ship all three as build-tagged layers so you only pay for what you use.
 
-This template solves it with **three complementary async layers**:
+We solve this with **three complementary async layers**:
 
 ```
 goqite    → background jobs + SSE to the browser (default, always on)
@@ -109,7 +109,7 @@ Every opt-in capability is gated by a **build tag + a runtime env flag**, with a
 
 ## The example: Todo App with SSE
 
-The template ships with a working Todo App:
+We ship a working Todo App:
 
 - Full CRUD via PocketBase
 - Reactive UI with Datastar + DaisyUI
@@ -119,7 +119,7 @@ The template ships with a working Todo App:
 - Retries with exponential backoff and jitter (`internal/queue/retry.go`, retry-go v4) — SSE-aware: a retry emits a `lastRetry` signal so the UI can show "retrying…"
 - `WelcomeOnboarding` DagNats workflow (with `-tags dagnats`) that creates 3 example todos via durable steps — kill the server mid-run, restart, watch it resume at the last incomplete step. The workflow is declarative JSON (`internal/dagnats/workflow.go`), so renaming Go handlers never orphans an in-flight run.
 - **Admin unlock** via `age` + `~/.secrets/`. The Todo example wires a master-password path: when `ADMIN_UNLOCK_TOKEN` is set (in the age-encrypted secrets file), the UI shows a "Clear all" form; the handler compares constant-time and clears all todos on match. Demonstrates the age flow end-to-end.
-- **AI suggest** via GoAI. When `GOAI_API_KEY` is set, the input gets a "Suggest" button that enqueues an async suggest job (see queue below) and streams the 3 completions back via SSE. Provider is configurable (Groq, OpenRouter, Together, Cloudflare, OpenAI). Retries with exponential backoff; same `internal/queue/retry.go` used by the SSE toast path. For a **keyless** demo of the exact same queue + retry path, set `SIMULATE_LLM=true`: a "Suggest (simulated)" button enqueues a job that hits an in-process fake LLM scripting 500 → 200 + delay, so you can watch the retry feedback toasts (enqueued → attempt failed → slow → result).
+- **AI suggest** via GoAI. When `GOAI_API_KEY` is set, the input gets a "Suggest" button that enqueues an async suggest job (see queue below) and streams the 3 completions back via SSE. It talks to whatever OpenAI-compatible provider `GOAI_BASE_URL`/`GOAI_MODEL` point at — see [Configuring the LLM](#configuring-the-llm-goai). Retries with exponential backoff use the same `internal/queue/retry.go` as the SSE toast path. For a **keyless** demo of the exact same queue + retry path, set `SIMULATE_LLM=true`: a "Suggest (simulated)" button enqueues a job that hits an in-process fake LLM scripting 500 → 200 + delay, so you can watch the retry feedback toasts (enqueued → attempt failed → slow → result).
 - Tests run with `-race`
 
 > **This is the contract you should imitate when adding a new feature:**
@@ -158,29 +158,21 @@ A running deployment of this exact template is live. You can touch every feature
 
 > The demo runs `-tags dagnats` (durable workflows on `:8090`) combined with `-tags jetstream` (multi-user realtime). The two share a **single embedded NATS** on `:4222` — DagNats boots it and the realtime broadcaster attaches to it, so there is only one NATS process in the binary. To stand up your own, see [Deploy](#deploy).
 
-## Free LLM providers (OpenAI-compatible, no card required)
+## Configuring the LLM (GoAI)
 
-The GoAI client uses the `compat` provider, so any OpenAI-compatible endpoint works. Set `GOAI_BASE_URL` + `GOAI_API_KEY` + `GOAI_MODEL` in your environment or secrets file.
+The AI Suggest + Queue/Retry demo is wired through [GoAI](https://github.com/zendev-sh/goai) and reads its configuration from the environment (or your age-encrypted secrets file). Two paths:
 
-| Provider | Free tier | How to get a key |
-|----------|-----------|------------------|
-| **[Groq](https://console.groq.com)** | Generous free tier, very fast inference. Recommended default. | Sign up → API Keys → copy |
-| **[OpenRouter](https://openrouter.ai)** | Several free models (smaller). | Keys page |
-| **[Together AI](https://api.together.xyz)** | $5 free credit, no card. | API Keys |
-| **[Cloudflare Workers AI](https://developers.cloudflare.com/workers-ai/)** | 10k neurons/day free. | Account → Workers AI |
-| **OpenAI** (default) | Pay-as-you-go. | platform.openai.com |
-
-Example: switch to Groq in your env:
+**1. A real OpenAI-compatible provider (recommended for production).** Set `GOAI_API_KEY`, point `GOAI_BASE_URL` at the provider's `/v1` endpoint, and pick a `GOAI_MODEL`. Any OpenAI-compatible endpoint works (Groq, OpenRouter, Together, Cloudflare, Ollama-via-shim, …) — we do not hardcode a provider, you choose. With a key present, the Todo UI shows the **Suggest** button.
 
 ```bash
+GOAI_API_KEY=sk-...
 GOAI_BASE_URL=https://api.groq.com/openai/v1
 GOAI_MODEL=llama-3.3-70b-versatile
-GOAI_API_KEY=gsk_...
 ```
 
-If `GOAI_API_KEY` is empty, the AI suggest route is **not registered** and the UI button is hidden. The Todo example keeps working — AI is opt-in, not required.
+**2. Keyless simulated LLM (best for trying the queue + retry path in dev).** Set `SIMULATE_LLM=true` to spin up an in-process fake GoAI client — no API key needed. It scripts a realistic failure (500 → retry → slow → 200) so you can watch the retry feedback toasts end-to-end. The UI shows a **Suggest (simulated)** button that reuses the exact same `goqite` + `retry-go` path as the real provider.
 
-**Note on truly keyless services:** [mlvoca.com](https://mlvoca.github.io/free-llm-api/) offers a free, keyless LLM API, but it exposes the **Ollama** API shape (`POST /api/generate`), not OpenAI Chat Completions. GoAI's `compat` provider speaks OpenAI; a thin Ollama-shim would be needed to use mlvoca. The mlvoca terms also forbid commercial use, so it would not be a sensible default for a reusable template.
+If `GOAI_API_KEY` is empty (and `SIMULATE_LLM` is off), the AI suggest route is **not registered** and the UI button is hidden. The Todo example keeps working — AI is opt-in, not required.
 
 ## Getting started
 
@@ -261,9 +253,7 @@ golangci-lint bundles and would otherwise produce false-positive listings.
 
 > **Advisory status, by design.** This repo deploys on **push to `master`**
 > (not PR merge), so the signoff status is a *signal*, not a hard gate.
-> We deliberately do **not** run `gh signoff install` (which would require
-> the status for PR merge) — it would be meaningless for a push-to-deploy
-> flow. If/when you move to a PR-based workflow, enable
+> We do not run `gh signoff install` (which would gate PR merges) — it would be meaningless for a push-to-deploy flow, so we leave it off by design. If/when you move to a PR-based workflow, enable
 > `gh signoff install` to make signoff a merge requirement.
 
 ## Desktop & Mobile (Wails v3 + Loro CRDT + NATS Leaf Node)
