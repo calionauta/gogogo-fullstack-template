@@ -3,6 +3,7 @@ package whiteboard_test
 import (
 	"context"
 	"encoding/json"
+	"math"
 	"net/http"
 	"net/http/cookiejar"
 	"strings"
@@ -197,4 +198,132 @@ func contains(xs []string, s string) bool {
 		}
 	}
 	return false
+}
+
+// TestWhiteboard_CursorBroadcastsToPeer is the regression guard for the
+// "remote peer cursors/pointers not showing" bug. Root cause was the
+// presence POST returning 400 (client stringified cursor coords), so the
+// cursor event never reached peers. This test posts a cursor from wbA and
+// asserts wbB's stream receives a "cursor" presence event carrying wbA's
+// coords — i.e. the pointer actually renders on the other tab.
+func TestWhiteboard_CursorBroadcastsToPeer(t *testing.T) {
+	baseURL, _, cleanup := webFixture(t)
+	defer cleanup()
+	clientA := newWBClient(t)
+	clientB := newWBClient(t)
+	login(t, clientA, baseURL)
+	login(t, clientB, baseURL)
+	docID := "doc-cursor-" + time.Now().Format("150405.000")
+	streamA := openWBStream(t, clientA, baseURL, docID, "wbA")
+	streamB := openWBStream(t, clientB, baseURL, docID, "wbB")
+	defer streamA.close()
+	defer streamB.close()
+	time.Sleep(200 * time.Millisecond)
+	streamA.drain(200 * time.Millisecond) // drop join/leave noise
+	streamB.drain(200 * time.Millisecond)
+
+	body, _ := json.Marshal(collab.PresenceMsg{Type: "cursor", Doc: docID, User: "wbA", X: 0.25, Y: 0.75, TS: 1})
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	resp, err := postWithClientID(ctx, clientA, baseURL+"/api/whiteboard/"+docID+"/presence", "wbA", body)
+	if err != nil {
+		t.Fatalf("post cursor: %v", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("post cursor status = %d", resp.StatusCode)
+	}
+	resp.Body.Close()
+
+	evs := streamB.drain(2 * time.Second)
+	cur, ok := cursorFromEvents(evs)
+	if !ok {
+		t.Fatalf("clientB never received a cursor event from wbA; events=%s", tailEvents(evs, 400))
+	}
+	if cur.User != "wbA" {
+		t.Fatalf("cursor event user = %q, want wbA", cur.User)
+	}
+	if math.Abs(cur.X-0.25) > 1e-6 || math.Abs(cur.Y-0.75) > 1e-6 {
+		t.Fatalf("cursor coords = (%v,%v), want (0.25,0.75)", cur.X, cur.Y)
+	}
+}
+
+// TestWhiteboard_LocalClientReceivesOwnShape is the regression guard for
+// the "drawing disappears on the local tab but persists on others" bug.
+// The fix switched handleUpdate to hub.Broadcast (include origin) so the
+// originator receives its own resolved shapes back and stays convergent.
+// This test posts a shape from wbA and asserts wbA's OWN stream receives a
+// "shapes" event containing that shape id — the local tab does not lose it.
+func TestWhiteboard_LocalClientReceivesOwnShape(t *testing.T) {
+	baseURL, _, cleanup := webFixture(t)
+	defer cleanup()
+	clientA := newWBClient(t)
+	login(t, clientA, baseURL)
+	docID := "doc-local-" + time.Now().Format("150405.000")
+	streamA := openWBStream(t, clientA, baseURL, docID, "wbA")
+	defer streamA.close()
+	time.Sleep(200 * time.Millisecond)
+	streamA.drain(200 * time.Millisecond)
+
+	op := collab.ShapeOp{Op: "add", Shape: collab.Shape{ID: "s-fix", Type: "rect", X: 10, Y: 10, W: 50, H: 50, Color: "#ff0000"}}
+	body, _ := json.Marshal(op)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	resp, err := postWithClientID(ctx, clientA, baseURL+"/api/whiteboard/"+docID+"/update", "wbA", body)
+	if err != nil {
+		t.Fatalf("post update: %v", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("post update status = %d", resp.StatusCode)
+	}
+	resp.Body.Close()
+
+	evs := streamA.drain(2 * time.Second)
+	sev, ok := shapesEventFromEvents(evs)
+	if !ok {
+		t.Fatalf("originator (wbA) never received its own shape back; events=%s", tailEvents(evs, 400))
+	}
+	found := false
+	for _, s := range sev.Shapes {
+		if s.ID == "s-fix" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("local shape s-fix not present in broadcast shapes; got %v", sev.Shapes)
+	}
+}
+
+func cursorFromEvents(events []string) (collab.PresenceMsg, bool) {
+	for _, ev := range events {
+		raw := strings.TrimPrefix(strings.TrimSpace(ev), "data: ")
+		var msg collab.PresenceMsg
+		if err := json.Unmarshal([]byte(raw), &msg); err != nil {
+			continue
+		}
+		if msg.Type == "cursor" {
+			return msg, true
+		}
+	}
+	return collab.PresenceMsg{}, false
+}
+
+func shapesEventFromEvents(events []string) (collab.WebShapesEvent, bool) {
+	for _, ev := range events {
+		raw := strings.TrimPrefix(strings.TrimSpace(ev), "data: ")
+		var msg collab.WebShapesEvent
+		if err := json.Unmarshal([]byte(raw), &msg); err != nil {
+			continue
+		}
+		if msg.Type == "shapes" {
+			return msg, true
+		}
+	}
+	return collab.WebShapesEvent{}, false
+}
+
+func tailEvents(evs []string, n int) string {
+	if len(evs) > n {
+		evs = evs[len(evs)-n:]
+	}
+	return strings.Join(evs, "\n")
 }

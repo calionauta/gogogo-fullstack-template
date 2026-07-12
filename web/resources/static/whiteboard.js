@@ -132,15 +132,41 @@
     });
   }
 
+  // POST a cursor presence event. The whiteboard streams over the
+  // Cloudflare tunnel, which can occasionally reset the underlying
+  // HTTP/3 (QUIC) connection (ERR_QUIC_PROTOCOL_ERROR) — a transient
+  // transport blip, not an app error. We retry a couple of times so a
+  // single dropped POST does not permanently kill the remote cursor.
+  // fail is intentionally quiet: a missed cursor frame is cosmetic, and
+  // the next mouse move re-sends it.
   function postPresence(x, y) {
-    fetch(
-      "/api/whiteboard/" + encodeURIComponent(docID) + "/presence?clientID=" + encodeURIComponent(clientID),
-      {
+    const url =
+      "/api/whiteboard/" +
+      encodeURIComponent(docID) +
+      "/presence?clientID=" +
+      encodeURIComponent(clientID);
+    const body = JSON.stringify({
+      type: "cursor",
+      doc: docID,
+      user: user,
+      x: x,
+      y: y,
+      ts: Date.now(),
+    });
+    let attempt = 0;
+    function send() {
+      fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "cursor", doc: docID, user: user, x: x, y: y, ts: Date.now() }),
-      }
-    ).catch(function () {});
+        body: body,
+      }).catch(function () {
+        if (attempt < 2) {
+          attempt++;
+          setTimeout(send, 300 * attempt);
+        }
+      });
+    }
+    send();
   }
 
   // ---- drawing ----
