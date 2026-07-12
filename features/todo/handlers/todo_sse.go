@@ -135,6 +135,9 @@ func (h *TodoHandler) streamRetry(sse *sdk.ServerSentEventGenerator, payload []b
 		"lastRetryOperation": p.Operation,
 		"lastRetryStatus":    p.Status,
 		"lastRetryAttempt":   p.Attempt,
+		// Advance the progressive step lighting: step 2 (running/retrying)
+		// as soon as the first attempt feedback arrives, step 3 on success.
+		"demoStep": 2,
 	}); err != nil {
 		return err
 	}
@@ -146,6 +149,10 @@ func (h *TodoHandler) streamRetry(sse *sdk.ServerSentEventGenerator, payload []b
 	// we only complete it here on the real success event.
 	if p.Status == retryStatusSuccess {
 		if err := h.applyTechStep(sse, "retry-demo", true, ""); err != nil {
+			return err
+		}
+		// Final step lit only on success.
+		if err := dshelpers.MergeSignals(sse, map[string]any{"demoStep": 3}); err != nil {
 			return err
 		}
 	}

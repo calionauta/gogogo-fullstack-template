@@ -29,6 +29,9 @@ type WorkerPool struct {
 	count  int
 	stopCh chan struct{}
 	wg     sync.WaitGroup
+	ctx    context.Context
+	cancel context.CancelFunc
+	stopOnce sync.Once
 }
 
 // NewWorkerPool wires a worker pool with default retry settings
@@ -56,7 +59,12 @@ func (wp *WorkerPool) SetRetry(cfg RetryConfig) {
 //  3. Look up the handler in the registry.
 //  4. Invoke the handler under retry.Do with SSE feedback.
 //  5. Delete the message from the queue.
+//
+// Start creates a cancelable context so Stop() can interrupt an idle
+// worker blocked inside ReceiveAndWait (which polls forever on a
+// Background context) and let the pool shut down cleanly.
 func (wp *WorkerPool) Start() {
+	wp.ctx, wp.cancel = context.WithCancel(context.Background())
 	for i := range wp.count {
 		wp.wg.Add(1)
 		go wp.worker(i)
@@ -65,16 +73,21 @@ func (wp *WorkerPool) Start() {
 }
 
 // Stop drains in-flight workers (up to RetryConfig.MaxDelay between
-// attempts) and blocks until all goroutines have exited.
+// attempts) and blocks until all goroutines have exited. It is
+// idempotent and safe to call before Start or after a prior Stop.
 func (wp *WorkerPool) Stop() {
-	close(wp.stopCh)
+	wp.stopOnce.Do(func() {
+		if wp.cancel != nil {
+			wp.cancel() // unblock ReceiveAndWait on idle workers
+		}
+		close(wp.stopCh)
+	})
 	wp.wg.Wait()
 	slog.Info("queue workers stopped")
 }
 
 func (wp *WorkerPool) worker(id int) {
 	defer wp.wg.Done()
-	ctx := context.Background()
 
 	for {
 		select {
@@ -88,31 +101,35 @@ func (wp *WorkerPool) worker(id int) {
 			return // Queue was closed; stop draining.
 		}
 
-		msg, err := q.ReceiveAndWait(ctx, time.Second)
+		msg, err := q.ReceiveAndWait(wp.ctx, time.Second)
 		slog.Info("queue worker: received", "worker_id", id, "has_msg", msg != nil, "err", err)
 		if err != nil {
 			select {
 			case <-wp.stopCh:
 				return
+			case <-wp.ctx.Done():
+				return // context cancelled (Stop) — no need to keep polling
 			default:
 				slog.Warn("queue worker: receive error", "worker_id", id, "error", err)
 				time.Sleep(time.Second)
 				continue
 			}
 		}
-		if msg == nil {
+	if msg == nil {
 			select {
 			case <-wp.stopCh:
+				return
+			case <-wp.ctx.Done():
 				return
 			case <-time.After(200 * time.Millisecond):
 				continue
 			}
-		}
+	}
 
-		wp.processMessage(ctx, msg)
+		wp.processMessage(context.Background(), msg)
 
 		if q := wp.qGuard(); q != nil {
-			if err := q.Delete(ctx, msg.ID); err != nil {
+			if err := q.Delete(context.Background(), msg.ID); err != nil {
 				slog.Warn("queue worker: delete error", "worker_id", id, "error", err)
 			}
 		}

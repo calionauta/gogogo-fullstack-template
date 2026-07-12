@@ -34,6 +34,12 @@ type Signals struct {
 	TechStep  string `json:"techStep"`
 	TechDone  bool   `json:"techDone"`
 	TechPhase string `json:"techPhase"`
+	// DemoStep drives the progressive lighting of the Queue + Retry demo
+	// steps (1 = enqueued, 2 = running/retrying, 3 = completed). It is
+	// advanced by the per-attempt SSE "retry" feedback so the steps
+	// light one-by-one with a visible gap between attempts instead of
+	// all flipping at once when the job finishes.
+	DemoStep int `json:"demoStep"`
 	// ClientID is the SSE client id assigned when the stream opens. The
 	// UI uses it to route queued-job results and retry feedback back to
 	// the correct browser tab, so a Suggest triggered here lands here

@@ -22,26 +22,16 @@ import (
 // dispatcher). The HTTP response only flips suggestPending so the UI can
 // show a spinner.
 func (h *TodoHandler) handleSuggest(c *core.RequestEvent) error {
-	if h.llm == nil || !h.llm.Configured() {
-		return c.String(http.StatusServiceUnavailable, "LLM not configured: set GOAI_API_KEY")
+	// Prefer the real LLM; fall back to the keyless simulated client so
+	// the feature works without GOAI_API_KEY. A single route serves both
+	// paths and the UI never shows a dead button.
+	if h.llm != nil && h.llm.Configured() {
+		return h.enqueueSuggest(c, "suggest", c.Request.FormValue("partial"))
 	}
-	if err := c.Request.ParseForm(); err != nil {
-		return c.String(http.StatusBadRequest, "invalid form")
+	if h.llmSimulated != nil && h.llmSimulated.Configured() {
+		return h.enqueueSuggest(c, "suggest_simulated", c.Request.FormValue("partial"))
 	}
-	partial := c.Request.FormValue("partial")
-	if partial == "" {
-		// The suggest form posts the current input as "title"; treat
-		// that as the partial when no explicit "partial" field is sent.
-		partial = c.Request.FormValue("title")
-	}
-	if partial == "" {
-		// No context provided — still useful to suggest generic next
-		// steps rather than 400'ing the request (which would surface as a
-		// console error). The button is also disabled when the input is
-		// empty, so this branch is purely defensive.
-		partial = "Plan my next tasks"
-	}
-	return h.enqueueSuggest(c, "suggest", partial)
+	return c.String(http.StatusServiceUnavailable, "LLM not configured: set GOAI_API_KEY or SIMULATE_LLM=true")
 }
 
 // handleSuggestSimulated enqueues a "suggest_simulated" job. It uses the

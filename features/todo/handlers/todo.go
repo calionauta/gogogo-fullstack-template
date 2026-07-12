@@ -153,7 +153,11 @@ func (h *TodoHandler) RegisterRoutes(se *core.ServeEvent) {
 	se.Router.GET("/api/todos/{id}/confirm-delete", h.handleConfirmDelete)
 	se.Router.GET("/api/todos/stream", h.handleSSEStreamWithAuth)
 	se.Router.POST("/api/todos/retry-demo", h.handleEnqueueRetryDemo)
-	if h.llm != nil && h.llm.Configured() {
+	// AI Suggest is available when EITHER the real LLM (GOAI_API_KEY) or
+	// the keyless simulated LLM is configured. handleSuggest prefers the
+	// real client and falls back to the simulated one, so a single route
+	// serves both and the button is never dead.
+	if h.llmEnabled() || h.simulatedLLMEnabled() {
 		se.Router.POST("/api/todos/suggest", h.handleSuggest)
 	}
 	if h.llmSimulated != nil && h.llmSimulated.Configured() {
@@ -223,7 +227,11 @@ func (h *TodoHandler) RegisterRoutesOn(r *router.Router[*core.RequestEvent]) {
 	r.GET("/api/todos/{id}/confirm-delete", h.handleConfirmDelete)
 	r.GET("/api/todos/stream", h.handleSSEStreamWithAuth)
 	r.POST("/api/todos/retry-demo", h.handleEnqueueRetryDemo)
-	if h.llm != nil && h.llm.Configured() {
+	// AI Suggest is available when EITHER the real LLM (GOAI_API_KEY) or
+	// the keyless simulated LLM is configured. handleSuggest prefers the
+	// real client and falls back to the simulated one, so a single route
+	// serves both and the button is never dead.
+	if h.llmEnabled() || h.simulatedLLMEnabled() {
 		r.POST("/api/todos/suggest", h.handleSuggest)
 	}
 	if h.llmSimulated != nil && h.llmSimulated.Configured() {
@@ -262,7 +270,11 @@ func (h *TodoHandler) handleEnqueueRetryDemo(c *core.RequestEvent) error {
 // attempt's status is broadcast to every connected client, and a final
 // toast reports success. This is the canonical demonstration of the
 // queue-with-retry techstack slice.
-const retryDemoInitialDelay = 600 * time.Millisecond
+// retryDemoInitialDelay spaces the retry attempts so the user can SEE
+// the demo progress (the steps light one-by-one via the SSE "retry"
+// feedback). A sub-second gap made all three attempts look instant; ~1.5s
+// gives a perceptible beat between attempts without feeling sluggish.
+const retryDemoInitialDelay = 1500 * time.Millisecond
 
 // jobTypeToast is the queue.Job type for toast notifications so
 // the literal isn't duplicated across handlers (goconst).
@@ -285,7 +297,7 @@ func (h *TodoHandler) handleRetryDemoJob(ctx context.Context, hub *queue.SSEHub,
 		},
 		retry.Attempts(maxAttempts),
 		retry.Delay(retryDemoInitialDelay),
-		retry.MaxDelay(2*time.Second),
+		retry.MaxDelay(2500 * time.Millisecond),
 		retry.Context(ctx),
 	)
 	if err != nil {

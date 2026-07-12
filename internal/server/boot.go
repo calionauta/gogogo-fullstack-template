@@ -61,11 +61,13 @@ func Run(cfg *config.Config, js nats.JetStreamLike) (*pocketbase.PocketBase, *ha
 	todoH.RegisterHandlers(q.Registry())
 	todoH.SetLLMClient(llm.New(cfg.GoAI.APIKey))
 
-	// Simulated LLM mode (SIMULATE_LLM=true): in-process fake so the
-	// keyless "Suggest (simulated)" demo exercises queue + retry.
-	if v := os.Getenv("SIMULATE_LLM"); v == "true" || v == "1" {
-		sim := llm.NewSimulated()
-		todoH.SetSimulatedLLMClient(sim)
+	// Simulated LLM is wired by default (keyless) so the AI Suggest feature
+	// and the queue + retry demo work out of the box without a real API
+	// key. Opt out explicitly with SIMULATE_LLM=false. The real LLM (when
+	// GOAI_API_KEY is set) takes precedence; handleSuggest falls back to
+	// the simulated client when the real one is not configured.
+	if v := os.Getenv("SIMULATE_LLM"); v != "false" {
+		todoH.SetSimulatedLLMClient(llm.NewSimulated())
 	}
 
 	workers := q.StartWorkers()

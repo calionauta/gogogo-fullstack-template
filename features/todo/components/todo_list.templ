@@ -150,7 +150,7 @@ templ TodoList(signals todo.Signals) {
 							>
 								Queue + Retry
 							</button>
-							if signals.LLMEnabled {
+							if signals.LLMEnabled || signals.SimulatedLLM {
 								<button
 									class="tab tab-sm flex-1 transition-all"
 									data-on:click="$sidebarTab = 'ai'"
@@ -197,20 +197,20 @@ templ TodoList(signals todo.Signals) {
 							<ul class="steps steps-vertical w-full mb-3 text-xs">
 								<li
 									class="step transition-all duration-500"
-									data-class={ "{'step-primary text-base-content': $techStep === 'retry-demo' && $suggestPending, 'step-success': $techStep === 'retry-demo' && !$suggestPending && $techPhase !== 'error', 'step-error': $techStep === 'retry-demo' && $techPhase === 'error'}" }
+									data-class={ "{'step-success': $demoStep >= 2, 'step-primary text-base-content': $demoStep === 1}" }
 								>Enqueue hard-coded job (goqite)</li>
 								<li
 									class="step transition-all duration-500"
-									data-class={ "{'step-primary text-base-content': $techStep === 'retry-demo' && $suggestPending, 'step-success': $techStep === 'retry-demo' && !$suggestPending && $techPhase !== 'error', 'step-error': $techStep === 'retry-demo' && $techPhase === 'error'}" }
+									data-class={ "{'step-success': $demoStep >= 3, 'step-primary text-base-content': $demoStep === 2}" }
 								>Retry on simulated failure (retry-go)<span data-show="$lastRetryStatus === 'attempt'" data-text="'Retrying — attempt ' + ($lastRetryAttempt || 1) + ' (retry-go)'"></span></li>
 								<li
 									class="step transition-all duration-500"
-									data-class={ "{'step-primary': $techStep === 'retry-demo' && $suggestPending, 'step-success': $techStep === 'retry-demo' && !$suggestPending && $techPhase !== 'error', 'step-error': $techStep === 'retry-demo' && $techPhase === 'error'}" }
+									data-class={ "{'step-success': $demoStep >= 3 && $techPhase !== 'error', 'step-primary text-base-content': $demoStep === 3 && $techPhase === 'error'}" }
 								>Job completes</li>
 							</ul>
 
 															<form
-									data-on:submit__prevent="$techStep = 'retry-demo'; $suggestPending = true; @post('/api/todos/retry-demo?clientID=' + encodeURIComponent($clientID || ''))"
+									data-on:submit__prevent="$techStep = 'retry-demo'; $demoStep = 1; $suggestPending = true; @post('/api/todos/retry-demo?clientID=' + encodeURIComponent($clientID || ''))"
 									class="contents"
 								>
 <button
@@ -241,7 +241,7 @@ templ TodoList(signals todo.Signals) {
 						</div>
 
 						<!-- ════════ AI Suggest tab (separate affordance, calls GoAI/Groq) ════════ -->
-						if signals.LLMEnabled {
+						if signals.LLMEnabled || signals.SimulatedLLM {
 							<div data-show="$sidebarTab === 'ai'">
 								<div class="flex items-center justify-between mb-2">
 									<div class="flex items-center gap-2">
