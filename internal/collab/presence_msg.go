@@ -18,12 +18,12 @@ import (
 // if a client (or a fork of this template) posts stringified numbers — the
 // server never 400s a perfectly good cursor event on a type-coercion nit.
 type PresenceMsg struct {
-	Type   string   `json:"type"`
-	Doc    string   `json:"doc"`
-	User   string   `json:"user"`
-	X      float64  `json:"x"`
-	Y      float64  `json:"y"`
-	TS     int64    `json:"ts"`
+	Type string  `json:"type"`
+	Doc  string  `json:"doc"`
+	User string  `json:"user"`
+	X    float64 `json:"x"`
+	Y    float64 `json:"y"`
+	TS   int64   `json:"ts"`
 	// Peers is the list of clientIDs already present on the doc, sent to
 	// a freshly-connected client as a "snapshot" event so it can seed its
 	// peer count without waiting for future joins (which already happened
@@ -36,13 +36,13 @@ type PresenceMsg struct {
 // presenceAlias mirrors PresenceMsg but decodes X/Y as json.Number so a
 // numeric string like "0.5" and a bare number 0.5 both parse.
 type presenceAlias struct {
-	Type   string          `json:"type"`
-	Doc    string          `json:"doc"`
-	User   string          `json:"user"`
-	X      json.Number     `json:"x"`
-	Y      json.Number     `json:"y"`
-	TS     int64           `json:"ts"`
-	Peers  []string        `json:"peers,omitempty"`
+	Type  string      `json:"type"`
+	Doc   string      `json:"doc"`
+	User  string      `json:"user"`
+	X     json.Number `json:"x"`
+	Y     json.Number `json:"y"`
+	TS    int64       `json:"ts"`
+	Peers []string    `json:"peers,omitempty"`
 }
 
 // UnmarshalJSON tolerates X/Y provided as JSON numbers or numeric strings.

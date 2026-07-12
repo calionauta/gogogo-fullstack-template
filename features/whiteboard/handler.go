@@ -170,10 +170,10 @@ func (h *Handler) handleStream(c *core.RequestEvent) error {
 
 	// Register the client BEFORE announcing presence so that the
 	// join broadcast and the per-peer snapshot below are both computed
-		// against a hub that already knows about this client. (Previously the
+	// against a hub that already knows about this client. (Previously the
 	// join was broadcast before Register, which meant a client that opened
-		// the board after others never learned those peers existed, leaving
-		// the "X online" count wrong.)
+	// the board after others never learned those peers existed, leaving
+	// the "X online" count wrong.)
 	ch := make(chan []byte, sseChanBuf)
 	h.hub.Register(clientID, ch)
 	defer func() {

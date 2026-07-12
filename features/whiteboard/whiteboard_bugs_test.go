@@ -6,6 +6,7 @@ import (
 	"math"
 	"net/http"
 	"net/http/cookiejar"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -42,7 +43,8 @@ func TestWhiteboard_PresenceToleratesStringCoords(t *testing.T) {
 
 	// String coords — the exact payload that previously 400'd.
 	strBody := []byte(`{"type":"cursor","doc":"` + docID + `","user":"u-str","x":"0.1234","y":"0.4321","ts":1}`)
-	resp, err := postWithClientID(context.Background(), client, baseURL+"/api/whiteboard/"+docID+"/presence", "wb-str", strBody)
+	presenceURL := baseURL + "/api/whiteboard/" + docID + "/presence"
+	resp, err := postWithClientID(context.Background(), client, presenceURL, "wb-str", strBody)
 	if err != nil {
 		t.Fatalf("presence (string) POST: %v", err)
 	}
@@ -53,8 +55,11 @@ func TestWhiteboard_PresenceToleratesStringCoords(t *testing.T) {
 	resp.Body.Close()
 
 	// Number coords — the corrected client payload.
-	numBody, _ := json.Marshal(collab.PresenceMsg{Type: "cursor", Doc: docID, User: "u-num", X: 0.5, Y: 0.5, TS: 1})
-	resp2, err := postWithClientID(context.Background(), client, baseURL+"/api/whiteboard/"+docID+"/presence", "wb-num", numBody)
+	numBody, err := json.Marshal(collab.PresenceMsg{Type: "cursor", Doc: docID, User: "u-num", X: 0.5, Y: 0.5, TS: 1})
+	if err != nil {
+		t.Fatalf("marshal num presence: %v", err)
+	}
+	resp2, err := postWithClientID(context.Background(), client, presenceURL, "wb-num", numBody)
 	if err != nil {
 		t.Fatalf("presence (number) POST: %v", err)
 	}
@@ -192,12 +197,7 @@ func countPeersFromEvents(events []string) []string {
 }
 
 func contains(xs []string, s string) bool {
-	for _, x := range xs {
-		if x == s {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(xs, s)
 }
 
 // TestWhiteboard_CursorBroadcastsToPeer is the regression guard for the
@@ -222,7 +222,10 @@ func TestWhiteboard_CursorBroadcastsToPeer(t *testing.T) {
 	streamA.drain(200 * time.Millisecond) // drop join/leave noise
 	streamB.drain(200 * time.Millisecond)
 
-	body, _ := json.Marshal(collab.PresenceMsg{Type: "cursor", Doc: docID, User: "wbA", X: 0.25, Y: 0.75, TS: 1})
+	body, err := json.Marshal(collab.PresenceMsg{Type: "cursor", Doc: docID, User: "wbA", X: 0.25, Y: 0.75, TS: 1})
+	if err != nil {
+		t.Fatalf("marshal cursor presence: %v", err)
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	resp, err := postWithClientID(ctx, clientA, baseURL+"/api/whiteboard/"+docID+"/presence", "wbA", body)
@@ -264,8 +267,13 @@ func TestWhiteboard_LocalClientReceivesOwnShape(t *testing.T) {
 	time.Sleep(200 * time.Millisecond)
 	streamA.drain(200 * time.Millisecond)
 
-	op := collab.ShapeOp{Op: "add", Shape: collab.Shape{ID: "s-fix", Type: "rect", X: 10, Y: 10, W: 50, H: 50, Color: "#ff0000"}}
-	body, _ := json.Marshal(op)
+	op := collab.ShapeOp{Op: "add", Shape: collab.Shape{
+		ID: "s-fix", Type: "rect", X: 10, Y: 10, W: 50, H: 50, Color: "#ff0000",
+	}}
+	body, err := json.Marshal(op)
+	if err != nil {
+		t.Fatalf("marshal shape op: %v", err)
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	resp, err := postWithClientID(ctx, clientA, baseURL+"/api/whiteboard/"+docID+"/update", "wbA", body)

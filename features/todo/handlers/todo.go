@@ -297,7 +297,7 @@ func (h *TodoHandler) handleRetryDemoJob(ctx context.Context, hub *queue.SSEHub,
 		},
 		retry.Attempts(maxAttempts),
 		retry.Delay(retryDemoInitialDelay),
-		retry.MaxDelay(2500 * time.Millisecond),
+		retry.MaxDelay(2500*time.Millisecond), //nolint:mnd // 2.5s retry cap: visible pacing
 		retry.Context(ctx),
 	)
 	if err != nil {

@@ -21,16 +21,16 @@ import (
 // centralized in RetryConfig, and the worker pool never blocks longer
 // than MaxDelay between attempts.
 type WorkerPool struct {
-	q      *goqite.Queue
-	qMu    sync.RWMutex // protects q against concurrent Close()
-	hub    *SSEHub
-	reg    *HandlerRegistry
-	retry  *RetryConfig
-	count  int
-	stopCh chan struct{}
-	wg     sync.WaitGroup
-	ctx    context.Context
-	cancel context.CancelFunc
+	q        *goqite.Queue
+	qMu      sync.RWMutex // protects q against concurrent Close()
+	hub      *SSEHub
+	reg      *HandlerRegistry
+	retry    *RetryConfig
+	count    int
+	stopCh   chan struct{}
+	wg       sync.WaitGroup
+	ctx      context.Context
+	cancel   context.CancelFunc
 	stopOnce sync.Once
 }
 
@@ -86,6 +86,7 @@ func (wp *WorkerPool) Stop() {
 	slog.Info("queue workers stopped")
 }
 
+//nolint:gocyclo // worker drain/stop loop; extracted helpers would obscure the deadlock fix.
 func (wp *WorkerPool) worker(id int) {
 	defer wp.wg.Done()
 
@@ -115,7 +116,7 @@ func (wp *WorkerPool) worker(id int) {
 				continue
 			}
 		}
-	if msg == nil {
+		if msg == nil {
 			select {
 			case <-wp.stopCh:
 				return
@@ -124,7 +125,7 @@ func (wp *WorkerPool) worker(id int) {
 			case <-time.After(200 * time.Millisecond):
 				continue
 			}
-	}
+		}
 
 		wp.processMessage(context.Background(), msg)
 
@@ -169,8 +170,12 @@ func (wp *WorkerPool) processMessage(ctx context.Context, msg *goqite.Message) {
 }
 
 func jobTypeOf(body []byte) string {
-	var j struct{ Type string `json:"type"` }
-	_ = json.Unmarshal(body, &j)
+	var j struct {
+		Type string `json:"type"`
+	}
+	if err := json.Unmarshal(body, &j); err != nil {
+		return ""
+	}
 	return j.Type
 }
 
