@@ -25,6 +25,13 @@ data/
 # Build
 dist/
 
+# Agent / hidden tooling artifacts (never commit; keep CI config under .github/)
+# Any directory starting with a dot is ignored, except .github/ (workflows).
+.pi-subagents/
+.*/
+!.github/
+!.githooks/
+
 # Test/binary data artifacts
 internal/workflow/pb_data/
 *.db

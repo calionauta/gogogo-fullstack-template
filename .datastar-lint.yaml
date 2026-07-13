@@ -1,0 +1,4 @@
+attributes:
+  allowed:
+    - data-tool
+    - data-doc-id

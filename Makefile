@@ -94,11 +94,14 @@ fmt:
 	@echo "  ✅ formatting clean"
 
 # datastar-lint checks .templ files for Datastar anti-patterns. Runs with
-# -only-errors so intentional custom attributes (e.g. data-tool, read by
-# our whiteboard JS) surface as advisory warnings, not hard failures.
+# -only-errors so real issues fail the gate while intentional custom
+# attributes (e.g. data-tool/data-doc-id, read by our whiteboard JS) are
+# whitelisted via .datastar-lint.json instead of being flagged.
+# Scoped to ./features (where .templ live) so the every-save Air pre_cmd
+# does not walk node_modules.
 datastar-lint:
 	@echo "→ Running datastar-lint..."
-	@bin/datastar-lint -only-errors
+	@bin/datastar-lint -only-errors -r ./features
 
 lint:
 	@echo "→ go vet..."
@@ -170,8 +173,8 @@ setup:
 	@bin/setup-hooks.sh
 
 dev:
-	@echo "→ Starting Air live reload..."
-	@air
+	@echo "→ Starting Air live reload (ENVIRONMENT=development unless already set)..."
+	@ENVIRONMENT=$${ENVIRONMENT:-development} air
 
 docker-image: templ
 	@echo "→ Building Docker image..."
