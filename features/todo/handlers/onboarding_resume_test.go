@@ -31,7 +31,7 @@ func TestOnboarding_ResumeSignalsRun(t *testing.T) {
 	broadcaster := nats.NewInMemoryBroadcaster(hub)
 
 	h := &OnboardingHandler{
-		client:      dagnats.NewClient("http://127.0.0.1:18097"),
+		client:      dagnats.NewClient("http://127.0.0.1:18099"),
 		broadcaster: broadcaster,
 	}
 
@@ -39,8 +39,8 @@ func TestOnboarding_ResumeSignalsRun(t *testing.T) {
 	// wiring cmd/web/dagnats.go uses).
 	srv := server.New(server.Config{
 		DataDir:       t.TempDir(),
-		HTTPAddr:      "127.0.0.1:18097",
-		NATSPort:      4222,
+		HTTPAddr:      "127.0.0.1:18099",
+		NATSPort:      4224,
 		MaxStoreBytes: 1 << 30,
 	})
 
@@ -64,8 +64,15 @@ func TestOnboarding_ResumeSignalsRun(t *testing.T) {
 		return ctx.Complete([]byte(`"done"`))
 	})
 
-	go func() { _ = srv.Run() }()
-	waitForDagNatsReady(t, "127.0.0.1:18097")
+	runErr := make(chan error, 1)
+	go func() { runErr <- srv.Run() }()
+	t.Cleanup(func() {
+		srv.Stop()
+		if err := <-runErr; err != nil {
+			t.Logf("dagnats test server stopped: %v", err)
+		}
+	})
+	waitForDagNatsReady(t, "127.0.0.1:18099")
 
 	ctx := context.Background()
 	registerOnboardingWorkflow(t, h.client)

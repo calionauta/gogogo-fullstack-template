@@ -4,8 +4,6 @@ package dagnats
 
 import (
 	"context"
-	"encoding/json"
-	"net/http"
 	"os"
 	"path/filepath"
 	"testing"
@@ -29,7 +27,7 @@ func startTestServer(t *testing.T, httpAddr, dataDir string) *Client {
 	srv := server.New(server.Config{
 		DataDir:       dataDir,
 		HTTPAddr:      httpAddr,
-		NATSPort:      0, // ephemeral
+		NATSPort:      -1, // ephemeral (nats-server: -1 = random port; 0 = no listener)
 		MaxStoreBytes: 1 << 30,
 	})
 
@@ -55,9 +53,14 @@ func startTestServer(t *testing.T, httpAddr, dataDir string) *Client {
 		return ctx.Complete([]byte(`"done"`))
 	})
 
-	go func() {
-		_ = srv.Run()
-	}()
+	runErr := make(chan error, 1)
+	go func() { runErr <- srv.Run() }()
+	t.Cleanup(func() {
+		srv.Stop()
+		if err := <-runErr; err != nil {
+			t.Logf("dagnats test server stopped: %v", err)
+		}
+	})
 
 	client := NewClient("http://" + httpAddr)
 	// Register the workflow, retrying until the API is up. Under -race
@@ -127,25 +130,6 @@ paused:
 		time.Sleep(300 * time.Millisecond)
 	}
 	t.Fatal("run did not reach completed within timeout")
-}
-
-// GetRunRaw is a test helper that returns the full run JSON (not the
-// trimmed RunStatus) so tests can inspect per-step status.
-func (c *Client) GetRunRaw(ctx context.Context, runID string) (map[string]any, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", c.baseURL+"/runs/"+runID, nil)
-	if err != nil {
-		return nil, err
-	}
-	resp, err := c.http.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	var out map[string]any
-	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-		return nil, err
-	}
-	return out, nil
 }
 
 func stepStatus(run map[string]any, id string) string {

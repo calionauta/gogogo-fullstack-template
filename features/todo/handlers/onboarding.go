@@ -4,7 +4,7 @@ package handlers
 
 import (
 	"context"
-	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"sync"
@@ -163,19 +163,21 @@ func (h *OnboardingHandler) handleStart(c *core.RequestEvent) error {
 // until the user creates a todo. The button is re-enabled (OnboardingActive
 // cleared) on completion, failure, or a hard timeout so the user is never
 // trapped in a permanently disabled state.
+// onboardingStepOrder is the canonical 1-based order of the onboarding
+// workflow steps, matching OnboardingWorkflowJSON. pollRun maps the
+// per-step status (from GetRunRaw) to a current-step number so the UI
+// advances even while DagNats reports the run's OVERALL status as
+// "running" (not "waiting") during the WaitForSignal await step.
+var onboardingStepOrder = []string{
+	"greet", "await-first-todo", "todo-1", "todo-2", "todo-3", "finalize",
+}
+
 func (h *OnboardingHandler) pollRun(runID string) {
 	ctx := context.Background()
-	stepLabels := []string{
-		"Greeting user",
-		"Waiting for your next to-do",
-		"Creating example todo 1/3",
-		"Creating example todo 2/3",
-		"Creating example todo 3/3",
-		"Finalizing onboarding",
-	}
 	timeout := time.After(5 * time.Minute)
 	ticker := time.NewTicker(700 * time.Millisecond)
 	defer ticker.Stop()
+	total := len(onboardingStepOrder)
 	for {
 		select {
 		case <-timeout:
@@ -188,49 +190,90 @@ func (h *OnboardingHandler) pollRun(runID string) {
 			return
 		case <-ticker.C:
 		}
-		st, err := h.client.GetRun(ctx, runID)
+
+		raw, err := h.client.GetRunRaw(ctx, runID)
 		if err != nil {
 			// Transient engine error — keep polling unless timed out.
 			continue
 		}
-		total := st.Total
-		if total <= 0 {
-			total = len(stepLabels)
-		}
-		switch st.Status {
+		overall, _ := raw["status"].(string)
+		steps, _ := raw["steps"].(map[string]any)
+
+		switch overall {
 		case "completed":
-			h.publishProgress(ctx, total, total, "finalize", "Step "+itoa(total)+"/"+itoa(total)+" — Onboarding complete")
+			h.publishProgress(ctx, total, total, "finalize",
+				fmt.Sprintf("Step %d/%d — Onboarding complete", total, total))
 			if h.broadcaster != nil {
 				_ = h.broadcaster.PublishTodoUpdate(ctx,
 					todoUpdateJob("workflow-completed", "remote", "", "", false))
 			}
 			return
 		case "failed":
-			h.publishProgress(ctx, st.Step, total, "error", "Onboarding failed: "+st.Detail)
+			cur, detail := onboardingFailedStep(steps)
+			h.publishProgress(ctx, cur, total, "error",
+				fmt.Sprintf("Onboarding failed: %s", detail))
 			if h.broadcaster != nil {
 				_ = h.broadcaster.PublishTodoUpdate(ctx,
-					todoUpdateJob("workflow-error", "remote", "", st.Detail, false))
+					todoUpdateJob("workflow-error", "remote", "", detail, false))
 			}
 			return
-		case "waiting":
-			// Suspended on WaitForSignal("first-todo"). Show the prompt
-			// and keep polling — it will resume when the user creates a todo.
-			h.publishProgress(ctx, st.Step, total, "workflow",
-				"Step "+itoa(st.Step)+"/"+itoa(total)+" — Waiting for your next to-do (create one to continue)")
 		default:
-			label := ""
-			if st.Step >= 1 && st.Step <= len(stepLabels) {
-				label = stepLabels[st.Step-1]
-			} else {
-				label = "Working"
-			}
-			h.publishProgress(ctx, st.Step, total, "workflow",
-				"Step "+itoa(st.Step)+"/"+itoa(total)+" — "+label)
+			// "running" / "waiting" / anything else: derive the current
+			// step from the per-step statuses so the await suspend still
+			// advances the stepper to "Waiting for your next to-do".
+			cur, phase, detail := onboardingCurrentStep(steps)
+			h.publishProgress(ctx, cur, total, phase,
+				fmt.Sprintf("Step %d/%d — %s", cur, total, detail))
 		}
 	}
 }
 
-func itoa(n int) string {
-	b, _ := json.Marshal(n)
-	return string(b)
+// onboardingCurrentStep returns the 1-based current step, the UI phase, and
+// a human label derived from per-step statuses. A "running" step is the
+// current step; if nothing is running yet we stay on step 1 (greet). A
+// "failed" step surfaces as an error phase.
+func onboardingCurrentStep(steps map[string]any) (int, string, string) {
+	for i, id := range onboardingStepOrder {
+		st, _ := steps[id].(map[string]any)
+		status, _ := st["status"].(string)
+		switch status {
+		case "running":
+			cur := i + 1
+			switch cur {
+			case 1:
+				return cur, "greet", "Greeting user"
+			case 2:
+				return cur, "workflow", "Waiting for your next to-do (create one to continue)"
+			case 3, 4, 5:
+				return cur, "workflow", fmt.Sprintf("Creating example todo %d/3", cur-2)
+			default:
+				return cur, "finalize", "Finalizing onboarding"
+			}
+		case "failed":
+			cur := i + 1
+			detail := ""
+			if d, ok := st["detail"].(string); ok {
+				detail = d
+			}
+			return cur, "error", detail
+		}
+	}
+	return 1, "greet", "Greeting user"
+}
+
+// onboardingFailedStep returns the 1-based index and detail of the first
+// failed step, defaulting to step 1 if none is found.
+func onboardingFailedStep(steps map[string]any) (int, string) {
+	for i, id := range onboardingStepOrder {
+		st, _ := steps[id].(map[string]any)
+		status, _ := st["status"].(string)
+		if status == "failed" {
+			detail := ""
+			if d, ok := st["detail"].(string); ok {
+				detail = d
+			}
+			return i + 1, detail
+		}
+	}
+	return 1, "unknown error"
 }

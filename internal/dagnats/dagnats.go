@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -38,10 +39,15 @@ type Client struct {
 }
 
 // NewClient returns a Client targeting the DagNats API at baseURL
-// (e.g. http://127.0.0.1:8090).
+// (e.g. http://127.0.0.1:8090). A missing scheme is normalised to
+// http:// so callers can pass the bare host:port from config
+// (DAGNATS_HTTP_ADDR) without building invalid URLs downstream.
 func NewClient(baseURL string) *Client {
+	if !strings.HasPrefix(baseURL, "http://") && !strings.HasPrefix(baseURL, "https://") {
+		baseURL = "http://" + baseURL
+	}
 	return &Client{
-		baseURL: baseURL,
+		baseURL: strings.TrimRight(baseURL, "/"),
 		http:    &http.Client{Timeout: 10 * time.Second},
 	}
 }
@@ -157,4 +163,29 @@ func (c *Client) GetRun(ctx context.Context, runID string) (*RunStatus, error) {
 		return nil, fmt.Errorf("dagnats: unmarshal run status: %w", err)
 	}
 	return &st, nil
+}
+
+// GetRunRaw fetches the full run JSON (not the trimmed RunStatus) so
+// callers can inspect per-step status. pollRun uses it to find the
+// in-progress step while the run is paused on WaitForSignal (the overall
+// status stays "running", so the trimmed Step field lags behind).
+func (c *Client) GetRunRaw(ctx context.Context, runID string) (map[string]any, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
+		c.baseURL+"/runs/"+runID, nil)
+	if err != nil {
+		return nil, fmt.Errorf("dagnats: build get run raw: %w", err)
+	}
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("dagnats: get run raw: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("dagnats: get run raw: status %d", resp.StatusCode)
+	}
+	var out map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return nil, fmt.Errorf("dagnats: decode run raw: %w", err)
+	}
+	return out, nil
 }

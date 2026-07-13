@@ -9,9 +9,9 @@
 [build]
   pre_cmd = [
     "lsof -ti:8080 | xargs kill -9 2>/dev/null || true",
-    "go tool templ generate && bin/datastar-lint"
+    "go tool templ generate && bin/datastar-lint -only-errors -r ./features"
   ]
-  cmd            = "go build -ldflags='-w -X main.Version=dev' -o ./tmp/app ./cmd/web"
+  cmd            = "go build -tags \"jetstream dagnats\" -ldflags='-w -X main.Version=dev' -o ./tmp/app ./cmd/web"
   bin            = "./tmp/app"
   args_bin       = []
   include_ext    = ["go", "templ", "yaml"]
