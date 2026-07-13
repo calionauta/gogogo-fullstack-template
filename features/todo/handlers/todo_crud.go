@@ -92,6 +92,12 @@ func (h *TodoHandler) handleListFragment(c *core.RequestEvent) error {
 		return c.String(statusInternal, "error rendering list")
 	}
 	c.Response.Header().Set("Content-Type", "text/html; charset=utf-8")
+	// Datastar morph hints: when a client re-fetches this fragment (after a
+	// PocketBase realtime record change), the outer morph targets #todo-list
+	// and replaces the whole region — so deletes disappear and creates/updates
+	// merge in. Set by the server so the client's @get needs no opts.
+	c.Response.Header().Set("datastar-selector", "#todo-list")
+	c.Response.Header().Set("datastar-mode", "outer")
 	return c.HTML(http.StatusOK, buf.String())
 }
 

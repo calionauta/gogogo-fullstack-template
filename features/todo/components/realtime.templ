@@ -99,20 +99,22 @@ templ RealtimeStream(streamURL string) {
 // a record mutation event we re-fetch the list fragment via Datastar's
 // programmatic @get (window.datastar.get), morphing #todo-list in place.
 templ PbRealtimeRecords() {
+	<button
+		id="pb-realtime-resync"
+		type="button"
+		class="hidden"
+		data-on:click={ "@get('/api/todos/fragment')" }
+		aria-hidden="true"
+	></button>
 	<script type="module">
-		// Datastar v1.2.2's embedded build is an ESM module (loaded via
-		// type="module"), so it is NOT exposed on window. The fetch actions
-		// (get/post/...) are registered internally and exposed via the `actions`
-		// export — there is no top-level `get` export. Import `actions` and call
-		// actions.get(...).
-		import { actions } from '/static/datastar.js';
-
-		(function () {
-			// PocketBase realtime REQUIRES the clientId in the EventSource URL:
-			// without it PB never sends PB_CONNECT, so onRecord would never bind
-			// and record mutations would only flow through the SSE hub. Reuse the
-			// tab's stable client id so reconnects re-subscribe with the same id.
-			var clientID = window.__gogogoClientID || ('tab-' + Math.random().toString(36).slice(2, 10));
+		// Re-fetch the todo list via the hidden @get button (markup above)
+		// instead of calling actions.get() directly: Datastar's get action
+		// needs a context (el/cleanups) the runtime only synthesizes when the
+		// action is invoked through an attribute, so a bare actions.get(url)
+		// crashes (cleanups is undefined). The server's /api/todos/fragment
+		// response sets datastar-selector + datastar-mode headers so the morph
+		// targets #todo-list (outer).
+		var clientID = window.__gogogoClientID || ('tab-' + Math.random().toString(36).slice(2, 10));
 			var es = new EventSource('/api/realtime?clientId=' + encodeURIComponent(clientID));
 			function subscribe(clientId) {
 				fetch('/api/realtime', {
@@ -127,7 +129,10 @@ templ PbRealtimeRecords() {
 			// happens before the subscription is live (or while backgrounded)
 			// would otherwise never reach this tab — leaving the other tab
 			// silently out of sync until a full reload.
-			function resync() { actions.get('/api/todos/fragment'); }
+			function resync() {
+				var b = document.getElementById('pb-realtime-resync');
+				if (b) { b.click(); }
+			}
 			es.addEventListener('PB_CONNECT', function (e) {
 				var msg;
 				try { msg = JSON.parse(e.data); } catch (_) { return; }
@@ -150,27 +155,12 @@ templ PbRealtimeRecords() {
 			function onRecord(e) {
 				var msg;
 				try { msg = JSON.parse(e.data); } catch (_) { return; }
-				if (msg.action === 'delete') {
-					// Datastar's `get` merge adds/updates but does NOT remove absent
-					// elements, so a deleted todo would linger in other clients.
-					// Remove the specific element directly instead.
-					var delId = (msg.record && msg.record.id) || msg.recordId || msg.id;
-					var el = delId ? document.getElementById('todo-' + delId) : null;
-					if (el) { el.remove(); return; }
-					actions.get('/api/todos/fragment');
-					return;
-				}
-				if (msg.action === 'deleteAll') {
-					var list = document.getElementById('todo-list');
-					if (list) {
-						var items = list.querySelectorAll('.todo-item');
-						for (var i = 0; i < items.length; i++) { items[i].remove(); }
-					}
-					return;
-				}
-				if (msg.action === 'create' || msg.action === 'update') {
-					actions.get('/api/todos/fragment');
-				}
+				// Any record change (create/update/delete): refetch the fragment.
+				// The server returns datastar-selector:#todo-list + datastar-mode:outer,
+				// so the outer morph replaces the whole list — deletes disappear and
+				// creates/updates merge in. More robust than partial DOM edits and
+				// keeps every tab consistent with the server.
+				resync();
 			}
 			// EventSource auto-reconnects on drop; PB_CONNECT re-fires with a
 			// fresh clientId, so we re-subscribe and re-bind on each connect.

@@ -2,6 +2,14 @@
 
 All notable changes to this template are documented here. The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.12.1] - 2026-07-13
+
+### Fixed
+- **Realtime resync crash — the other tab never updated.** `PbRealtimeRecords.resync()` called `actions.get('/api/todos/fragment')` directly. In Datastar v1.2.2's embedded ESM build `actions` is a Proxy that resolves to the get action's `apply` with **no context**, so `cleanups` was `undefined` and the call threw `Cannot read properties of undefined (reading 'delete')`. The other tab received the PocketBase realtime event but crashed before morphing `#todo-list`. Replaced with a hidden `@get('/api/todos/fragment')` button whose `.click()` the runtime drives with a proper Datastar context (the same proven mechanism as the SSE-opener). The server's `/api/todos/fragment` now sends `datastar-selector: #todo-list` + `datastar-mode: outer` so the outer morph replaces the whole list (deletes disappear, creates/updates merge) instead of clobbering the entire document (`features/todo/components/realtime.templ`, `features/todo/handlers/todo_crud.go`).
+
+### Added
+- **Realtime resync regression tests.** `TestRealtimeResyncWiringRendered` asserts the page wires resync through the `@get` button and never reintroduces the crashing `actions.get('/api/todos/fragment')` call. `TestRealtimeResyncFragmentMorphHeaders` asserts `/api/todos/fragment` returns `datastar-selector` + `datastar-mode` headers so the resync morphs `#todo-list` (not the whole document). Together with `TestCrossSessionCreatePropagates` they guard the full create → broadcast → morph path (`features/todo/realtime_propagation_test.go`).
+
 ## [0.12.0] - 2026-07-13
 
 ### Fixed

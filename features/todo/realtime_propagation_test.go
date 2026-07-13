@@ -153,6 +153,78 @@ func TestCrossSessionFragmentScoped(t *testing.T) {
 	}
 }
 
+// TestRealtimeResyncFragmentMorphHeaders guards the client-side half of the
+// same bug: the realtime handler refetches /api/todos/fragment on a record
+// change and the browser morphs #todo-list in place. For that morph to target
+// the right region (and NOT replace the whole document), the server must send
+// datastar-selector + datastar-mode headers. If these regress, resync would
+// either no-op (no selector) or blow away the page (whole-document morph).
+func TestRealtimeResyncFragmentMorphHeaders(t *testing.T) {
+	base, _, _, _, cleanup := testFixture(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	jar, _ := cookiejar.New(nil)
+	client := &http.Client{Jar: jar, Timeout: 15 * time.Second}
+	loginUser(ctx, t, client, base, demoEmail, demoPassword)
+
+	resp, err := client.Get(base + "/api/todos/fragment")
+	if err != nil {
+		t.Fatalf("fragment GET: %v", err)
+	}
+	defer resp.Body.Close()
+	if got := resp.Header.Get("datastar-selector"); got != "#todo-list" {
+		t.Fatalf("expected datastar-selector=#todo-list, got %q", got)
+	}
+	if got := resp.Header.Get("datastar-mode"); got != "outer" {
+		t.Fatalf("expected datastar-mode=outer, got %q", got)
+	}
+}
+
+// TestRealtimeResyncWiringRendered guards against reintroducing the exact
+// crash the user hit: the page must wire the resync through a hidden @get
+// button (whose click the runtime drives with a proper Datastar context),
+// never a bare actions.get(url) call. A bare actions.get crashes with
+// "Cannot read properties of undefined (reading 'delete')" because the get
+// action expects a context (el/cleanups) only the runtime synthesizes when
+// invoked via an attribute — so the other tab would never update.
+func TestRealtimeResyncWiringRendered(t *testing.T) {
+	base, _, _, _, cleanup := testFixture(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	jar, _ := cookiejar.New(nil)
+	client := &http.Client{Jar: jar, Timeout: 15 * time.Second}
+	loginUser(ctx, t, client, base, demoEmail, demoPassword)
+
+	resp, err := client.Get(base + "/")
+	if err != nil {
+		t.Fatalf("GET /: %v", err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	html := string(body)
+	if !strings.Contains(html, "pb-realtime-resync") {
+		t.Fatalf("page missing pb-realtime-resync resync button")
+	}
+	// Templ's ResolveAttributeValue HTML-escapes the single quotes in the
+	// attribute value ( ' -> &#39; ), so the rendered form is
+	// @get(&#39;/api/todos/fragment&#39;). The browser unescapes it when reading
+	// the attribute, so Datastar still sees @get('/api/todos/fragment').
+	// Accept either rendering.
+	plain := "@get('/api/todos/fragment')"
+	escaped := "@get(&#39;/api/todos/fragment&#39;)"
+	if !strings.Contains(html, plain) && !strings.Contains(html, escaped) {
+		if i := strings.Index(html, "pb-realtime-resync"); i >= 0 {
+			t.Logf("button context: %q", html[i-60:i+220])
+		}
+		t.Fatalf("page missing @get resync wiring for /api/todos/fragment (checked %q and %q)", plain, escaped)
+	}
+	if strings.Contains(html, "actions.get('/api/todos/fragment')") {
+		t.Fatalf("regression: page still uses crashing actions.get('/api/todos/fragment') instead of the @get button")
+	}
+}
+
 // bootLiveServer builds and runs the production binary (dev variant) as a
 // subprocess and waits for it to accept /health. Returns the base URL and a
 // cleanup that kills the process. This is the only faithful way to exercise
