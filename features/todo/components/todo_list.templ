@@ -145,7 +145,7 @@ templ TodoList(signals todo.Signals) {
 						<div class="tabs tabs-box w-full mt-0 mb-2" role="tablist">
 							<button
 								class="tab tab-sm flex-1 transition-all"
-								data-on:click="@post('/api/todos', {contentType: 'form'})"
+								data-on:click="$sidebarTab = 'queue'"
 								data-class={ "{'tab-active': $sidebarTab === 'queue'}" }
 							>
 								Queue + Retry
@@ -325,17 +325,23 @@ templ TodoList(signals todo.Signals) {
 
 									<ul class="steps steps-vertical w-full mb-3 text-xs">
 										<li class="step transition-all duration-500"
-											data-class={ "{'step-primary': $techStep === 'workflow' && $onboardingActive && !$workflowCompleted && $onboardingPhase === 'greet', 'step-success': $workflowCompleted}" }
-										>Greeting</li>
+											data-class={ "{'step-primary': $techStep === 'workflow' && $onboardingActive && !$workflowCompleted && $onboardingStep === 1, 'step-success': $workflowCompleted}" }
+										>1. Greeting</li>
 										<li class="step transition-all duration-500"
-											data-class={ "{'step-primary': $techStep === 'workflow' && $onboardingActive && !$workflowCompleted && ($onboardingStep === 2 || $onboardingPhase === 'workflow'), 'step-success': $workflowCompleted}" }
-										>Waiting for the next to-do</li>
+											data-class={ "{'step-primary': $techStep === 'workflow' && $onboardingActive && !$workflowCompleted && $onboardingStep === 2, 'step-success': $workflowCompleted}" }
+										>2. Waiting for your first to-do</li>
 										<li class="step transition-all duration-500"
-											data-class={ "{'step-primary': $techStep === 'workflow' && $onboardingActive && !$workflowCompleted && $onboardingStep >= 3 && $onboardingStep <= 5, 'step-success': $workflowCompleted}" }
-										>Create example todos (×3)</li>
+											data-class={ "{'step-primary': $techStep === 'workflow' && $onboardingActive && !$workflowCompleted && $onboardingStep === 3, 'step-success': $workflowCompleted}" }
+										>3. Creating example todo 1/3</li>
 										<li class="step transition-all duration-500"
-											data-class={ "{'step-primary': $techStep === 'workflow' && $onboardingActive && !$workflowCompleted && $onboardingPhase === 'finalize', 'step-success': $workflowCompleted}" }
-										>Finalize</li>
+											data-class={ "{'step-primary': $techStep === 'workflow' && $onboardingActive && !$workflowCompleted && $onboardingStep === 4, 'step-success': $workflowCompleted}" }
+										>4. Creating example todo 2/3</li>
+										<li class="step transition-all duration-500"
+											data-class={ "{'step-primary': $techStep === 'workflow' && $onboardingActive && !$workflowCompleted && $onboardingStep === 5, 'step-success': $workflowCompleted}" }
+										>5. Creating example todo 3/3</li>
+										<li class="step transition-all duration-500"
+											data-class={ "{'step-primary': $techStep === 'workflow' && $onboardingActive && !$workflowCompleted && $onboardingStep === 6, 'step-success': $workflowCompleted}" }
+										>6. Finalize</li>
 									</ul>
 
 									<div

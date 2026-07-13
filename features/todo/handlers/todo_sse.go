@@ -36,7 +36,7 @@ func (h *TodoHandler) handleSSEStream(c *core.RequestEvent) error {
 	sse := sdk.NewSSE(c.Response, c.Request)
 	ch := make(chan []byte, sseClientBuffer)
 	h.q.Hub().Register(clientID, ownerOf(c), ch)
-	slog.Info("todo: sse registered", "clientID", clientID, "userID", ownerOf(c), "total", h.q.Hub().Stats().Clients)
+	slog.Info("todo: sse registered", "clientID", clientID, "userID", ownerOf(c), "total_users", h.q.Hub().CountUserClients())
 	defer func() {
 		h.q.Hub().Unregister(clientID)
 		h.broadcastClientCount()
@@ -403,11 +403,13 @@ func (h *TodoHandler) dispatchStreamMessage(c *core.RequestEvent, sse *sdk.Serve
 	}
 }
 
-// broadcastClientCount tells every connected client how many are
-// currently online. Called on connect + disconnect so the UI's
-// presence badge stays live.
+// broadcastClientCount tells every connected client how many todo
+// users are currently online. Uses CountUserClients (not Stats().Clients)
+// so whiteboard SSE connections (which register on the same hub with an
+// empty userID) do not inflate the count. Called on connect + disconnect
+// so the UI's presence badge stays live.
 func (h *TodoHandler) broadcastClientCount() {
-	payload := mustJSON(map[string]any{"count": h.q.Hub().Stats().Clients})
+	payload := mustJSON(map[string]any{"count": h.q.Hub().CountUserClients()})
 	h.q.Hub().Broadcast(mustJSON(queue.Job{Type: "clients", Payload: payload}))
 }
 

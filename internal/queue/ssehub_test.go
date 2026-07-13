@@ -215,6 +215,31 @@ func TestSSEHub_Broadcast_SkipsUnregisteredClients(t *testing.T) {
 	}
 }
 
+// TestSSEHub_CountUserClients_ExcludesEmptyUserID asserts that
+// CountUserClients only counts clients with a non-empty userID.
+// Clients registered with an empty userID (e.g. whiteboard SSE
+// connections) must be excluded so the todo feature's "X online"
+// counter does not inflate when users navigate between pages.
+func TestSSEHub_CountUserClients_ExcludesEmptyUserID(t *testing.T) {
+	h := NewSSEHub()
+	c1 := make(chan []byte, 10)
+	c2 := make(chan []byte, 10)
+	c3 := make(chan []byte, 10)
+
+	// Register two clients with userIDs and one without.
+	h.Register("todo-tab-a", "user1", c1)
+	h.Register("todo-tab-b", "user1", c2)
+	h.Register("whiteboard-tab", "", c3) // whiteboard uses empty userID
+
+	if got := h.CountUserClients(); got != 2 {
+		t.Fatalf("CountUserClients = %d, want 2 (only clients with non-empty userID)", got)
+	}
+	// Stats().Clients still counts all 3.
+	if stats := h.Stats(); stats.Clients != 3 {
+		t.Fatalf("Stats().Clients = %d, want 3 (all clients including whiteboard)", stats.Clients)
+	}
+}
+
 // TestSSEHub_BroadcastToUser_ScopesByOwner asserts the per-user
 // contract: a record mutation is delivered only to clients owned by the
 // same user, and the originating client (excludeClientID) is skipped.

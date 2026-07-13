@@ -294,6 +294,23 @@ func (h *SSEHub) Stats() SSEHubStats {
 	return stats
 }
 
+// CountUserClients returns the number of clients registered with a
+// non-empty userID. Clients without a userID (e.g. whiteboard SSE
+// connections) are excluded. The todo feature uses this to report
+// "X online" so navigating between todo and whiteboard pages does
+// not inflate the count with stale whiteboard connections.
+func (h *SSEHub) CountUserClients() int {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	count := 0
+	for _, uid := range h.userOf {
+		if uid != "" {
+			count++
+		}
+	}
+	return count
+}
+
 // bufferEvent appends data to the per-client replay buffer, dropping
 // the oldest event if the buffer is full. Caller must NOT hold the
 // mutex (this function acquires it).

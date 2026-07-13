@@ -125,10 +125,11 @@ func (h *OnboardingHandler) handleStart(c *core.RequestEvent) error {
 		user = "friend"
 	}
 
-	// Reset the stepper and announce step 1 so the UI lights up the
-	// moment the workflow starts.
-	h.publishProgress(context.Background(), 1, 6, "greet", "Step 1/6 — Greeting user")
-
+	// Start the workflow in a goroutine. The pollRun loop within will
+	// publish progress events as the workflow advances — no need to
+	// publish a synthetic "Step 1/6" here, because the first poll tick
+	// detects the greet step and publishes it naturally. Publishing
+	// from BOTH places creates a duplicate toast.
 	go func() {
 		runID, err := h.client.StartRun(context.Background(), "onboarding", map[string]any{"user": user})
 		if err != nil {
@@ -178,6 +179,14 @@ func (h *OnboardingHandler) pollRun(runID string) {
 	ticker := time.NewTicker(700 * time.Millisecond)
 	defer ticker.Stop()
 	total := len(onboardingStepOrder)
+
+	// Track last published state so we don't emit duplicate progress
+	// events (and duplicate toasts) on every 700ms poll tick. Each
+	// distinct step/phase/detail combo fires exactly one progress event
+	// until the state changes — no more toast storms.
+	var lastStep int
+	var lastPhase, lastDetail string
+
 	for {
 		select {
 		case <-timeout:
@@ -201,6 +210,31 @@ func (h *OnboardingHandler) pollRun(runID string) {
 
 		switch overall {
 		case "completed":
+			// Publish any intermediate steps that were missed due to fast
+			// execution (e.g. the user added a todo and the workflow ran
+			// through steps 3-5 before the next poll tick). This ensures
+			// the stepper and toasts show the full progression even when
+			// the polling interval is coarser than the workflow speed.
+			for s := lastStep + 1; s < total; s++ {
+				var phase, detail string
+				switch s {
+				case 1:
+					phase = "greet"
+					detail = "Greeting user"
+				case 2:
+					phase = "workflow"
+					detail = "Waiting for your next to-do (create one to continue)"
+				case 3, 4, 5:
+					phase = "workflow"
+					detail = fmt.Sprintf("Creating example todo %d/3", s-2)
+				default:
+					phase = "finalize"
+					detail = "Finalizing onboarding"
+				}
+				h.publishProgress(ctx, s, total, phase,
+					fmt.Sprintf("Step %d/%d — %s", s, total, detail))
+			}
+			// Terminal — always publish (fires once on transition).
 			h.publishProgress(ctx, total, total, "finalize",
 				fmt.Sprintf("Step %d/%d — Onboarding complete", total, total))
 			if h.broadcaster != nil {
@@ -209,6 +243,7 @@ func (h *OnboardingHandler) pollRun(runID string) {
 			}
 			return
 		case "failed":
+			// Terminal — always publish (fires once on transition).
 			cur, detail := onboardingFailedStep(steps)
 			h.publishProgress(ctx, cur, total, "error",
 				fmt.Sprintf("Onboarding failed: %s", detail))
@@ -221,7 +256,13 @@ func (h *OnboardingHandler) pollRun(runID string) {
 			// "running" / "waiting" / anything else: derive the current
 			// step from the per-step statuses so the await suspend still
 			// advances the stepper to "Waiting for your next to-do".
+			// Only publish when the state actually changes to avoid
+			// spamming toasts on every poll tick.
 			cur, phase, detail := onboardingCurrentStep(steps)
+			if cur == lastStep && phase == lastPhase && detail == lastDetail {
+				continue
+			}
+			lastStep, lastPhase, lastDetail = cur, phase, detail
 			h.publishProgress(ctx, cur, total, phase,
 				fmt.Sprintf("Step %d/%d — %s", cur, total, detail))
 		}

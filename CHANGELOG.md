@@ -2,6 +2,24 @@
 
 All notable changes to this template are documented here. The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.13.0] - 2026-07-13
+
+### Fixed
+- **Cross-tab realtime quebrado por SyntaxError no PbRealtimeRecords.** A refatoração da v0.12.1 removeu a IIFE `(function() { ... })()` mas deixou o fechamento `})();` órfão no template. Isso causava `Uncaught SyntaxError: Unexpected token '}'` que impedia TODO o módulo de executar — o EventSource para o PocketBase realtime nunca era criado, e nenhuma aba recebia atualizações de records. Removido o `})();` órfão (`features/todo/components/realtime.templ`).
+- **Aba "Queue + Retry" não navegava no sidebar.** O `data-on:click` do botão estava `@post('/api/todos', {contentType: 'form'})` em vez de `$sidebarTab = 'queue'` — clicar na aba submetia o formulário de criação em vez de trocar a aba. Corrigido para `$sidebarTab = 'queue'` (`features/todo/components/todo_list.templ`).
+- **Toast "Step X/6" repetido a cada 700ms no Durable Workflow.** `pollRun` emitia `publishProgress` em CADA tick do polling sem deduplicação de estado. Adicionadas variáveis `lastStep/lastPhase/lastDetail` para só emitir quando o estado muda (`features/todo/handlers/onboarding.go`).
+- **Toast "Step 1/6" duplicado ao iniciar workflow.** `handleStart` chamava `publishProgress(1,6,...)` manualmente, e o primeiro tick do `pollRun` publicava de novo o mesmo estado. Removido o `publishProgress` do `handleStart` — o loop de polling agora cuida de todo progresso (`features/todo/handlers/onboarding.go`).
+- **Steps intermediários (3/6, 4/6, 5/6) não apareciam nos toasts.** Quando o workflow executava rápido, o polling de 700ms não capturava os steps intermediários. No `completed`, agora publica retroativamente todos os steps não vistos antes do step final (`features/todo/handlers/onboarding.go`).
+- **AI Suggest ficava em loading infinito quando LLM não configurado.** `handleSuggestJob` retornava erro sem enviar `suggest_result` com `suggestPending: false`. Agora envia o resultado de erro antes de retornar, liberando o spinner (`features/todo/handlers/llm_suggest.go`).
+- **Connected clients mostrava "4 online" com 2 abas.** Whiteboard e todo compartilhavam o mesmo SSE hub. `Stats().Clients` contava whiteboard connections como clients do todo. Adicionado `CountUserClients()` que filtra por `userID != ""` (whiteboard registra com `""`). `broadcastClientCount` e `handleIndex` agora usam `CountUserClients()` (`internal/queue/ssehub.go`, `features/todo/handlers/todo_sse.go`, `features/todo/handlers/todo.go`).
+
+### Changed
+- **Stepper do Durable Workflow expandido de 4 para 6 steps.** Agora mostra todos os steps do workflow (1. Greeting, 2. Waiting, 3-5. Creating examples, 6. Finalize), alinhado com o DagNats workflow de 6 steps (`features/todo/components/todo_list.templ`).
+
+### Added
+- **Regressão: PbRealtimeRecords sem IIFE órfã.** `TestRealtimeNoOrphanIIFE` verifica que o bloco de script do `PbRealtimeRecords` não contém `})();` (`features/todo/realtime_propagation_test.go`).
+- **Regressão: CountUserClients exclui whiteboard.** `TestSSEHub_CountUserClients_ExcludesEmptyUserID` verifica que `CountUserClients()` só conta clients com `userID` não vazio (`internal/queue/ssehub_test.go`).
+
 ## [0.12.1] - 2026-07-13
 
 ### Fixed

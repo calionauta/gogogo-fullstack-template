@@ -98,6 +98,23 @@ func (h *TodoHandler) handleSuggestJob(ctx context.Context, hub *queue.SSEHub, j
 		client = h.llmSimulated
 	}
 	if client == nil || !client.Configured() {
+		// Even when the LLM is not configured, we MUST release the
+		// suggestPending spinner on the client. Without this, the UI
+		// stays in a forever-spinning state because the retry layer
+		// exhausts its attempts and the client is never notified.
+		errResult := map[string]any{
+			signalSuggestions:    []string{},
+			signalSuggestErr:     "AI suggest failed: LLM not configured",
+			signalSuggestPending: false,
+		}
+		body, marshalErr := json.Marshal(queue.Job{Type: "suggest_result", Payload: mustJSON(errResult)})
+		if marshalErr == nil {
+			if job.ClientID != "" {
+				hub.Send(job.ClientID, body)
+			} else {
+				hub.Broadcast(body)
+			}
+		}
 		return fmt.Errorf("llm client not configured for job %s", job.Type)
 	}
 

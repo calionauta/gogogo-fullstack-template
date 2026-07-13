@@ -225,6 +225,63 @@ func TestRealtimeResyncWiringRendered(t *testing.T) {
 	}
 }
 
+// TestRealtimeNoOrphanIIFE guards against reintroducing the orphan
+// `})();` that caused a SyntaxError in PbRealtimeRecords. The orphan
+// was left over from a refactoring that removed the IIFE wrapper but
+// left the closing `})();`. This made the ENTIRE module script fail
+// to parse, so no PocketBase realtime EventSource was ever created
+// and cross-tab sync was completely dead. The rendered HTML must
+// never contain this sequence.
+//
+// We find the PbRealtimeRecords script block by looking for its
+// distinctive string (the call to new EventSource('/api/realtime))
+// and then check that the code between it and the closing </script>
+// does NOT contain the orphan })(); — which appears in RealtimeStream's
+// VALID IIFE but would be a syntax error in PbRealtimeRecords.
+func TestRealtimeNoOrphanIIFE(t *testing.T) {
+	base, _, _, _, cleanup := testFixture(t)
+	defer cleanup()
+	ctx := context.Background()
+
+	jar, _ := cookiejar.New(nil)
+	client := &http.Client{Jar: jar, Timeout: 15 * time.Second}
+	loginUser(ctx, t, client, base, demoEmail, demoPassword)
+
+	resp, err := client.Get(base + "/")
+	if err != nil {
+		t.Fatalf("GET /: %v", err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	html := string(body)
+
+	// Locate the PbRealtimeRecords script block (it contains the
+	// EventSource('/api/realtime') call unique to that component).
+	marker := "EventSource('/api/realtime"
+	idx := strings.Index(html, marker)
+	if idx < 0 {
+		t.Fatalf("PbRealtimeRecords script block not found (missing %q)", marker)
+	}
+	// Find the closing </script> after this marker.
+	scriptEnd := strings.Index(html[idx:], "<"+"/script>")
+	if scriptEnd < 0 {
+		t.Fatalf("could not find </script> after PbRealtimeRecords block")
+	}
+	pbBlock := html[idx : idx+scriptEnd]
+
+	// The orphan })(); would appear INSIDE the PbRealtimeRecords script
+	// after the marker. Check that it's NOT there. (RealtimeStream has
+	// its own valid IIFE elsewhere on the page, which we ignore.)
+	if strings.Contains(pbBlock, "})()"+";") {
+		t.Fatalf("PbRealtimeRecords script block contains orphan })(); — SyntaxError kills cross-tab realtime")
+	}
+	// Also verify the script block DOES contain the pb-realtime-resync
+	// button reference (the resync mechanism is the fix for the crash).
+	if !strings.Contains(pbBlock, "pb-realtime-resync") {
+		t.Fatalf("PbRealtimeRecords script missing pb-realtime-resync resync mechanism")
+	}
+}
+
 // bootLiveServer builds and runs the production binary (dev variant) as a
 // subprocess and waits for it to accept /health. Returns the base URL and a
 // cleanup that kills the process. This is the only faithful way to exercise

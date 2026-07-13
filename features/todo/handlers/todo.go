@@ -183,7 +183,7 @@ func (h *TodoHandler) handleIndex(c *core.RequestEvent) error {
 		LLMEnabled:       h.llmEnabled(),
 		SimulatedLLM:     h.simulatedLLMEnabled(),
 		DagNatsEnabled:   h.cfg.DagNats.Enabled,
-		ConnectedClients: h.q.Hub().Stats().Clients,
+		ConnectedClients: h.q.Hub().CountUserClients(),
 		Suggestions:      []string{},
 		SuggestErr:       "",
 		RealtimeKind:     realtimeLabel(h.cfg),
