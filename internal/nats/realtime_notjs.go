@@ -21,12 +21,9 @@ import (
 // the transport.
 type TodoBroadcaster interface {
 	// PublishTodoUpdate broadcasts a serialized todo event (JSON) to all
-	// connected clients.
+	// connected clients. Used for ephemeral todo signals (e.g. workflow
+	// completion) — record mutations now flow through PocketBase realtime.
 	PublishTodoUpdate(ctx context.Context, payload []byte) error
-	// PublishTodoUpdateFrom broadcasts a todo event to all clients EXCEPT
-	// fromClientID, so the originator (which already patched its own DOM
-	// via the per-request SSE response) is not redundantly re-rendered.
-	PublishTodoUpdateFrom(ctx context.Context, payload []byte, fromClientID string) error
 }
 
 // JetStreamLike is the shape startNATS returns on jetstream builds. On

@@ -30,12 +30,9 @@ type (
 	// caller's type stays stable across tags.
 	TodoBroadcaster interface {
 		// PublishTodoUpdate broadcasts a serialized todo event (JSON) to all
-		// connected clients.
+		// connected clients. Used for ephemeral todo signals (e.g. workflow
+		// completion) — record mutations now flow through PocketBase realtime.
 		PublishTodoUpdate(ctx context.Context, payload []byte) error
-		// PublishTodoUpdateFrom broadcasts a todo event to all clients EXCEPT
-		// fromClientID, so the originator (which already patched its own DOM
-		// via the per-request SSE response) is not redundantly re-rendered.
-		PublishTodoUpdateFrom(ctx context.Context, payload []byte, fromClientID string) error
 		// Subscribe binds the broadcaster's transport to hub so published
 		// events are re-emitted to every connected client. No-op for the
 		// in-memory variant (which already holds the hub directly).
@@ -94,19 +91,6 @@ func NewJetStreamBroadcaster(js natsio.JetStreamContext, hub *queue.SSEHub) (*Je
 // Hub, so all tabs connected to any instance see the change.
 func (b *JetStreamBroadcaster) PublishTodoUpdate(_ context.Context, payload []byte) error {
 	_, err := b.js.Publish(todoSubject, payload)
-	return err
-}
-
-// PublishTodoUpdateFrom publishes payload to the TODOS stream tagged with
-// the originating clientID so the subscriber (below) can skip re-emitting
-// it to the originator's own SSE channel — the originator already patched
-// its DOM via the per-request SSE response.
-func (b *JetStreamBroadcaster) PublishTodoUpdateFrom(_ context.Context, payload []byte, fromClientID string) error {
-	if fromClientID == "" {
-		return b.PublishTodoUpdate(context.Background(), payload)
-	}
-	tagged := append([]byte("\x00"+fromClientID+"\x00"), payload...)
-	_, err := b.js.Publish(todoSubject, tagged)
 	return err
 }
 
