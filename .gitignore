@@ -49,3 +49,6 @@ app
 gogogo-fullstack-template
 coverage.html
 coverage.out
+
+# Generated draft posts (CONTENT_WRITING.md stays tracked; posts/ do not)
+posts/

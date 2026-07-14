@@ -2,6 +2,15 @@
 
 All notable changes to this template are documented here. The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.17.0] - 2026-07-14
+
+### Added
+- **OfflineBanner compartilhado (DRY/KISS, pluggable como o Toast).** Extraído o aviso de estado de transporte (online / sincronizando / offline) de um banner inline no `features/todo/components/layout.templ` para um componente central `internal/components/offline_banner.templ` (`SCOPE:core`), no mesmo pacote do `Toast`. Agora todo e whiteboard usam o mesmo mecanismo via `@components.OfflineBanner()` — uma única fonte de verdade para o estado offline. A bridge é o Service Worker: `web/resources/static/sw.js` posta `sync-start` / `sync-end` / `sync-error` para os clientes durante o replay de Background Sync; o componente escuta e troca as classes CSS. Fallback `navigator.onLine` quando o SW não está registrado (`OFFLINE_SYNC_ENABLED=false` em dev).
+- **CONTENT_WRITING.md expandido.** Guia de writing style reescrito com 10 ângulos (Functionality, Strategy, Design Philosophy, Skills, Comparison, War Stories, Personas, Formats, Anti-marketing, Numbers) cobrindo todos os layers (goqite, dagnats, loro, pb realtime, sse hub, jetstream), o opt-out por env var vs delete-directory, o split `gogogo_auth`+`pb_auth`, e 10 bug stories do changelog. `posts/` adicionado ao `.gitignore` para que rascunhos gerados não subam ao repo.
+
+### Changed
+- **Whiteboard page shells montam `@components.OfflineBanner()`** (`features/whiteboard/components.templ`: `BoardListWithRealtime` e `Board`), fechando o gap onde só o todo tinha feedback de offline.
+
 ## [0.14.0] - 2026-07-13
 
 ### Fixed

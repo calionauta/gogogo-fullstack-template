@@ -50,6 +50,21 @@ self.addEventListener("activate", function (e) {
   );
 });
 
+// ---- Notify clients of transport state ----
+// The OfflineBanner component (internal/components/offline_banner.templ)
+// listens for these messages. States: sync-start (replaying queued
+// mutations), sync-end (replay finished cleanly), sync-error (replay
+// stopped with items still pending, or queued while offline).
+function notifyClients(state) {
+  self.clients.matchAll({ includeUncontrolled: true, type: "window" })
+    .then(function (clientsList) {
+      clientsList.forEach(function (client) {
+        client.postMessage({ type: state });
+      });
+    })
+    .catch(function () { /* no clients to notify */ });
+}
+
 // ---- Fetch Intercept ----
 self.addEventListener("fetch", function (e) {
   var url = new URL(e.request.url);
@@ -118,6 +133,8 @@ async function networkFirstWithQueue(request) {
     try {
       var cloned = request.clone();
       await queueRequest(cloned);
+      // Tell the UI a mutation is now queued (offline / will-sync state).
+      notifyClients("sync-error");
       // Register a Background Sync event if supported.
       if (self.registration && self.registration.sync) {
         self.registration.sync.register("pb-sync").catch(function () {});
@@ -208,6 +225,10 @@ async function replayQueue() {
   }
   if (items.length === 0) return;
 
+  // Replay starting — switch the UI to the "syncing" state.
+  notifyClients("sync-start");
+
+  var remaining = 0;
   for (var i = 0; i < items.length; i++) {
     var item = items[i];
     try {
@@ -226,11 +247,17 @@ async function replayQueue() {
       if (resp.ok || resp.status === 404) {
         // 404 means the resource was already deleted — safe to remove.
         await deletePending(item.id);
+      } else {
+        // Non-ok status (5xx) — leave in queue, retry next sync.
+        remaining++;
       }
-      // Non-ok status (5xx) — leave in queue, retry next sync.
     } catch (_) {
       // Network still unavailable — stop replay, try again later.
+      remaining++;
       break;
     }
   }
+
+  // Replay finished: online if nothing left, offline if items remain.
+  notifyClients(remaining === 0 ? "sync-end" : "sync-error");
 }
