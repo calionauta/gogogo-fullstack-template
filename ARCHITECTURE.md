@@ -112,7 +112,7 @@ For features that need **conflict-free offline editing** (not just offline queui
 | Collaborative editing (whiteboard, docs) | Loro CRDT | Conflict-free merge is essential for multi-user |
 | Read-heavy, write-rare (catalog, settings) | SW cache-only | No offline writes needed; stale-while-revalidate is fine |
 
-The **whiteboard already uses Loro CRDT**. For the **todo feature**, SW + Background Sync is the recommended path if offline support is needed — it's the KISS option that preserves PocketBase realtime. The actual implementation is left as future work (the outbox is IndexedDB-ready via the whiteboard.js pattern).
+The **whiteboard already uses Loro CRDT**. For the **todo feature**, SW + Background Sync is the implemented path — `web/resources/static/sw.js` intercepts `/api/*` mutations, queues them in IndexedDB, and replays them via Background Sync on reconnect; the shared **`OfflineBanner`** (`internal/components/`) surfaces the offline/syncing/online state to the user. This preserves PocketBase realtime while keeping the KISS offline-queue option.
 
 ---
 
@@ -203,7 +203,7 @@ features/                  Demo features (all 🟢 Plugin)
   auth/                      Login/logout/cookie (UI 🟢, middleware 🔴)
   todo/                      Todo MVC (the reference implementation)
     handlers/                  HTTP routes + SSE stream + onboarding
-    components/                Templ components (layout, todo_item, toast)
+    components/                Templ components (layout, todo_item, toast) — offline indicator is the shared `OfflineBanner` in `internal/components/`
   whiteboard/                Collaborative canvas
 internal/                  Infrastructure
   queue/                     goqite + SSE Hub + workers + retry + handler registry
@@ -211,6 +211,7 @@ internal/                  Infrastructure
   dagnats/                   DagNats client + workflow definitions
   collab/                    Loro CRDT + DocStore + sync workers + presence
   llm/                       GoAI LLM client + simulated client
+  components/                Shared UI helpers (Toast + OfflineBanner offline indicator)
   datastar/                  Datastar SSE rendering helpers
   secrets/                   age-decrypted secrets loader
 router/router.go            Route wiring (central dependency graph)

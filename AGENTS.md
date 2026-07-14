@@ -65,6 +65,7 @@ internal/
   dagnats/               🟡 PLUGGABLE  DagNats durable workflow client
   llm/                   🟡 PLUGGABLE  GoAI LLM client
   collab/                🟡 PLUGGABLE  Loro CRDT + DocStore + sync workers
+  components/             🟡 PLUGGABLE  Shared UI helpers (Toast + OfflineBanner)
 features/
   auth/                  🔴/🟢 CORE (middleware) / FEATURE (UI)
   app/                   🔴 CORE  AppContext (cross-cutting deps bundle)
