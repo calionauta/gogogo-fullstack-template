@@ -10,6 +10,8 @@ All notable changes to this template are documented here. The format is based on
 
 ### Changed
 - **Whiteboard page shells montam `@components.OfflineBanner()`** (`features/whiteboard/components.templ`: `BoardListWithRealtime` e `Board`), fechando o gap onde só o todo tinha feedback de offline.
+- **Remove prebuilt `gogogo-desktop` binary** do repo (44.6 MB) e adiciona `gogogo-desktop` + `stelow.json` ao `.gitignore`. O binário de desktop é buildado do source (`make desktop` / wails3), não commitado. Portado da linha `e4b97f4` que o master remoto anterior carregava.
+- **Rebuild `app.min.css`** (purge de CSS de widget de calendário que foi erroneamente commitado em v0.16.0).
 
 ## [0.14.0] - 2026-07-13
 
