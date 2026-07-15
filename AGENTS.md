@@ -59,10 +59,67 @@ Lessons from v0.18.0 (offline-add + CI flake). Full post-mortem: `docs/decisions
 - **Build tags ≠ test tags.** `Makefile`'s `$(TAGS)` (e.g. `no_default_driver`) is for the shipped binary. Tests that bootstrap PocketBase with `app.Bootstrap()` need a `DBConnect` when that tag is set; our tests rely on the default modernc driver, so `go test` recipes must NOT inherit `$(TAGS)`. Result of forgetting this: `Bootstrap` panics with `DBConnect config option must be set when the no_default_driver tag is used!` — easy to misread as a flake.
 - **Avoid package-level mutable globals.** `var NS/NC/JS *Foo` set by `StartX()` and torn down by `Stop()` leak across `-p 1` packages when `Stop` doesn't nil them. Either nil on entry/exit or, better, return a struct. See `internal/nats/embedded.go` for the belt-and-suspenders nil-out.
 - **Pre-commit MUST rebuild `.templ` AND CSS.** Editing a `.templ` without `make templ && make css` leaves `web/resources/static/app.min.css` stale. `css-check` passes by inertia when nobody rebuilt, masking the staleness until a real diff appears.
-- **Run `make check` (fmt + lint + css-check + sizes + deadcode, ~30s) after every change.** Don't run `make test` unless you actually touched Go code or `.templ`; full race tests take ~3-5 min locally and the remote CI re-runs them. `css-check` already catches stale `.templ` → CSS drift on the same pass.
+- **Three-tier feedback loop (replaces the single-tier "make check" rule).** See `## Feedback loop` below for the full breakdown. Short version: `make build` during dev, `make ci-local` pre-commit, **never run `make test` locally** — the remote CI is the test runner.
 - **Confirm live deployment by byte-diffing an embedded asset.** `diff <(curl https://<host>/static/<asset>) <(repo <asset>)` is the cheapest proof the running binary matches the latest commit. Use for any "is the fix actually live?" question.
 - **`git stash drop` is destructive** — it removes the ref without applying. Use `git stash pop` (apply + remove) or, before any stash drop, snapshot working changes to a `wip-*` branch.
 - **Heredoc commit/tag messages**: prefer `git commit -F - <<'EOF' ... EOF` (quoted EOF = literal body) or `git tag -F /tmp/msg`. Avoid `git commit -m "$(cat <<'EOF' ... EOF)"` — bash quoting through the outer `"` + `$()` can fail parse on apostrophes/backticks in the body.
+
+## Feedback loop (3 tiers)
+
+The Makefile has overlapping targets (`check` and `ci-local` both run lint+css; `ci-local` does not run tests, `check` does). Picking the wrong one burns 3-5 minutes of "waiting for shell" tokens. The right tier depends on what you just changed.
+
+### Tier 1 — during development (run often, every 5-10 min of work)
+
+After editing a `.templ` (regenerates `_templ.go`):
+
+```
+make templ
+```
+
+After editing a `.go` file (compile + lint + format check + css-check):
+
+```
+make build
+```
+
+This runs `gofumpt + datastar-lint + css-check + golangci-lint + build` in roughly 30-60 seconds. Catches compile errors, lint issues, formatting, basic `go vet`. Does **not** run the test suite. Use this as the main dev loop.
+
+If you changed a specific package and want to validate its tests without paying the full-suite cost:
+
+```
+go test -race -short ./features/your-package/
+```
+
+This runs only that package's tests in 5-30 seconds. `-short` skips long-running tests. Use when you want to verify a specific fix.
+
+### Tier 2 — before staging a commit (once, after the unit of work is done)
+
+```
+make ci-local
+```
+
+Full gate **except tests**: `templ + datastar-lint + css-check + golangci-lint + build`. Catches everything the CI catches except logic regressions in the test suite. Budget ~3-4 minutes. Run right before `git add`.
+
+If `ci-local` passes, push and let the remote CI run the tests + deploy. The remote CI is the source of truth.
+
+### Tier 3 — trust the remote CI for the test run
+
+**Never run `make test` locally** unless the remote CI is broken or you specifically need to reproduce a CI failure. The remote CI runs `go test -race -p 1 ./... -count=1` which takes 3-5 minutes either way. Local cost: 3-5 minutes of "waiting for shell" tokens. Remote cost: 3-5 minutes of "waiting for CI" while you do other things. Same wall-clock, but remote is the source of truth (no risk of local environment drift).
+
+If you do need to run the full test suite locally (CI unavailable, risky refactor, etc.):
+
+```
+go test -race -p 1 ./... -count=1
+```
+
+The `-p 1` is non-negotiable: the DagNats engine boots an embedded NATS per package and parallel runs exhaust file descriptors.
+
+### Anti-patterns (do not do this)
+
+- **`make check` between every edit.** The Makefile target `check` runs the full test suite (`check: ... test`). Budget 3-5 minutes per run. Use `make build` instead.
+- **`make test` between every commit.** Same as above. CI is the test runner.
+- **`make ci-local` after every small change.** Too slow (3-4 minutes) for a feedback loop. Use `make build`.
+- **Running tests before lint passes.** Lint and format errors fail the build. Fix those first, then run the test you're working on.
 
 ## Architecture (concise)
 
@@ -80,6 +137,7 @@ internal/
   collab/                🟡 PLUGGABLE  Loro CRDT + DocStore + sync workers
   components/             🟡 PLUGGABLE  Shared UI helpers (Toast + OfflineBanner)
 features/
+  store/                 🟡 PLUGGABLE  EntityStore interface (PB + CRDT strategies)
   auth/                  🔴/🟢 CORE (middleware) / FEATURE (UI)
   app/                   🔴 CORE  AppContext (cross-cutting deps bundle)
   todo/                  🟢 FEATURE  Todo MVC example (keep as reference, remove when done)
@@ -154,6 +212,7 @@ When you remove a feature or pluggable component, tests come along naturally:
 | **NATS** (pluggable) | `internal/nats/` | `internal/nats/*_test.go`, `internal/collab/*_test.go` ⚠️ collab may depend on NATS |
 | **OfflineSync** (opt-out) | `config/config.go` (+ `sw.js`) | `internal/nats/crudproxy_test.go` ✅ (covers create/toggle/delete/clear_completed e2e with JetStream). Remove `sw.js` + SW registration from templ files + delete crudproxy.go |
 | **LLM** (pluggable) | `internal/llm/` | `internal/llm/*_test.go`, `features/todo/suggest_test.go` ⚠️ |
+| **EntityStore** (pluggable) | `features/store/pbstore/` | `features/store/pbstore/*_test.go` (future). Drop `todoH.SetStore(pbstore.New(app, "todos"))` from `router.Init`; the handler's lazy fallback (`h.st()` in `todo_repo.go`) will rebuild a PBStore on first use. Remove `features/store/pbstore/` to use a different strategy (e.g. the future CRDTStore). |
 | **Idempotency** (pluggable) | `db/idempotency_hook.go` + `db/idempotency_seed.go` | `db/idempotency_hook_test.go` ✅. Remove both files, drop `RegisterIdempotencyHook(app)` and `enableTodosIdempotency(col)` from `db/seed.go`, and remove the hidden `name="idem_key"` input from `createForm`. |
 
 **Rule of thumb:** `go test ./...` after deleting a package. If a compilation error mentions the deleted package in a test file, delete that test file too. Cross-package tests (like `features/todo/onboarding_e2e_test.go` depending on `internal/dagnats`) will fail to compile — that's your checklist.

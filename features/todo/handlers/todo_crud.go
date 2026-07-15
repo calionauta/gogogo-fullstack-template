@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 	sdk "github.com/starfederation/datastar-go/datastar"
 
 	"github.com/calionauta/gogogo-fullstack-template/features/auth"
+	"github.com/calionauta/gogogo-fullstack-template/features/store"
 	"github.com/calionauta/gogogo-fullstack-template/features/todo"
 	"github.com/calionauta/gogogo-fullstack-template/features/todo/components"
 	dshelpers "github.com/calionauta/gogogo-fullstack-template/internal/datastar"
@@ -149,7 +151,12 @@ func (h *TodoHandler) handleCreate(c *core.RequestEvent) error {
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
-	if err := h.saveTodo(&item, ownerOf(c)); err != nil {
+	// idem_key comes from the createForm (hidden input named
+	// "idem_key") and is consumed by the PBStore + OnRecordCreateRequest
+	// hook for offline-replay dedup. Empty for programmatic callers
+	// (e.g. the onboarding worker via CreateTodoForOnboarding).
+	idemKey := c.Request.FormValue("idem_key")
+	if err := h.saveTodo(c, &item, ownerOf(c), idemKey); err != nil {
 		slog.Error("todo: save failed", "error", err)
 		return c.String(statusInternal, "save failed")
 	}
@@ -209,19 +216,16 @@ func (h *TodoHandler) handleToggle(c *core.RequestEvent) error {
 		slog.Debug("todo: toggle auth load", "error", err)
 	}
 
-	rec, err := h.app.FindRecordById("todos", c.Request.PathValue("id"))
+	id := c.Request.PathValue("id")
+	current, err := h.st().Get(ctxOf(c), ownerOf(c), id)
+	if errors.Is(err, store.ErrNotFound) || err != nil {
+		return c.String(statusNotFound, "not found")
+	}
+	toggled, err := h.st().Update(ctxOf(c), ownerOf(c), id, map[string]any{
+		"completed": !current.Completed,
+	})
 	if err != nil {
-		return c.String(statusNotFound, "not found")
-	}
-	// Owner-scoped: a user can only mutate their own todos. Todos with
-	// an empty owner (legacy seeds) are allowed so the single-tenant
-	// demo keeps working.
-	if c.Auth != nil && rec.GetString("owner") != "" && rec.GetString("owner") != c.Auth.Id {
-		return c.String(statusNotFound, "not found")
-	}
-	rec.Set("completed", !rec.GetBool("completed"))
-	if saveErr := h.app.Save(rec); saveErr != nil {
-		slog.Error("todo: toggle save failed", "id", rec.Id, "error", saveErr)
+		slog.Error("todo: toggle save failed", "id", id, "error", err)
 		return c.String(statusInternal, "toggle failed")
 	}
 
@@ -232,7 +236,7 @@ func (h *TodoHandler) handleToggle(c *core.RequestEvent) error {
 	}
 	// Publish to NATS for cross-instance sync.
 	h.publishCrudOp(nats.CrudOpToggle, ownerOf(c), &nats.CrudOpData{
-		ID: rec.Id, Completed: rec.GetBool("completed"),
+		ID: toggled.ID, Completed: toggled.Completed,
 	})
 
 	sse := sdk.NewSSE(c.Response, c.Request)
@@ -248,12 +252,9 @@ func (h *TodoHandler) handleConfirmDelete(c *core.RequestEvent) error {
 		slog.Debug("todo: confirm-delete auth load", "error", err)
 	}
 
-	rec, err := h.app.FindRecordById("todos", c.Request.PathValue("id"))
-	if err != nil {
-		return c.String(statusNotFound, "not found")
-	}
-	// Owner-scoped: a user can only confirm-delete their own todos.
-	if c.Auth != nil && rec.GetString("owner") != "" && rec.GetString("owner") != c.Auth.Id {
+	id := c.Request.PathValue("id")
+	t, err := h.st().Get(ctxOf(c), ownerOf(c), id)
+	if errors.Is(err, store.ErrNotFound) || err != nil {
 		return c.String(statusNotFound, "not found")
 	}
 	sse := sdk.NewSSE(c.Response, c.Request)
@@ -262,8 +263,8 @@ func (h *TodoHandler) handleConfirmDelete(c *core.RequestEvent) error {
 	// data-on:click assignment) keeps the behaviour identical across
 	// every client and is trivially testable.
 	if err := dshelpers.MergeSignals(sse, map[string]any{
-		"confirmingDeleteId":    rec.Id,
-		"confirmingDeleteTitle": rec.GetString("title"),
+		"confirmingDeleteId":    t.ID,
+		"confirmingDeleteTitle": t.Title,
 	}); err != nil {
 		return err
 	}
@@ -278,17 +279,13 @@ func (h *TodoHandler) handleDelete(c *core.RequestEvent) error {
 		slog.Debug("todo: delete auth load", "error", err)
 	}
 
-	rec, err := h.app.FindRecordById("todos", c.Request.PathValue("id"))
-	if err != nil {
+	id := c.Request.PathValue("id")
+	t, err := h.st().Get(ctxOf(c), ownerOf(c), id)
+	if errors.Is(err, store.ErrNotFound) || err != nil {
 		return c.String(statusNotFound, "not found")
 	}
-	// Owner-scoped: a user can only delete their own todos.
-	if c.Auth != nil && rec.GetString("owner") != "" && rec.GetString("owner") != c.Auth.Id {
-		return c.String(statusNotFound, "not found")
-	}
-	title := rec.GetString("title")
-	if delErr := h.app.Delete(rec); delErr != nil {
-		slog.Error("todo: delete failed", "id", rec.Id, "error", delErr)
+	if delErr := h.st().Delete(ctxOf(c), ownerOf(c), id); delErr != nil && !errors.Is(delErr, store.ErrNotFound) {
+		slog.Error("todo: delete failed", "id", id, "error", delErr)
 		return c.String(statusInternal, "delete failed")
 	}
 
@@ -298,7 +295,7 @@ func (h *TodoHandler) handleDelete(c *core.RequestEvent) error {
 		return c.String(statusInternal, "error listing todos")
 	}
 	// Publish to NATS for cross-instance sync.
-	h.publishCrudOp(nats.CrudOpDelete, ownerOf(c), &nats.CrudOpData{ID: rec.Id})
+	h.publishCrudOp(nats.CrudOpDelete, ownerOf(c), &nats.CrudOpData{ID: t.ID})
 
 	sse := sdk.NewSSE(c.Response, c.Request)
 	// Close the confirmation modal on every client by clearing the
@@ -313,28 +310,22 @@ func (h *TodoHandler) handleDelete(c *core.RequestEvent) error {
 		return err
 	}
 	// Record propagation is via PocketBase realtime (see handleCreate).
-	return emitToast(sse, fmt.Sprintf("Deleted “%s”", title), "info")
+	return emitToast(sse, fmt.Sprintf("Deleted “%s”", t.Title), "info")
 }
 
 func (h *TodoHandler) handleClearCompleted(c *core.RequestEvent) error {
 	// The global auth middleware skips /api/* paths, so c.Auth is nil
-	// here by default. Load the app session cookie explicitly so
-	// clearCompletedFilter scopes the query to the logged-in user
-	// instead of clearing every user's completed todos.
+	// here by default. Load the app session cookie explicitly so the
+	// store scopes the clear to the logged-in user instead of clearing
+	// every user's completed todos.
 	if err := auth.LoadAppAuth(c); err != nil {
 		slog.Debug("todo: clear-completed auth load", "error", err)
 	}
 
-	records, err := h.app.FindRecordsByFilter("todos", clearCompletedFilter(c), "", 0, 0)
+	count, err := h.st().ClearCompleted(ctxOf(c), ownerOf(c))
 	if err != nil {
-		slog.Error("todo: find completed failed", "error", err)
-		return c.String(statusInternal, "find failed")
-	}
-	count := len(records)
-	for _, r := range records {
-		if delErr := h.app.Delete(r); delErr != nil {
-			slog.Warn("todo: clear-completed delete failed", "id", r.Id, "error", delErr)
-		}
+		slog.Error("todo: clear completed failed", "error", err)
+		return c.String(statusInternal, "clear failed")
 	}
 
 	todos, err := h.listTodos(c, "all")

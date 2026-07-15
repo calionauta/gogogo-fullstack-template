@@ -23,6 +23,8 @@
 //	DAGNATS_NATS_PORT   (default: 4222)
 //	DAGNATS_STORE_DIR   (default: "data/dagnats")
 //	OFFLINE_SYNC_ENABLED (default: true) — toggle hybrid offline sync
+//	ENTITY_STORE         (default: "pb") — todo persistence strategy
+//	                       (see features/store/store.go)
 //
 // ── Runtime constants (tune in config.go, consumed across packages) ──
 //
@@ -113,6 +115,14 @@ type Config struct {
 		Enabled bool
 	}
 
+	// EntityStore selects the persistence strategy for todos (and
+	// future domain entities). "pb" (default) uses PocketBase records
+	// + the OnRecordCreateRequest hook for offline-replay dedup.
+	// "crdt" uses Loro CRDTs per owner + a snapshot to PB; trade-off
+	// in docs/decisions.md v0.20.0 ADR. Phase 2 (JetStream op transport)
+	// is the only way to get multi-instance sync on crdt.
+	EntityStore string
+
 	GoAI GoAIConfig
 }
 
@@ -173,6 +183,7 @@ func Load() *Config {
 	cfg.DagNats.StoreDir = getEnv("DAGNATS_STORE_DIR", "data/dagnats")
 
 	cfg.OfflineSync.Enabled = envBool("OFFLINE_SYNC_ENABLED", true)
+	cfg.EntityStore = getEnv("ENTITY_STORE", "pb")
 
 	return cfg
 }

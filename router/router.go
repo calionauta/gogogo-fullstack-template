@@ -4,6 +4,7 @@ package router
 import (
 	"io/fs"
 	"log"
+	"log/slog"
 	"net/http"
 
 	"github.com/pocketbase/pocketbase"
@@ -12,6 +13,10 @@ import (
 
 	"github.com/calionauta/gogogo-fullstack-template/config"
 	"github.com/calionauta/gogogo-fullstack-template/features/auth"
+	"github.com/calionauta/gogogo-fullstack-template/features/store"
+	"github.com/calionauta/gogogo-fullstack-template/features/store/crdtstore"
+	"github.com/calionauta/gogogo-fullstack-template/features/store/pbstore"
+	"github.com/calionauta/gogogo-fullstack-template/features/todo"
 	"github.com/calionauta/gogogo-fullstack-template/features/todo/handlers"
 	"github.com/calionauta/gogogo-fullstack-template/internal/nats"
 	"github.com/calionauta/gogogo-fullstack-template/internal/queue"
@@ -112,6 +117,16 @@ func Init(
 		if todoH != nil {
 			todoH.SetBroadcaster(broadcaster)
 			todoH.SetCrudPublisher(crudPub)
+			// Wire the pluggable persistence layer. PBStore is the
+			// default; CRDTStore (Loro+JetStream, future) plugs in via
+			// the same SetStore hook without touching the handlers.
+			todoStore, storeErr := buildTodoStore(app, cfg.EntityStore)
+			if storeErr != nil {
+				slog.Error("router: build todo store failed; falling back to PBStore",
+					"strategy", cfg.EntityStore, "error", storeErr)
+				todoStore = pbstore.New(app, "todos")
+			}
+			todoH.SetStore(todoStore)
 			todoH.RegisterRoutes(se)
 		} else {
 			// Defensive fallback: construct a fresh handler if the
@@ -162,4 +177,35 @@ func Init(
 
 		return se.Next()
 	})
+}
+
+// buildTodoStore selects the persistence strategy for todo entities
+// based on cfg.EntityStore. Currently supports "pb" (default,
+// PocketBase records) and "crdt" (Loro per owner + PB snapshot).
+// Future strategies plug in here without touching the handlers —
+// the EntityStore interface is the contract.
+func buildTodoStore(app core.App, strategy string) (store.EntityStore[todo.Todo], error) {
+	switch strategy {
+	case "", "pb":
+		return pbstore.New(app, "todos"), nil
+	case "crdt":
+		s := crdtstore.New(app)
+		if err := s.EnsureSchema(); err != nil {
+			return nil, err
+		}
+		return s, nil
+	default:
+		return nil, errUnknownStoreStrategy(strategy)
+	}
+}
+
+// errUnknownStoreStrategy is returned when the configured
+// ENTITY_STORE doesn't match any built-in strategy. The router
+// catches this and falls back to PBStore with a logged warning,
+// but typing it lets future code (e.g. tests) distinguish "not
+// configured" from "configured wrong".
+type errUnknownStoreStrategy string
+
+func (e errUnknownStoreStrategy) Error() string {
+	return "router: unknown ENTITY_STORE strategy: " + string(e)
 }

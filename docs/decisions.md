@@ -163,3 +163,71 @@ JetStream's `Nats-Msg-Id` header dedup is built-in but operates at the **publish
 ### Why not a Go library?
 
 Surveyed 5 active 2026 libs (`eben-vranken/idempo`, `polanski13/idemkit`, `velmie/idempo`, `fco-gt/gopotency`, `bright-room/idem`). None integrate with PocketBase's request hook signature; all require Redis or Postgres as a separate store; stars 0-11 (bus-factor risk). The PB hook approach uses the existing SQLite (no extra infra), is the documented extension pattern, and survives multi-instance.
+
+## v0.20.0 — Pluggable persistence (EntityStore strategy pattern)
+
+Adds a swap point for how domain entities (today: Todo) are persisted, so the same HTTP layer can back onto PocketBase records today and onto Loro CRDT + JetStream tomorrow without rewriting handlers.
+
+### Why
+
+Two persistence backends make sense for the template's evolution:
+
+- **PocketBase records** (current): simple, single-user, SQL-queryable, integrates with the admin UI. Replay dedup via the OnRecordCreateRequest hook + (idem_key, owner) unique index (v0.19.0).
+- **Loro CRDT + JetStream** (future, "scenario B" from the conversation): multi-user collaborative, conflict-free merge, offline-first by design, dedup via JetStream MsgId.
+
+Forcing a choice between them in `cmd/web/main.go` would mean either committing to one forever or writing conditional code paths in every handler. The Strategy pattern + a generic Go interface lets us pick at startup and add a second backend in a single new file.
+
+### The interface (`features/store/store.go`)
+
+```go
+type EntityStore[T any] interface {
+    Create(ctx, e T, ownerID, idemKey string) (T, error)
+    Get(ctx, ownerID, id string) (T, error)
+    List(ctx, ownerID, filter string) ([]T, error)
+    Update(ctx, ownerID, id string, patch map[string]any) (T, error)
+    Delete(ctx, ownerID, id string) error
+    ClearCompleted(ctx, ownerID string) (int, error)
+    Count(ctx, ownerID string) (int, error)
+}
+```
+
+Generic so future entities (Note, Task, ...) reuse the pattern with their own domain type. The compile-time guard `var _ store.EntityStore[todo.Todo] = (*pbstore.PBStore)(nil)` in `features/todo/handlers/todo_repo.go` makes the build fail loudly if PBStore drifts from the interface.
+
+### The default strategy (`features/store/pbstore/pbstore.go`)
+
+Extracted from the inline logic that used to live in `features/todo/handlers/todo_repo.go` + `todo_crud.go`. PBStore wraps PocketBase records: each entity is a record, ownership is a relation field, idempotency is delegated to the existing OnRecordCreateRequest hook + the (idem_key, owner) unique index added in v0.19.0.
+
+### Wiring
+
+`router/router.go` instantiates `pbstore.New(app, "todos")` and calls `todoH.SetStore(s)`. Tests that don't call `SetStore` keep working via the `h.st()` lazy fallback (rebuilds a PBStore on first use). Production wiring is explicit so the choice is grep-able in `router.Init`.
+
+### Future: CRDTStore (`features/store/crdtstore/` — sketch only, not implemented)
+
+The interface is designed for a second strategy that:
+
+- holds one Loro doc per owner (key: `todos:<owner_id>`)
+- exposes the doc as a snapshot encoded to PB (`todos_snapshot` collection: `owner`, `snapshot` (Loro bytes), `version` (int))
+- ships ops via JetStream with `Nats-Msg-Id = op.ID` (built-in dedup; replaces our `idem_key` field)
+- rewrites PB realtime as doc-level "version bumped" events over our existing SSE Hub
+
+Migration path: PBStore stays as the default. `cmd/web/main.go` adds a config switch (`TODO_STORE=crdt`) that constructs the CRDTStore instead. Handlers and templates don't change.
+
+Estimated effort for CRDTStore: ~200 LOC + Loro Go binding wiring + JetStream producer/consumer + doc↔snapshot adapter. Not trivial but contained — the interface does the heavy lifting.
+
+### Trade-offs
+
+- **Generics add a learning curve** for new contributors. Mitigated by a single ~150 LOC interface file with one worked example (PBStore) and a clear ADR. Adding a second strategy that doesn't fit the interface surfaces in code review.
+- **Lazy fallback in `h.st()` masks missing wiring in production** if a future feature forgets to call `SetStore`. Mitigated by a defensive `var _ store.EntityStore[todo.Todo] = (*pbstore.PBStore)(nil)` compile-time guard in `todo_repo.go` and a TODO in `router.Init` to make the wiring call obvious.
+- **PB Realtime stays PB-Store-specific.** A future CRDTStore would replace the realtime channel with doc-version-bumped events (see sketch above). The HTTP-layer abstraction is independent of the realtime path; both can change.
+- **Tests don't cover the abstraction itself** — only each strategy's behaviour. The compile-time guard catches interface drift; behaviour drift is caught by per-strategy tests. Acceptable for now; a small fuzz-style test of the interface contract could be added later.
+
+### Files
+
+- `features/store/store.go` (new, SCOPE:core — the interface itself is contract, not removable)
+- `features/store/pbstore/pbstore.go` (new, SCOPE:pluggable)
+- `features/todo/handlers/todo.go` (added `store` field + `SetStore` setter)
+- `features/todo/handlers/todo_repo.go` (delegates listTodos/saveTodo/countOwnedTodos to `h.st()`)
+- `features/todo/handlers/todo_crud.go` (toggle/confirm-delete/delete/clear use `h.st()`)
+- `router/router.go` (`todoH.SetStore(pbstore.New(app, "todos"))` after the broadcaster wire)
+- `AGENTS.md` (SCOPE tree + removal table)
+- `ARCHITECTURE.md` (Feature table)

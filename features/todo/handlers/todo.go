@@ -22,6 +22,7 @@ import (
 	sdk "github.com/starfederation/datastar-go/datastar"
 
 	"github.com/calionauta/gogogo-fullstack-template/config"
+	"github.com/calionauta/gogogo-fullstack-template/features/store"
 	"github.com/calionauta/gogogo-fullstack-template/features/todo"
 	"github.com/calionauta/gogogo-fullstack-template/features/todo/components"
 	dshelpers "github.com/calionauta/gogogo-fullstack-template/internal/datastar"
@@ -54,6 +55,11 @@ type TodoBroadcaster = nats.TodoBroadcaster
 // the worker-side handlers for "retry_demo", "suggest", and
 // "suggest_simulated" jobs.
 type TodoHandler struct {
+	// store is the pluggable persistence layer. Wired by router.Init
+	// via SetStore. Defaults to a PBStore (features/store/pbstore) when
+	// config.EntityStore is "pb" (the only option today); future
+	// CRDTStore lands behind the same interface.
+	store        store.EntityStore[todo.Todo]
 	app          *pocketbase.PocketBase
 	q            *queue.Queue
 	cfg          *config.Config
@@ -101,7 +107,8 @@ func (h *TodoHandler) SetSimulatedLLMClient(c *llm.Client) { h.llmSimulated = c 
 // create handler so the todos appear identically in the UI and broadcast
 // to the subscribed client (per-user scoped via the owner rule).
 func (h *TodoHandler) CreateTodoForOnboarding(title, owner string) error {
-	return h.saveTodo(&todo.Todo{Title: title, Completed: false}, owner)
+	item := &todo.Todo{Title: title, Completed: false}
+	return h.saveTodo(nil, item, owner, "")
 }
 
 // llmEnabled reports whether the AI suggest pathway is live. Used
@@ -123,6 +130,14 @@ func (h *TodoHandler) simulatedLLMEnabled() bool {
 // default) to skip cross-client broadcasting of ephemeral signals too.
 func (h *TodoHandler) SetBroadcaster(b TodoBroadcaster) {
 	h.broadcaster = b
+}
+
+// SetStore wires the pluggable persistence layer. Called by
+// router.Init; tests may wire a different store for isolation. The
+// PBStore from features/store/pbstore is the default; CRDTStore
+// (future) plugs in here without any change to this handler.
+func (h *TodoHandler) SetStore(s store.EntityStore[todo.Todo]) {
+	h.store = s
 }
 
 // SetCrudPublisher wires the NATS CRUD publisher for cross-instance sync.
