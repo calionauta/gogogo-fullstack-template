@@ -54,7 +54,7 @@ func main() {
 	// Boot the shared backend (PocketBase + queue + router + handlers).
 	// js is the JetStream the broadcaster uses (Leaf Node or standalone);
 	// nil falls back to in-process SSE.
-	pb, _, shutdown, err := server.Run(cfg, js)
+	pb, _, _, shutdown, err := server.Run(cfg, js)
 	if err != nil {
 		log.Fatalf("boot failed: %v", err)
 	}

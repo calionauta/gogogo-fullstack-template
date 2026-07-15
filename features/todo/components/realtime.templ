@@ -164,5 +164,37 @@ templ PbRealtimeRecords() {
 			}
 			// EventSource auto-reconnects on drop; PB_CONNECT re-fires with a
 			// fresh clientId, so we re-subscribe and re-bind on each connect.
+
+			// CRDTStore doc-version watcher (Phase 3).
+			//
+			// When the SSE hub fans out a doc-version-bumped event
+			// (from a peer instance via ApplyRemoteOp OR from a local
+			// CRDTStore mutation), the server merges the $docVersion
+			// signal on this client. We watch that signal and
+			// re-fetch the fragment — same path as a PB record event,
+			// so the UX is identical regardless of which side wrote.
+			//
+			// We poll because Datastar v1 doesn't expose a signal-
+			// change subscribe API; the signal lives on a document
+			// attribute managed by Datastar. A 250ms tick is cheap
+			// (one number compare) and well under human perception.
+			var lastDocVersion = null;
+			function watchDocVersion() {
+				var sig = document.body && document.body.getAttribute('data-signals-docVersion');
+				var v = sig == null ? null : Number(sig);
+				if (v != null && v !== lastDocVersion) {
+					lastDocVersion = v;
+					if (window.__gogogoDocVersionReady) { resync(); }
+					window.__gogogoDocVersionReady = true;
+				}
+			}
+			document.addEventListener('datastar-ready', function () {
+				watchDocVersion();
+				setInterval(watchDocVersion, 250);
+			});
+			setTimeout(function () {
+				watchDocVersion();
+				setInterval(watchDocVersion, 250);
+			}, 400);
 	</script>
 }

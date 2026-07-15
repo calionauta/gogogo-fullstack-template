@@ -17,7 +17,9 @@ import (
 	"os"
 
 	"github.com/calionauta/gogogo-fullstack-template/config"
+	"github.com/calionauta/gogogo-fullstack-template/features/store/crdtstore"
 	"github.com/calionauta/gogogo-fullstack-template/internal/server"
+	"github.com/calionauta/gogogo-fullstack-template/router"
 )
 
 func main() {
@@ -57,7 +59,7 @@ func runHealthcheck() error {
 func run() error {
 	cfg := config.Load()
 
-	pb, todoH, shutdown, err := server.Run(cfg, nil)
+	pb, todoH, q, shutdown, err := server.Run(cfg, nil)
 	if err != nil {
 		return err
 	}
@@ -70,6 +72,22 @@ func run() error {
 
 	js := startNATS(cfg)
 	_ = js // startNATS has the side-effect of wiring the global broadcaster
+
+	// Phase 2: wire the CRDTStore JetStream transport when the chosen
+	// store is a *crdtstore.CRDTStore and JetStream is available. The
+	// router exposes the concrete type via a package var; we install
+	// the transport here (post-Init) so the NATS broadcaster and the
+	// CRDT store are both ready.
+	if concrete := router.ConcreteTodoStore(); concrete != nil {
+		if cs, ok := concrete.(*crdtstore.CRDTStore); ok {
+			stopTransport := server.WireCRDTStoreTransport(context.Background(), cs)
+			defer stopTransport()
+			// Phase 3: wire the SSE Hub publisher so cross-store
+			// CRDT ops trigger a client-side resync. Same lifetime
+			// as the transport wire; both halt on shutdown.
+			_ = server.WireCRDTStorePublisher(cs, q.Hub())
+		}
+	}
 
 	addr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
 	// PocketBase v0.39+ uses a Cobra root command. pb.Start() calls

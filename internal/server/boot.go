@@ -40,25 +40,38 @@ import (
 //
 // js may be nil (no realtime broadcaster); the router tolerates a nil
 // JetStream and the handlers fall back to in-process SSE.
-func Run(cfg *config.Config, js nats.JetStreamLike) (*pocketbase.PocketBase, *handlers.TodoHandler, func(), error) {
-	pb, err := db.Init(cfg)
-	if err != nil {
-		return nil, nil, nil, fmt.Errorf("PocketBase init: %w", err)
+// Run starts the PocketBase app, queue, handlers, and the router.
+//
+// Returning 5 values instead of 4 (added *queue.Queue in Phase 3)
+// lets main.go wire the SSE Hub into CRDTStore.SetPublisher without
+// the router leaking queue refs. Keep this signature in one line
+// (or fold to a struct) if more deps appear — call sites get ugly.
+func Run(cfg *config.Config, js nats.JetStreamLike) (
+	pb *pocketbase.PocketBase,
+	todoH *handlers.TodoHandler,
+	q *queue.Queue,
+	shutdown func(),
+	err error,
+) {
+	pb, initErr := db.Init(cfg)
+	if initErr != nil {
+		return nil, nil, nil, nil, fmt.Errorf("PocketBase init: %w", initErr)
 	}
 	if seedErr := db.SeedDefaults(pb); seedErr != nil {
-		return nil, nil, nil, fmt.Errorf("seed: %w", seedErr)
+		return nil, nil, nil, nil, fmt.Errorf("seed: %w", seedErr)
 	}
 
-	q, err := queue.New(cfg)
-	if err != nil {
-		return nil, nil, nil, fmt.Errorf("queue init: %w", err)
+	q, qErr := queue.New(cfg)
+	if qErr != nil {
+		return nil, nil, nil, nil, fmt.Errorf("queue init: %w", qErr)
 	}
 
 	// Context bundles cross-cutting deps; used for LogStartupSummary and
 	// as the seam for downstream projects to add cross-cutting middleware.
 	_ = app.New(cfg, q)
 
-	todoH := handlers.New(pb, q, cfg)
+	todoHL := handlers.New(pb, q, cfg)
+	todoH = todoHL
 	todoH.RegisterHandlers(q.Registry())
 	todoH.SetLLMClient(llm.New(cfg.GoAI.APIKey))
 
@@ -71,11 +84,12 @@ func Run(cfg *config.Config, js nats.JetStreamLike) (*pocketbase.PocketBase, *ha
 		todoH.SetSimulatedLLMClient(llm.NewSimulated())
 	}
 
-	workers := q.StartWorkers()
-	_ = workers // held for lifecycle parity; workers run until queue close
+	workersLocal := q.StartWorkers()
+	_ = workersLocal
 
 	router.Init(pb, q, cfg, js, todoH)
 
-	shutdown := func() { q.Close() }
-	return pb, todoH, shutdown, nil
+	shutdownFn := func() { q.Close() }
+	shutdown = shutdownFn
+	return pb, todoH, q, shutdown, nil
 }

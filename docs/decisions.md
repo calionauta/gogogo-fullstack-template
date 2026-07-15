@@ -231,3 +231,93 @@ Estimated effort for CRDTStore: ~200 LOC + Loro Go binding wiring + JetStream pr
 - `router/router.go` (`todoH.SetStore(pbstore.New(app, "todos"))` after the broadcaster wire)
 - `AGENTS.md` (SCOPE tree + removal table)
 - `ARCHITECTURE.md` (Feature table)
+
+## ADR-0017: CRDTStore cross-instance transport (Phase 2+3)
+
+**Decision.** Make `crdtstore.CRDTStore` the second concrete
+implementation of `store.EntityStore[todo.Todo]`, ship a JetStream
+transport for cross-instance op convergence, and add a
+signal-driven `Watch(ownerID)` channel for realtime doc-version
+events.
+
+**Why.** Phase 1 proved the Strategy pattern works (PBStore +
+CRDTStore behind one `EntityStore` interface). Phase 2 closes the
+gap to multi-instance production: a todo created on server A lands
+on server B via Loro CRDT ops, even if B was offline when A wrote.
+Phase 3 surfaces the cross-instance signal back to the UI so
+clients re-fetch only when their doc actually changes, not on a
+timer.
+
+**How.**
+
+- `transport.go` — JetStream publisher + consumer. Each binary
+  generates a per-process `PublisherID`; the consumer drops ops
+  whose body fingerprint matches its own PublisherID (in-process
+  loop filter). Cross-process messages always carry a different
+  PublisherID so the filter only drops the publisher's own
+  re-deliveries.
+- `crdtstore.ApplyRemoteOp(ctx, ownerID, op)` — applies a peer's
+  Loro update to the local doc and bumps the version counter.
+  Called from the transport's Subscribe handler.
+- `cmd/web/main.go` — calls `server.WireCRDTStoreTransport` after
+  `server.Run` for the CRDT strategy. The wire file sets the
+  transport and starts one Subscribe per active owner.
+- `Watch(ownerID)` — signal-driven buffered channel. Initial
+  snapshot (current version) is sent first, then bump events. The
+  SSE broadcaster (router side) calls Watch once per authenticated
+  user and emits a `crdt-version` event for each value.
+
+**Trade-offs.**
+
+- Polling fallback was removed. If the buffered channel fills the
+  consumer misses events (the next bump fills a fresh slot, so
+  it always lands eventually). Callers that need every event must
+  read fast or handle drop explicitly.
+- The PublisherID fingerprint is 8 hex chars (~1/4B collision
+  chance per pair). Acceptable for the in-process loop filter, not
+  for security; the actual op identity is the `Op.ID` (UUID-style)
+  which isMsgId-dedup'd by JetStream.
+- Two CRDTStores in one process must use distinct PublisherIDs
+  (test pattern); the production wire uses one PublisherID per
+  process. Integration test enforces this with two `NewTransport`
+  calls instead of shared.
+
+**Test surface.** `crdtstore_test.go` (single-process), 
+`transport_test.go` (cross-process transport), 
+`integration_test.go` (cross-process CRDTStore),
+`Watch` signal test (replay-first + bump events).
+
+**Removability.** Setting `ENTITY_STORE=pb` (default) skips all of
+this code at startup. To remove entirely, delete
+`features/store/crdtstore/`, `internal/server/crdtstore_wire.go`,
+and the `WireCRDTStoreTransport` call in `cmd/web/main.go`.
+
+## ADR-0017 (Phase 3 closure)
+
+The original ADR-0017 stopped at "watcher channel exposes the
+counter". Phase 3 closure wires that channel to a real consumer:
+
+1. **`crdtstore.DocPublisher` interface** — pluggable event sink
+   invoked synchronously from `bumpVersion` (must not block;
+   runs under `versionMu`).
+2. **`server.WireCRDTStorePublisher(store, q.Hub())`** — `main.go`
+   install of the SSE Hub adapter. The Hub uses
+   `BroadcastToUser(payload, ownerID, "")` (no excludeClientID —
+   cross-store events have no originating client).
+3. **SSE handler `streamDocVersionBumped`** — new dispatch branch.
+   Decodes the envelope, merges `$docVersion` + `$docVersionSeen`
+   signals via Datastar.
+4. **Client `$docVersion` watcher** — `realtime.templ` polls the
+   signal and clicks the existing `pb-realtime-resync` button on
+   change, reusing the established fragment re-fetch path.
+
+The full chain is exercised by
+`TestCRDTStore_FullPipeline_BumpPublisherFires` which uses a
+`fakePublisher` instead of the SSE Hub — eliminating the goroutine
+race window that a real Hub would introduce in a unit test.
+
+**Trade-off note.** `$docVersion` is polled at 250ms because Datastar
+v1 does not expose a signal-change subscribe API. Cost is one number
+compare per tab per 250ms (negligible), benefit is a single
+implementation that works regardless of which side produced the
+event (PB record / CRDT local / CRDT peer).

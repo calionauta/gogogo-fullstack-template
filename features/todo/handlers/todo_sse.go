@@ -272,6 +272,42 @@ func (h *TodoHandler) streamTodo(c *core.RequestEvent, sse *sdk.ServerSentEventG
 	}
 }
 
+// streamDocVersionBumped handles the cross-store "doc version
+// bumped" envelope produced by crdtstore.HubPublisher. Merges the
+// $docVersion signal so client-side scripts can react (re-fetch
+// the fragment, update the presence badge, etc.) without a full
+// page reload.
+//
+// This is the Phase 3 callback that closes the loop:
+//
+//	Create (peer) → transport → ApplyRemoteOp → bumpVersion
+//	  → publisher.PublishDocEvent → Hub.BroadcastToUser
+//	  → SSE handler (this method) → client signal → resync.
+//
+// Payload: {"version": <uint64>, "owner": <ownerID>}. The owner is
+// informational — the SSR subscriber is already scoped to one
+// user — but logs it so drift across tenants is visible.
+func (h *TodoHandler) streamDocVersionBumped(sse *sdk.ServerSentEventGenerator, payload []byte) error {
+	var p struct {
+		Version uint64 `json:"version"`
+		Owner   string `json:"owner"`
+	}
+	if err := json.Unmarshal(payload, &p); err != nil {
+		return fmt.Errorf("decode doc-version-bumped payload: %w", err)
+	}
+	if p.Version == 0 {
+		return nil
+	}
+	if err := dshelpers.MergeSignals(sse, map[string]any{
+		"docVersion":     p.Version,
+		"docVersionSeen": time.Now().UnixMilli(),
+	}); err != nil {
+		return err
+	}
+	slog.Debug("todo: doc-version-bumped", "version", p.Version, "owner", p.Owner)
+	return nil
+}
+
 func (h *TodoHandler) streamClients(sse *sdk.ServerSentEventGenerator, payload []byte) error {
 	var p struct {
 		Count int `json:"count"`
@@ -429,6 +465,8 @@ func (h *TodoHandler) dispatchStreamMessage(c *core.RequestEvent, sse *sdk.Serve
 		return h.streamSuggestResult(sse, job.Payload)
 	case "progress":
 		return h.streamProgress(sse, job.Payload)
+	case "doc-version-bumped":
+		return h.streamDocVersionBumped(sse, job.Payload)
 	default:
 		return dshelpers.MergeSignals(sse, map[string]any{
 			"lastJob": string(msg),

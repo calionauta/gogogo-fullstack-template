@@ -19,6 +19,7 @@ import (
 	"errors"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase"
@@ -259,5 +260,37 @@ func TestCRDTStore_EmptyOwnerReturnsEmpty(t *testing.T) {
 	}
 	if c, _ := s.Count(ctx, "never-touched-owner"); c != 0 {
 		t.Errorf("Count on fresh owner = %d, want 0", c)
+	}
+}
+
+func TestCRDTStore_WatchSignals(t *testing.T) {
+	s, _, _ := newCRDTStore(t)
+	ctx := context.Background()
+	ownerID := "watch-owner"
+	if _, err := s.Create(ctx, todo.Todo{ID: "watch-1", Title: "first"}, ownerID, ""); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	ch, cancel := s.Watch(ownerID)
+	defer cancel()
+	// Watch sends current value immediately.
+	select {
+	case v := <-ch:
+		if v < 1 {
+			t.Errorf("initial event v=%d, want >= 1", v)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("did not receive initial event")
+	}
+	// Next event triggered by a new mutation.
+	if _, err := s.Create(ctx, todo.Todo{ID: "watch-2", Title: "second"}, ownerID, ""); err != nil {
+		t.Fatalf("Create 2: %v", err)
+	}
+	select {
+	case v := <-ch:
+		if v < 2 {
+			t.Errorf("second event v=%d, want >= 2", v)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("did not receive second event")
 	}
 }

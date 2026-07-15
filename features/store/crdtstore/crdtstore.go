@@ -66,6 +66,76 @@ type CRDTStore struct {
 
 	mu   sync.Mutex
 	docs map[string]*loro.LoroDoc // ownerID -> doc (lazy on first access)
+
+	// transport is the cross-instance JetStream op publisher
+	// (Phase 2). nil = single-process mode (publish is a no-op).
+	transport *CRDTTransport
+
+	// versionMu protects versions + watchers + publisher. Bumped
+	// by bumpVersion after every saveSnapshot (both local and
+	// remote). The version counter is what Watch() subscribers
+	// receive via buffered chan; publisher (if set) is called
+	// synchronously to fan out the doc-version-bumped event to
+	// whatever sits downstream (typically the SSE Hub).
+	versionMu     sync.Mutex
+	versions      map[string]uint64    // ownerID -> version (0 = unseen)
+	watchers      []*watchSubscription // signal-driven listeners
+	publisher     DocPublisher         // optional cross-store event sink
+	publisherName string               // diagnostics label for publisher
+}
+
+// DocPublisher is the cross-store event sink invoked from
+// bumpVersion after every saveSnapshot. The router wires this to
+// the SSE Hub so each connected client of a given owner sees the
+// new doc version and re-fetches the fragment. Implementations
+// MUST NOT block — the publisher callback is called under
+// versionMu, so a slow callback blocks every future bumpVersion.
+type DocPublisher interface {
+	PublishDocEvent(ownerID string, version uint64)
+}
+
+// SetPublisher wires a downstream event sink (typically the SSE
+// Hub via router.WireCRDTStorePublisher). Re-setting the publisher
+// replaces the previous one (idempotent for production where it's
+// set once at boot). Passing nil removes the publisher.
+func (s *CRDTStore) SetPublisher(p DocPublisher) {
+	s.versionMu.Lock()
+	defer s.versionMu.Unlock()
+	s.publisher = p
+	s.publisherName = publisherName(p)
+}
+
+// PublisherName returns the diagnostics label of the currently
+// configured publisher, or "" if none.
+func (s *CRDTStore) PublisherName() string {
+	s.versionMu.Lock()
+	defer s.versionMu.Unlock()
+	return s.publisherName
+}
+
+func publisherName(p DocPublisher) string {
+	if p == nil {
+		return ""
+	}
+	if named, ok := p.(interface{ Name() string }); ok {
+		return named.Name()
+	}
+	return fmt.Sprintf("%T", p)
+}
+
+// versionEvent is the payload pushed to Watch() subscribers whenever
+// an owner's doc version bumps. Owner is included so a single Watch
+// goroutine can fan out to multiple owners if needed.
+type versionEvent struct {
+	owner   string
+	version uint64
+}
+
+// watchSubscription is one Watch() consumer. The ch is buffered; if
+// it fills, bumpVersion skips the slot (Phase 3 graceful degradation
+// for slow consumers).
+type watchSubscription struct {
+	ch chan versionEvent
 }
 
 // New constructs a CRDTStore. The snapshot collection must exist
@@ -74,6 +144,40 @@ func New(app core.App) *CRDTStore {
 	return &CRDTStore{
 		app:  app,
 		docs: make(map[string]*loro.LoroDoc),
+	}
+}
+
+// SetTransport wires the cross-instance JetStream op publisher
+// (Phase 2). Pass nil to disable cross-instance sync (single-process
+// mode, default). Call before any request handler runs. The caller
+// is responsible for starting the consumer (Subscribe) and for
+// running the goroutine that pumps the doc's encoded updates into
+// the transport.
+func (s *CRDTStore) SetTransport(t *CRDTTransport) { s.transport = t }
+
+// publishOpFromDoc encodes d as a Loro Update and ships it to peers.
+// Caller is responsible for holding (or not holding) s.mu as needed:
+// the publish step itself doesn't touch s.mu. Use this when the doc
+// is already in hand to avoid re-locking (Create holds s.mu for the
+// whole insert + saveSnapshot + publish sequence).
+func (s *CRDTStore) publishOpFromDoc(ctx context.Context, ownerID, opID string, d *loro.LoroDoc) {
+	if s.transport == nil {
+		return
+	}
+	if d == nil {
+		return
+	}
+	snap, err := d.Export(loro.UpdatesMode(loro.NewVersionVector()))
+	if err != nil {
+		slog.Warn("crdtstore: export update failed", "owner", ownerID, "op", opID, "error", err)
+		return
+	}
+	if err := s.transport.Publish(ctx, Op{
+		ID:      opID,
+		OwnerID: ownerID,
+		Updates: snap,
+	}); err != nil {
+		slog.Warn("crdtstore: transport publish failed", "owner", ownerID, "op", opID, "error", err)
 	}
 }
 
@@ -131,8 +235,10 @@ func (s *CRDTStore) doc(ownerID string) (*loro.LoroDoc, error) {
 
 // saveSnapshot persists the current resolved doc state for ownerID.
 // Called after every mutating op so a crash never loses more than the
-// in-flight op.
+// in-flight op. Also bumps the version counter for any caller (local
+// or remote). The Phase 3 SSE broadcaster subscribes to this counter.
 func (s *CRDTStore) saveSnapshot(ownerID string, d *loro.LoroDoc) error {
+	s.bumpVersion(ownerID)
 	snap, err := d.Export(loro.SnapshotMode())
 	if err != nil {
 		return fmt.Errorf("crdtstore: export snapshot: %w", err)
@@ -211,6 +317,8 @@ func (s *CRDTStore) Create(_ context.Context, e todo.Todo, ownerID, _ string) (t
 	if err := s.saveSnapshot(ownerID, d); err != nil {
 		return todo.Todo{}, err
 	}
+	//nolint:contextcheck
+	s.publishOpFromDoc(context.Background(), ownerID, "create-"+e.ID, d)
 	// Return the entity read back from the doc so the caller sees the
 	// server-assigned timestamps (CreatedAt/UpdatedAt).
 	out, ok := findItem(d, e.ID)
@@ -306,6 +414,8 @@ func (s *CRDTStore) Update(_ context.Context, ownerID, id string, patch map[stri
 	if err := s.saveSnapshot(ownerID, d); err != nil {
 		return todo.Todo{}, err
 	}
+	//nolint:contextcheck
+	s.publishOpFromDoc(context.Background(), ownerID, "update-"+id, d)
 	t, ok := findItem(d, id)
 	if !ok {
 		return todo.Todo{}, store.ErrNotFound
@@ -335,6 +445,8 @@ func (s *CRDTStore) Delete(_ context.Context, ownerID, id string) error {
 	if err := s.saveSnapshot(ownerID, d); err != nil {
 		return err
 	}
+	//nolint:contextcheck
+	s.publishOpFromDoc(context.Background(), ownerID, "delete-"+id, d)
 	return nil
 }
 
@@ -371,6 +483,8 @@ func (s *CRDTStore) ClearCompleted(_ context.Context, ownerID string) (int, erro
 		if err := s.saveSnapshot(ownerID, d); err != nil {
 			return len(toDelete), err
 		}
+		//nolint:contextcheck
+		s.publishOpFromDoc(context.Background(), ownerID, "clear-completed", d)
 	}
 	return len(toDelete), nil
 }
@@ -394,6 +508,124 @@ func (s *CRDTStore) Count(_ context.Context, ownerID string) (int, error) {
 		n++
 	}
 	return n, nil
+}
+
+// ApplyRemoteOp applies a Loro update received from a peer via the
+// JetStream transport. Concurrent-safe. The local doc merges the
+// incoming op automatically (Loro CRDT magic); we just save a
+// snapshot afterwards so a future peer reconnect can catch up.
+//
+// Per the transport's loop filter, this method is only called for
+// ops emitted by OTHER processes — the in-process publisher is
+// filtered by the Subscribe handler.
+func (s *CRDTStore) ApplyRemoteOp(_ context.Context, ownerID string, op Op) error {
+	if ownerID == "" {
+		return errors.New("crdtstore ApplyRemoteOp: empty ownerID")
+	}
+	if len(op.Updates) == 0 {
+		return nil // no-op: empty update bytes
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	d, err := s.doc(ownerID)
+	if err != nil {
+		return err
+	}
+	if _, err := d.Import(op.Updates); err != nil {
+		return fmt.Errorf("crdtstore ApplyRemoteOp: import: %w", err)
+	}
+	if err := s.saveSnapshot(ownerID, d); err != nil {
+		return fmt.Errorf("crdtstore ApplyRemoteOp: save snapshot: %w", err)
+	}
+	// Emit a "doc version bumped" event so the UI can re-fetch
+	// (Phase 3: SSE-based realtime for CRDTStore). For now we just
+	// bump a version counter that the handler can poll.
+	s.bumpVersion(ownerID)
+	slog.Debug("crdtstore: applied remote op", "owner", ownerID, "op", op.ID, "publisher", op.PublisherID)
+	return nil
+}
+
+// bumpVersion increments the in-memory version counter for an owner
+// and (Phase 3) fans out the new version to subscribers via Watch
+// AND to the optional publisher. The counter is the ground-truth
+// for catch-up reads on reconnect; the channel + publisher are
+// the live notification paths.
+func (s *CRDTStore) bumpVersion(ownerID string) {
+	s.versionMu.Lock()
+	if s.versions == nil {
+		s.versions = make(map[string]uint64)
+	}
+	s.versions[ownerID]++
+	v := s.versions[ownerID]
+	// Non-blocking fan-out to subscribers. Each Watch consumer
+	// buffers its own channel; if the buffer is full, the slot is
+	// skipped (the next bump fills a fresh slot, so the latest
+	// version always lands for a non-pathologically slow consumer).
+	for _, w := range s.watchers {
+		select {
+		case w.ch <- versionEvent{owner: ownerID, version: v}:
+		default:
+		}
+	}
+	// Optional downstream publisher (SSE Hub). Called under the
+	// versionMu lock — implementations MUST NOT block. A blocked
+	// publisher stalls every future bumpVersion for this store.
+	if s.publisher != nil {
+		s.publisher.PublishDocEvent(ownerID, v)
+	}
+	s.versionMu.Unlock()
+}
+
+// Version returns the current version counter for an owner (or 0).
+// Tests + (Phase 3) the SSE broadcast use this to detect a "doc
+// version bumped" event.
+func (s *CRDTStore) Version(ownerID string) uint64 {
+	s.versionMu.Lock()
+	defer s.versionMu.Unlock()
+	return s.versions[ownerID]
+}
+
+// Watch returns a channel that receives a uint64 every time the
+// owner's doc version bumps. The channel is buffered (size 8); if
+// the buffer fills, events are dropped (the next bump fills a fresh
+// slot, so the latest version always lands). The watcher is removed
+// when cancel is called (SSE hub disconnect). Replay-first: the
+// current version is sent immediately so a reconnected client
+// receives the catch-up value before any new events.
+func (s *CRDTStore) Watch(ownerID string) (<-chan uint64, func()) {
+	const watchOutBuf = 8
+	const watchInternalBuf = 16
+	out := make(chan uint64, watchOutBuf)
+	internal := make(chan versionEvent, watchInternalBuf)
+	s.versionMu.Lock()
+	s.watchers = append(s.watchers, &watchSubscription{ch: internal})
+	s.versionMu.Unlock()
+	go func() {
+		defer close(out)
+		// Send initial snapshot value (0 = no events yet).
+		out <- s.Version(ownerID)
+		for ev := range internal {
+			if ev.owner != ownerID {
+				continue
+			}
+			select {
+			case out <- ev.version:
+			default:
+			}
+		}
+	}()
+	cancel := func() {
+		s.versionMu.Lock()
+		defer s.versionMu.Unlock()
+		for i, w := range s.watchers {
+			if w.ch == internal {
+				s.watchers = append(s.watchers[:i], s.watchers[i+1:]...)
+				close(internal)
+				return
+			}
+		}
+	}
+	return out, cancel
 }
 
 // writeItem writes a todo.Todo's fields into a fresh LoroMap child

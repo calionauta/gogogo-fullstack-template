@@ -6,6 +6,7 @@ import (
 	"log"
 	"log/slog"
 	"net/http"
+	"sync"
 
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/core"
@@ -120,13 +121,18 @@ func Init(
 			// Wire the pluggable persistence layer. PBStore is the
 			// default; CRDTStore (Loro+JetStream, future) plugs in via
 			// the same SetStore hook without touching the handlers.
-			todoStore, storeErr := buildTodoStore(app, cfg.EntityStore)
+			todoStore, concrete, storeErr := buildTodoStore(app, cfg.EntityStore)
 			if storeErr != nil {
 				slog.Error("router: build todo store failed; falling back to PBStore",
 					"strategy", cfg.EntityStore, "error", storeErr)
 				todoStore = pbstore.New(app, "todos")
 			}
 			todoH.SetStore(todoStore)
+			// If the store supports Phase 2 cross-instance transport,
+			// the caller (main.go) wires it after Init returns. We
+			// stash the concrete type in a package var so main can
+			// find it.
+			setConcreteTodoStore(concrete)
 			todoH.RegisterRoutes(se)
 		} else {
 			// Defensive fallback: construct a fresh handler if the
@@ -182,20 +188,21 @@ func Init(
 // buildTodoStore selects the persistence strategy for todo entities
 // based on cfg.EntityStore. Currently supports "pb" (default,
 // PocketBase records) and "crdt" (Loro per owner + PB snapshot).
-// Future strategies plug in here without touching the handlers —
-// the EntityStore interface is the contract.
-func buildTodoStore(app core.App, strategy string) (store.EntityStore[todo.Todo], error) {
+// Returns (interface, concrete) so the caller can install strategy-
+// specific wiring (e.g. CRDTStore.SetTransport / Subscribe) without
+// losing the typed access.
+func buildTodoStore(app core.App, strategy string) (store.EntityStore[todo.Todo], any, error) {
 	switch strategy {
 	case "", "pb":
-		return pbstore.New(app, "todos"), nil
+		return pbstore.New(app, "todos"), nil, nil
 	case "crdt":
 		s := crdtstore.New(app)
 		if err := s.EnsureSchema(); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		return s, nil
+		return s, s, nil
 	default:
-		return nil, errUnknownStoreStrategy(strategy)
+		return nil, nil, errUnknownStoreStrategy(strategy)
 	}
 }
 
@@ -208,4 +215,31 @@ type errUnknownStoreStrategy string
 
 func (e errUnknownStoreStrategy) Error() string {
 	return "router: unknown ENTITY_STORE strategy: " + string(e)
+}
+
+// concreteTodoStore is the concrete EntityStore implementation built by
+// buildTodoStore. Exposed (package-level) so main.go can install
+// strategy-specific wiring (e.g. CRDTStore transport) without the
+// router package needing to know about every strategy's API. Guarded
+// by concreteTodoStoreMu because OnServe may fire multiple times in
+// test harnesses that re-bootstrap the server.
+var (
+	concreteTodoStoreMu sync.Mutex
+	concreteTodoStore   any
+)
+
+// ConcreteTodoStore returns the concrete store wired in Init. Returns
+// nil if the configured strategy doesn't expose a concrete type
+// (e.g. PBStore — has no Phase 2 transport). Type-asserted by the
+// caller; safe no-op when nil.
+func ConcreteTodoStore() any {
+	concreteTodoStoreMu.Lock()
+	defer concreteTodoStoreMu.Unlock()
+	return concreteTodoStore
+}
+
+func setConcreteTodoStore(s any) {
+	concreteTodoStoreMu.Lock()
+	defer concreteTodoStoreMu.Unlock()
+	concreteTodoStore = s
 }

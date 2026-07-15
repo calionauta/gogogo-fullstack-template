@@ -7,7 +7,7 @@ BUILDTIME   := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 LDFLAGS     := -ldflags="-w -X main.Version=$(VERSION) -X main.CommitHash=$(COMMIT) -X main.BuildTime=$(BUILDTIME)"
 TAGS        := -tags "no_default_driver"
 
-.PHONY: all build desktop wails-build run clean restart templ fmt css css-install datastar-lint test lint vet check-sizes deadcode check ci-local signoff deps dev docker-image setup help
+.PHONY: all build desktop wails-build run clean restart templ fmt css css-install datastar-lint test lint vet check-sizes deadcode ci-local signoff deps dev docker-image setup help
 
 all: build
 
@@ -102,9 +102,6 @@ deadcode:
 # scans dead code, runs the full race test suite, and verifies the
 # generated CSS is up to date. make setup installs the blocking
 # pre-commit hook that enforces the same gate on every commit.
-check: fmt datastar-lint css-check lint check-sizes deadcode test
-	@echo "✅ All checks passed"
-
 # ci-local runs the same quality gate as CI but locally, so you can
 # catch issues before pushing. Runs lint, tests (-p 1 for DagNats
 # engine stability), and a single unified build — no more tag matrix.
@@ -170,7 +167,7 @@ help:
 	@echo "  lint           Run go vet + golangci-lint (full)"
 	@echo "  check-sizes    Check file/function size limits"
 	@echo "  deadcode       Scan for dead code"
-	@echo "  check          Run all checks (fmt + datastar-lint + css-check + lint + sizes + deadcode + test)"
+
 	@echo "  css            Build app.min.css from src/css/input.css (Tailwind v4 + DaisyUI v5)"
 	@echo "  css-install    Install CSS build dependencies (npm)"
 	@echo "  dev            Live reload with Air"

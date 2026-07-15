@@ -4286,6 +4286,9 @@
       --size: calc(var(--size-selector, 0.25rem) * 5);
     }
   }
+  .p-1 {
+    padding: var(--spacing);
+  }
   .p-2 {
     padding: calc(var(--spacing) * 2);
   }

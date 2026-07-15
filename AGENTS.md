@@ -22,13 +22,18 @@ Skills: `cali-coding-go-standards` (code quality), `cali-code-navigation` (cymba
 | Command | Description |
 |---------|-------------|
 | `make dev` | Air live reload (gofumpt + vet + golangci-lint info) |
-| `make build` | Unified build (everything included) |
-| `make test` | Race tests (`-p 1` for DagNats engine stability) |
+| `make build` | Unified build — `go build` ONLY (no lint, no tests) |
+| `make test` | Race tests (`-p 1` for DagNats engine stability); discouraged locally — the remote CI runs them |
 | `make templ` | Generate Templ |
 | `make datastar-lint` | Lint `.templ` via datastar-lint (`-only-errors` keeps intentional custom attrs) |
-| `make check` | **Gate**: fmt + datastar-lint + golangci-lint + vet + sizes + deadcode + race tests |
-| `make ci-local` / `make signoff` | Local CI gate + gh-signoff stamp (see Local CI) |
-| `make setup` | Blocking pre-commit + pre-push (pre-push adds `govulncheck`) |
+| `make css` / `make css-check` | Rebuild Tailwind/DaisyUI bundle; `css-check` compares against HEAD (used in `ci-local`) |
+| `make ci-local` | **Single gate** (= CI): templ + datastar-lint + css-check + golangci-lint + race tests + build |
+| `make signoff` | `ci-local` + `gh signoff` stamp (advisory on push-to-master) |
+| `make setup` | Blocking pre-commit + pre-push hooks (pre-push adds `govulncheck`) |
+
+> **`make check` was removed.** It was a subset of `make ci-local` (no
+> build verification, smaller lint set). The single source of truth
+> for "is the gate green" is `make ci-local`.
 
 ## Don'ts
 
@@ -64,62 +69,122 @@ Lessons from v0.18.0 (offline-add + CI flake). Full post-mortem: `docs/decisions
 - **`git stash drop` is destructive** — it removes the ref without applying. Use `git stash pop` (apply + remove) or, before any stash drop, snapshot working changes to a `wip-*` branch.
 - **Heredoc commit/tag messages**: prefer `git commit -F - <<'EOF' ... EOF` (quoted EOF = literal body) or `git tag -F /tmp/msg`. Avoid `git commit -m "$(cat <<'EOF' ... EOF)"` — bash quoting through the outer `"` + `$()` can fail parse on apostrophes/backticks in the body.
 
-## Feedback loop (3 tiers)
+## Feedback loop (4 tiers, cheapest first)
 
-The Makefile has overlapping targets (`check` and `ci-local` both run lint+css; `ci-local` does not run tests, `check` does). Picking the wrong one burns 3-5 minutes of "waiting for shell" tokens. The right tier depends on what you just changed.
+Cascade up the tiers as confidence grows. Each tier catches a
+different failure class; lower tiers are ~10x cheaper, so promote
+only when (a) about to push/merge, or (b) the change touches an
+area the next tier checks.
 
-### Tier 1 — during development (run often, every 5-10 min of work)
+### T1 — format + build (~10s)
 
-After editing a `.templ` (regenerates `_templ.go`):
-
-```
-make templ
-```
-
-After editing a `.go` file (compile + lint + format check + css-check):
-
-```
-make build
+```bash
+gofumpt -l -d <changed-files>   # format drift (<1s)
+go build ./...                  # compile errors (~5-10s)
 ```
 
-This runs `gofumpt + datastar-lint + css-check + golangci-lint + build` in roughly 30-60 seconds. Catches compile errors, lint issues, formatting, basic `go vet`. Does **not** run the test suite. Use this as the main dev loop.
+Catches formatting drift and compilation errors. Run every few
+minutes during active editing. Replaces the old habit of running
+`make build` repeatedly — `make build` only runs `go build`, not
+formatting or lint, so it misses drift that T1 catches.
 
-If you changed a specific package and want to validate its tests without paying the full-suite cost:
+### T2 — lint + datastar + format + sizes + deadcode (~15-20s)
 
+```bash
+go vet ./...                                              # stdlib vet
+golangci-lint run <changed-glob>                          # 27 linters, scoped
+make templ && make datastar-lint                          # only when .templ changed
+make fmt                                                  # gofumpt + goimports, full repo
+make check-sizes && make deadcode                         # binary size + deadcode scan
 ```
-go test -race -short ./features/your-package/
+
+Catches shadow, mnd, nolintlint, revive, staticcheck — same
+config as CI but scoped to the packages you touched. ~15-20s for
+scoped lint. Datastar-lint only applies to `.templ` changes;
+sizes + deadcode + full-repo fmt catch the slow-moving drift.
+
+**T2 must be green before T3.** Lint and format errors fail the
+build downstream; running tests on a known-linted codebase saves
+re-runs.
+
+### T3 — scoped tests (~5-30s)
+
+```bash
+go test -race -count=1 -short <changed-glob>
 ```
 
-This runs only that package's tests in 5-30 seconds. `-short` skips long-running tests. Use when you want to verify a specific fix.
+Package-level only. `-race` catches data races. `-short` skips
+long-running tests when present. Use after T2 is green on a
+specific fix. The `-p 1` from `make test` is unnecessary at this
+tier because DagNats FD starvation only matters when running ACROSS
+packages.
 
-### Tier 2 — before staging a commit (once, after the unit of work is done)
+### T4 — full pre-push gate (`make ci-local`, ~60-180s)
 
-```
+```bash
 make ci-local
+# templ + datastar-lint + css-check + golangci-lint +
+# go test -race -p 1 ./... -count=1 + go build
 ```
 
-Full gate **except tests**: `templ + datastar-lint + css-check + golangci-lint + build`. Catches everything the CI catches except logic regressions in the test suite. Budget ~3-4 minutes. Run right before `git add`.
+The single source of truth for "is the gate green". Run right
+before `git add` + `git push`. If this is green, push — the
+remote CI runs the same gate plus deploy. Same checks as the
+remote CI's lint job.
 
-If `ci-local` passes, push and let the remote CI run the tests + deploy. The remote CI is the source of truth.
+The remote CI is also the source of truth for **test execution**
+in general — re-running the full test suite locally wastes time
+that the parallel CI run is doing for you. Only re-run locally if
+remote CI is broken or you're reproducing a CI-specific failure.
 
-### Tier 3 — trust the remote CI for the test run
+### Make check removed
 
-**Never run `make test` locally** unless the remote CI is broken or you specifically need to reproduce a CI failure. The remote CI runs `go test -race -p 1 ./... -count=1` which takes 3-5 minutes either way. Local cost: 3-5 minutes of "waiting for shell" tokens. Remote cost: 3-5 minutes of "waiting for CI" while you do other things. Same wall-clock, but remote is the source of truth (no risk of local environment drift).
+`make check` was removed from the Makefile — it was a redundant
+gate (subset of `make ci-local` without build verification). Use
+`make ci-local` instead.
 
-If you do need to run the full test suite locally (CI unavailable, risky refactor, etc.):
+### Make target audit (what still earns its place)
 
-```
-go test -race -p 1 ./... -count=1
-```
-
-The `-p 1` is non-negotiable: the DagNats engine boots an embedded NATS per package and parallel runs exhaust file descriptors.
+| Target             | Status   | Why                                                                                  |
+|--------------------|----------|-------------------------------------------------------------------------------------|
+| `make build`       | keep     | `go build` of the unified binary. The fast "is it compileable?" check.               |
+| `make templ`       | keep     | Regenerates `_templ.go` from `.templ` source.                                       |
+| `make css`         | keep     | Rebuilds `app.min.css` from `src/css/input.css`.                                     |
+| `make css-check`   | keep     | Diff vs HEAD; fails ci-local if stale.                                               |
+| `make datastar-lint` | keep   | Catches Datastar anti-patterns in `.templ`.                                           |
+| `make fmt`         | keep     | Full-repo gofumpt + goimports (CI gate).                                             |
+| `make lint`        | keep     | Full-repo vet + golangci-lint (used by `make check`-equivalent flows; slow).         |
+| `make test`        | keep     | Race tests; the remote CI uses this directly.                                         |
+| `make check-sizes` | keep     | Binary size budget check.                                                              |
+| `make deadcode`    | keep     | Deadcode scan.                                                                        |
+| `make ci-local`    | **canonical gate** | The pre-push gate. Replaces `make check`.                              |
+| `make check`       | **removed** | Redundant subset of `ci-local`. Promote `ci-local`.                               |
+| `make signoff`     | keep     | `ci-local` + `gh signoff` advisory stamp.                                            |
+| `make setup`       | keep     | Git hooks install.                                                                     |
+| `make desktop`     | keep     | Wails v3 desktop shell.                                                              |
+| `make dev`         | keep     | Air live reload.                                                                       |
 
 ### Anti-patterns (do not do this)
 
-- **`make check` between every edit.** The Makefile target `check` runs the full test suite (`check: ... test`). Budget 3-5 minutes per run. Use `make build` instead.
-- **`make test` between every commit.** Same as above. CI is the test runner.
-- **`make ci-local` after every small change.** Too slow (3-4 minutes) for a feedback loop. Use `make build`.
-- **Running tests before lint passes.** Lint and format errors fail the build. Fix those first, then run the test you're working on.
+- **`make check`** — removed; use `make ci-local`.
+- **`make test` between every commit** — same wall clock as
+  `ci-local` minus the other checks. Use `ci-local` for the
+  full pass; use T3 scoped `go test -race` for fast package
+  feedback.
+- **Skipping T1** — format drift piles up silently.
+- **`golangci-lint run ./...`** (whole repo) for small changes —
+  always scope to the changed packages (full-repo is ~10x
+  slower).
+- **Running the full test suite locally** when remote CI is
+  healthy — same wall clock, but local fix-ups don't propagate.
+- **Touching a class that isn't real CSS** (e.g. writing `p-1`
+  in test data, JSON examples, or markdown prose) — Tailwind's
+  content scanner reads `.templ`, `.go`, and via the
+  `@import "tailwindcss" source(...)` directive, anything that
+  matches the source globs. A `class="...p-1..."` accidentally
+  emitted as a Tailwind utility creates spurious CSS in
+  `app.min.css` and fails `css-check`. Run `make css` during T2
+  for any change that might introduce class-shaped tokens.
 
 ## Architecture (concise)
 

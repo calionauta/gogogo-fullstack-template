@@ -1,3 +1,70 @@
+
+## [Unreleased]
+
+### Added (Phase 2 + 3 closure)
+
+- **Cross-instance CRDT transport wired**: `cmd/web/main.go` calls
+  `server.WireCRDTStoreTransport` (JetStream ops) AND
+  `server.WireCRDTStorePublisher` (SSE Hub fan-out) after `server.Run`.
+  - Local mutation → saveSnapshot → bumpVersion → publishes `doc-version-bumped`
+    to the SSE Hub → client merges `$docVersion` signal → re-fetches fragment.
+  - Remote mutation → ApplyRemoteOp → saveSnapshot → bumpVersion → same path.
+- **`crdtstore.DocPublisher` interface**: pluggable event sink; `SetPublisher(p)`
+  wires one after boot. The SSE Hub adapter (`internal/server/crdtstore_wire_publisher.go`)
+  implements it; tests use a `fakePublisher` that records every event.
+- **`SSE handler.dispatch("doc-version-bumped")`**: new branch in
+  `features/todo/handlers/todo_sse.go` merges `{docVersion, docVersionSeen}`
+  signals via Datastar.
+- **Client-side `$docVersion` watcher**: `features/todo/components/realtime.templ`
+  polls `data-signals-docVersion` every 250ms; on change, clicks the existing
+  `pb-realtime-resync` button so the same fragment fetch handles both PB
+  record and CRDT doc events.
+- **`server.Run` returns `*queue.Queue`** so main.go can access `q.Hub()`
+  without leaking queue refs through the router. Also affects `cmd/desktop`.
+- **`router.ConcreteTodoStore()` race-safe**: guarded by `concreteTodoStoreMu`.
+
+### Tests (Phase 3 E2E pipeline)
+
+- `features/store/crdtstore/pipeline_test.go` —
+  `TestCRDTStore_FullPipeline_BumpPublisherFires`:
+  - Two CRDTStores share one JetStream; mutual Subscribe; store A has a
+    fake publisher wired.
+  - Store B creates → op flows through JetStream → store A's ApplyRemoteOp
+    fires → bumpVersion → publisher count goes up.
+  - Mirror: store A creates → publisher fires again.
+  - Closes Phase 3 missing test gap. Existing cross_process + transport
+    tests only verified doc propagation; this one covers the full SSE-bound
+    path end-to-end without race flakes (fake publisher eliminates goroutine
+    timing race).
+
+### Fixed
+
+- `cmd/desktop/main.go` updated for new `server.Run` signature.
+- `pipeline_test.go` IDs renamed from `pipe-1`, `pipe-2` (renamed to avoid Tailwind class-name extraction)
+  to avoid Tailwind's content scanner treating test data as utility classes
+  (which generated spurious `.p-1` CSS).
+
+### AGENTS.md (developer-facing)
+
+- Feedback loop section rebuilt as **4 tiers** (format → compile → lint
+  scoped → tests scoped → full gate → remote CI).
+- Corrected the persistent misconception that `make build` runs the full
+  gate — `make build` only runs `go build`. The actual fast feedback loop
+  uses `gofumpt` + `go build` + scoped `golangci-lint run`.
+- Documented `make check` as redundant with `make ci-local` and removed
+  it from the recommended paths.
+- Added "When to use what" reference table.
+
+### Removability
+
+All Phase 2 + Phase 3 code is `SCOPE:pluggable` and gated on
+`ENTITY_STORE=crdt`. Setting `ENTITY_STORE=pb` (default) skips the
+entire cross-instance pipeline at startup. To remove entirely,
+delete `features/store/crdtstore/{transport,pipeline_test,*}.go`,
+`internal/server/crdtstore_wire*.go`, `internal/server/uuid.go`, the
+`WireCRDTStoreTransport`/`WireCRDTStorePublisher` calls in
+`cmd/web/main.go`, and the `streamDocVersionBumped` branch +
+`watchDocVersion` block in the SSE handler / template.
 # Changelog
 
 All notable changes to this template are documented here. The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
@@ -219,3 +286,22 @@ All notable changes to this template are documented here. The format is based on
 - Datastar + DaisyUI reactive UI, Templ type-safe components.
 - Build-tag-gated NATS JetStream and Turbine layers.
 - golangci-lint strict config, distroless Docker image, Makefile, Air live reload.
+
+## [Unreleased]
+
+### Added (CRDTStore Phase 2 + 3)
+
+- `crdtstore.transport.go` — JetStream cross-instance op transport (publisher + consumer).
+- `crdtstore.ApplyRemoteOp(ctx, ownerID, op)` — applies peer Loro ops to the local doc.
+- `crdtstore.Watch(ownerID)` — signal-driven channel of doc-version bumps (Phase 3).
+- `internal/server/crdtstore_wire.go` — boot-time transport wire (only when `ENTITY_STORE=crdt`).
+- `cmd/web/main.go` — installs the transport post-Init (router exposes `concreteTodoStore` for this).
+- Integration test: two CRDTStores share one JetStream, both Observe peer's Creates within ~3s.
+- ADR-0017 in `docs/decisions.md` (Phase 2 + 3 design rationale).
+
+### Fixed
+
+- `CRDTStore.Create` previously deadlocked when `transport != nil` because `publishOp`
+  re-acquired the mutex already held by Create/Update/Delete. Refactored to
+  `publishOpFromDoc(ctx, ownerID, opID, d)` which expects the caller to already hold
+  `s.mu`.
