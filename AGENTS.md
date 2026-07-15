@@ -64,7 +64,7 @@ Lessons from v0.18.0 (offline-add + CI flake) — see CHANGELOG.md.
 - **One unified build, no feature build tags.** `go build ./cmd/web` (or `make build`) compiles everything with no `-tags`. `ncruces/go-sqlite3` is the always-on driver (registered as `sqlite3`); PocketBase also bundles `modernc.org/sqlite` but it registers `sqlite` and stays unused, so tests need no special tag. Tests bootstrap PocketBase via `app.Bootstrap()` with our `DBConnect` (ncruces `sqlite3`) and just run — no `Bootstrap` panic, no tag matrix to forget.
 - **Avoid package-level mutable globals.** `var NS/NC/JS *Foo` set by `StartX()` and torn down by `Stop()` leak across `-p 1` packages when `Stop` doesn't nil them. Either nil on entry/exit or, better, return a struct. See `internal/nats/embedded.go` for the belt-and-suspenders nil-out.
 - **Pre-commit MUST rebuild `.templ` AND CSS.** Editing a `.templ` without `make templ && make css` leaves `web/resources/static/app.min.css` stale. `css-check` passes by inertia when nobody rebuilt, masking the staleness until a real diff appears.
-- **Three-tier feedback loop (replaces the single-tier "make check" rule).** See `## Feedback loop` below for the full breakdown. Short version: `make build` during dev, `make ci-local` pre-commit, **never run `make test` locally** — the remote CI is the test runner.
+- **Local feedback is T1–T4; sign locally before push.** See the Feedback loop section below. The cheapest reliable pre-push gate is `make signoff` (= T4 + `gh signoff` stamp). It catches ~95%% of issues in <3min locally — race detector races, lint, format drift, CSS staleness, sync.Once misuse, etc — without waiting for a 5min CI round trip. The remote CI then becomes a parallel validator + auto-deploy tool, not the primary gatekeeper.
 - **Confirm live deployment by byte-diffing an embedded asset.** `diff <(curl https://<host>/static/<asset>) <(repo <asset>)` is the cheapest proof the running binary matches the latest commit. Use for any "is the fix actually live?" question.
 - **`git stash drop` is destructive** — it removes the ref without applying. Use `git stash pop` (apply + remove) or, before any stash drop, snapshot working changes to a `wip-*` branch.
 - **Heredoc commit/tag messages**: prefer `git commit -F - <<'EOF' ... EOF` (quoted EOF = literal body) or `git tag -F /tmp/msg`. Avoid `git commit -m "$(cat <<'EOF' ... EOF)"` — bash quoting through the outer `"` + `$()` can fail parse on apostrophes/backticks in the body.
@@ -132,6 +132,32 @@ before `git add` + `git push`. If this is green, push — the
 remote CI runs the same gate plus deploy. Same checks as the
 remote CI's lint job.
 
+### T5 — local signoff (~60-180s, replaces waiting on CI)
+
+```bash
+make signoff
+# = make ci-local + "gh signoff -f" stamp on HEAD
+```
+
+A advisory stamp saying "this commit has the same checks CI runs,
+locally verified". After `make signoff` succeeds, you can push
+without holding your breath for CI to discover a race or syntax
+issue. The remote CI still runs the same gate as a parallel
+validator and to drive the auto-deploy step — signoff does
+**not** skip CI.
+
+Why bother when CI also runs? Because each CI round trip is
+~3–5min wall-clock waiting on queue + runners + remote logs —
+cumulative across many small commits. `make signoff` catches
+~95%% of issues (race detector on `TestXxx`, lint warnings,
+format drift, CSS staleness, sync.Once wrong placement,
+Dockerfile `ARG` inline placement, etc.) in that same 3min
+window but locally, so you find them, fix them, re-signoff, push.
+
+The order is: **commit locally → `make signoff` → `git push
+origin master`**. If signoff green lights you, push is a
+single-arg action, not a “hope CI likes it” gamble.
+
 The remote CI is also the source of truth for **test execution**
 in general — re-running the full test suite locally wastes time
 that the parallel CI run is doing for you. Only re-run locally if
@@ -159,7 +185,7 @@ gate (subset of `make ci-local` without build verification). Use
 | `make deadcode`    | keep     | Deadcode scan.                                                                        |
 | `make ci-local`    | **canonical gate** | The pre-push gate. Replaces `make check`.                              |
 | `make check`       | **removed** | Redundant subset of `ci-local`. Promote `ci-local`.                               |
-| `make signoff`     | keep     | `ci-local` + `gh signoff` advisory stamp.                                            |
+| `make signoff`     | **promoted** | `ci-local` + `gh signoff` advisory stamp. Default pre-push gate; catches ~95%% of issues locally in <3min. |
 | `make setup`       | keep     | Git hooks install.                                                                     |
 | `make desktop`     | keep     | Wails v3 desktop shell.                                                              |
 | `make dev`         | keep     | Air live reload.                                                                       |
@@ -225,26 +251,53 @@ router/                  🔴 CORE  Route wiring
 
 **NATS JetStream** is used by DagNats (workflow engine state), the whiteboard SyncWorker (cross-instance doc sync), and the optional desktop-edge Leaf Node. The todo broadcaster uses an in-memory fan-out by default (can be wired to JetStream for multi-instance deployments).
 
-## Local CI (gh-signoff)
+## Local CI (gh-signoff) — T5 of the feedback loop
 
 CI runs on push to `master` then deploys. Run the **same gate locally** to avoid broken pushes:
 
 ```bash
-gh extension install basecamp/gh-signoff
-make ci-local      # templ + golangci-lint + datastar-lint + css-check + race tests + build
-make signoff       # ci-local + gh signoff -f
+gh extension install basecamp/gh-signoff  # one-time
+make signoff                              # ci-local + gh signoff -f
 ```
 
-Uses golangci-lint (not standalone gofumpt) as the formatter gate — gofumpt can be a newer release than golangci-lint bundles, causing false positives. Signoff is **advisory** (push-to-master flow, not PR merge) — do NOT `gh signoff install`.
+`make signoff` is T5 in the feedback loop (see above): it runs T4
+(`ci-local`) and stamps HEAD as locally-verified. Once the stamp
+is on the commit, the push is safe in the sense that "this code
+builds, tests, lints, and matches CI". The remote CI then runs
+the same checks as a parallel validator + drives the auto-deploy
+step; signoff does not skip CI.
 
-### Pre-push workflow: gate locally, then ask before pushing
+Uses golangci-lint (not standalone gofumpt) as the formatter
+gate — gofumpt can be a newer release than golangci-lint
+bundles, causing false positives. Signoff is **advisory**
+(push-to-master flow, not PR merge) — do NOT `gh signoff
+install`.
 
-Remote CI + deploy is slow and runs on every push to `master`. To save time, **always run the local gate first** and only push when it is green:
+### Pre-push workflow: signoff local, then push
 
-1. `make ci-local` (full local gate).
-2. If it passes, **ask the user** (via `ask_user_question`) whether they want to push now or keep working.
+Remote CI + deploy is slow on every push to `master`. The chain
+below turns a push from "hope CI likes it" into a confirmation:
 
-Rationale: a developer often wants only a local green signal before continuing with more changes; pushing prematurely kicks off a slow remote run they may not need yet.
+1. Work locally, commit with `git commit -F /tmp/msg`.
+2. `make signoff` (1–3min locally).
+3. If it returns successfully, **push without asking**.
+4. CI will validate in parallel and deploy on success.
+
+Watch-outs across recent releases:
+
+- Race detector on tests (e.g. v0.21.3 sync.Once fix) — caught
+  by T3/T5, **not** by `make build`. Always run T5 before push.
+- Dockerfile syntax (e.g. v0.21.4 inline-ARG bug) — the container
+  build is what fails, not Go. T5 catches this only if `docker
+  buildx build` is reachable locally; on Mac without the
+  aarch64 toolchain, only CI catches it. The CHANGELOG pins
+  when this hits.
+- `go build -tags "<stale>"` (e.g. -tags jetstream dagnats after
+  the unified-build era) silently succeeds — T2 shows nothing,
+  T4 does nothing, T5 does nothing. CI does nothing. The
+  `git push` succeeds but the runtime drift is silent. No
+  catching mechanism today; review tags when editing startup
+  comments.
 
 ## Deploy
 
