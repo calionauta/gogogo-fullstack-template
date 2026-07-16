@@ -260,34 +260,39 @@ func TestCRDTStore_RecordRoundTrip(t *testing.T) {
 	// s1.Create + s1.Close + s2 := New(app) + s2.List reads 0 records
 	// — even though an inline probe shows the rows exist in PB.
 	//
-	// Spike investigation narrowed the differential:
-	//   spike 1 (deleted): app.Save variants — all 8 persist identically.
-	//   spike 3 (deleted): inline Save+FindRecordsByFilter — works (3 rows).
-	//   spike 4 (deleted): doc rebuild from PB records — works.
-	//   spike 6 (deleted): real crdtstore code path on tmpPB — Save
-	//                        returns nil but FindRecordsByFilter has 0.
-	//   spike 7 (deleted): RelationField Required=true vs false — BOTH
-	//                        return 1 row via FindRecordById + filter +
-	//                        raw dbx. Required=true is NOT the cause.
+	// Spike investigation ruled out every hypothesis we could isolate
+	// cheaply (all spikes since deleted — kept out of tree by protocol):
+	//   spike 1: app.Save variants (Save / SaveNoValidate / +WithContext)
+	//            — all 8 persist identically on fresh PB.
+	//   spike 3: inline Save + FindRecordsByFilter — returns 3 rows.
+	//   spike 4: doc(owner) rebuild from PB records — returns 3 items.
+	//   spike 6: real crdtstore code path — Save returns nil, query empty.
+	//   spike 7: RelationField Owner Required=true vs false — BOTH work.
+	//   spike 8: Save under s.mu + bumpVersion + re-entrant FindFirst
+	//            — works for 1 save.
+	//   spike 9: N+1 sequential upserts (persistRecords-style iteration,
+	//            each Create re-upserting accumulated items) — works.
 	//
 	// So the bug is NOT in:
 	//   - the Save API or its validations
 	//   - the (idem_key, owner) unique index
-	//   - RelationField Required or shape
-	//   - the in-memory Loro doc or rebuild path
-	// and IS in the diff between the spike's inline Save and
-	// crdtstore.Create's Save — which narrowed to crdtstore-wrap
-	// specific code (s.mu, bumpVersion, publishOpFromDoc, or hook
-	// pipeline differences between the spike's bare Save and the live
-	// upsertTodoRecord path). The fix path needs a deeper PB-internals
-	// spike; the offline-sync optionality makes it low priority
-	// because production uses db/SeedDefaults to create the collection
-	// (no known failure on the round-trip in production). Skip here.
+	//   - RelationField Owner Required or shape
+	//   - the in-memory Loro doc or its rebuild path
+	//   - the s.mu / bumpVersion / doc(owner) ordering wrap
+	//   - the N+1 sequential upserts in persistRecords
 	//
-	// If/when the deeper spike is run, re-enable by removing this
-	// t.Skip and re-running. The tests pass against every other
-	// EntityStore path (CRUD same-app, transport, publisher).
-	t.Skip("known limitation: Save returns nil but subsequent FindRecordsByFilter returns 0 when the collection is built via CRDTStore.EnsureSchema. Production collections come from db/SeedDefaults and work. See inline comment for the spike evidence.")
+	// Root cause is somewhere we could not cheaply isolate: the hook
+	// pipeline ordering, the OnRecordCreateRequest interaction with
+	// EnsureSchema-created collections, or some PB-internals detail that
+	// only surfaces when the real crdtstore.Create path runs end-to-end.
+	// The fix path needs PB-internals work; the offline-sync optionality
+	// makes it low priority because production uses db/SeedDefaults to
+	// create the collection (no known failure on the round-trip there).
+	//
+	// If/when a deeper spike is run, re-enable by removing this t.Skip
+	// and re-running. The tests pass against every other EntityStore
+	// path (CRUD same-app, transport, publisher).
+	t.Skip("known limitation: Save returns nil but subsequent FindRecordsByFilter returns 0 when the collection is built via CRDTStore.EnsureSchema. Production collections come from db/SeedDefaults and work. See inline comment for the spike evidence (spikes 1, 3, 4, 6, 7, 8, 9).")
 	// CRDTStore projects todos as normal `todos` records. A fresh
 	// CRDTStore on the SAME PocketBase app (simulating an in-process
 	// store restart) must rebuild its in-memory doc from those records.
