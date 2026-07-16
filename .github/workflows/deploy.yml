@@ -63,6 +63,9 @@ jobs:
       GOTOOLCHAIN: local
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
       - name: Install Go 1.26.5 manually
         # actions/setup-go extracts the toolchain via tar and has been
         # intermittently corrupting it on this runner image. Install the
@@ -121,7 +124,8 @@ jobs:
           # Without these, Version defaults to "dev" and the deployed
           # binary always shows "dev" in the navbar regardless of the
           # tag.
-          VERSION="${VERSION:-$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo dev)}"
+          VERSION="$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//')"
+          VERSION="${VERSION:-dev}"
           COMMIT="${COMMIT:-$(git rev-parse --short HEAD 2>/dev/null || echo unknown)}"
           BUILDTIME="${BUILDTIME:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}"
           echo "→ Building $GITHUB_REPOSITORY v${VERSION} (commit ${COMMIT})"
