@@ -1,4 +1,16 @@
 
+## [0.22.2] - 2026-07-16
+
+### Fixed
+
+- **CI green** — resolved the pre-existing golangci-lint failures that were red on
+  `master` and failing GitHub CI: `crdtstore.go` `goconst` on `title`/`completed`
+  field literals (extracted `fieldTitle`/`fieldCompleted` consts),
+  `whiteboard/handler.go` long-line (`lll`) wraps, `db/idempotency_seed.go`
+  formatting, and the intentionally-unused `idemKey` param in `CRDTStore.Create`
+  (renamed to `_`; the param is required by the `EntityStore` interface for
+  `pbstore`'s offline dedup and is unused by `crdtstore`, which keys by op IDs).
+
 ## [0.22.1] - 2026-07-16
 
 ### Fixed

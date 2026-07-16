@@ -121,7 +121,8 @@ func (h *Handler) handleIndex(c *core.RequestEvent) error {
 			DocVer: r.GetInt("version"),
 		})
 	}
-	if err := renderBoardList(c, email, boards, h.cfg.BuildLabel, h.cfg.BuildCommit, h.cfg.OfflineSync.Enabled); err != nil {
+	if err := renderBoardList(c, email, boards,
+		h.cfg.BuildLabel, h.cfg.BuildCommit, h.cfg.OfflineSync.Enabled); err != nil {
 		return err
 	}
 	return nil
@@ -469,9 +470,13 @@ func (h *Handler) handleSnapshot(c *core.RequestEvent) error {
 
 // renderBoardList writes the index page with PocketBase realtime wiring
 // so the whiteboard list updates live when another user creates a board.
-func renderBoardList(c *core.RequestEvent, email string, boards []BoardMeta, buildLabel, buildCommit string, offlineSync bool) error {
+func renderBoardList(
+	c *core.RequestEvent, email string, boards []BoardMeta,
+	buildLabel, buildCommit string, offlineSync bool,
+) error {
 	c.Response.Header().Set("Content-Type", "text/html; charset=utf-8")
-	return BoardListWithRealtime(email, boards, buildLabel, buildCommit, offlineSync).Render(c.Request.Context(), c.Response)
+	return BoardListWithRealtime(email, boards, buildLabel, buildCommit, offlineSync).
+		Render(c.Request.Context(), c.Response)
 }
 
 // renderBoard writes the interactive board page.

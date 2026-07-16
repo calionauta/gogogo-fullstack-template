@@ -205,8 +205,8 @@ func (s *CRDTStore) EnsureSchema() error {
 	// collection CRDTStore creates (isolated tests / first-boot
 	// fallback) is byte-compatible with the production one.
 	col.Fields.Add(
-		&core.TextField{Name: "title", Required: true},
-		&core.BoolField{Name: "completed"},
+		&core.TextField{Name: fieldTitle, Required: true},
+		&core.BoolField{Name: fieldCompleted},
 		&core.DateField{Name: "created"},
 		&core.DateField{Name: "updated"},
 		&core.RelationField{Name: "owner", MaxSelect: 1, CollectionId: "_pb_users_auth_"},
@@ -346,8 +346,8 @@ func (s *CRDTStore) upsertTodoRecord(ownerID string, t todo.Todo) error {
 		rec.Set("idem_key", t.ID)
 	}
 	rec.Set("owner", ownerID)
-	rec.Set("title", t.Title)
-	rec.Set("completed", t.Completed)
+	rec.Set(fieldTitle, t.Title)
+	rec.Set(fieldCompleted, t.Completed)
 	if !t.CreatedAt.IsZero() {
 		rec.Set("created", t.CreatedAt)
 	}
@@ -364,8 +364,8 @@ func (s *CRDTStore) upsertTodoRecord(ownerID string, t todo.Todo) error {
 func todoFromRecord(r *core.Record) todo.Todo {
 	return todo.Todo{
 		ID:        r.Id,
-		Title:     r.GetString("title"),
-		Completed: r.GetBool("completed"),
+		Title:     r.GetString(fieldTitle),
+		Completed: r.GetBool(fieldCompleted),
 		CreatedAt: r.GetDateTime("created").Time(),
 		UpdatedAt: r.GetDateTime("updated").Time(),
 	}
@@ -380,7 +380,7 @@ func todoFromRecord(r *core.Record) todo.Todo {
 // client-generated id additionally makes Create idempotent at the
 // Loro-map level (a replayed request reuses the same id and is
 // rejected as a duplicate).
-func (s *CRDTStore) Create(_ context.Context, e todo.Todo, ownerID, idemKey string) (todo.Todo, error) {
+func (s *CRDTStore) Create(_ context.Context, e todo.Todo, ownerID, _ string) (todo.Todo, error) {
 	if ownerID == "" {
 		return todo.Todo{}, errors.New("crdtstore: empty ownerID")
 	}
@@ -445,8 +445,9 @@ func (s *CRDTStore) Get(_ context.Context, ownerID, id string) (todo.Todo, error
 // golangci-lint's goconst check stays happy (the strings appear in
 // the ClearCompleted helper, the Update filter, and the List switch).
 const (
-	listFilterActive    = "active"
-	listFilterCompleted = "completed"
+	fieldTitle       = "title"
+	fieldCompleted   = "completed"
+	listFilterActive = "active"
 )
 
 // List returns all todos owned by ownerID. filter is "active",
@@ -469,7 +470,7 @@ func (s *CRDTStore) List(_ context.Context, ownerID, filter string) ([]todo.Todo
 			if !t.Completed {
 				out = append(out, t)
 			}
-		case listFilterCompleted:
+		case fieldCompleted:
 			if t.Completed {
 				out = append(out, t)
 			}
@@ -565,7 +566,7 @@ func (s *CRDTStore) ClearCompleted(_ context.Context, ownerID string) (int, erro
 			continue
 		}
 		m := *vc.AsLoroMap()
-		if done, _ := m.GetBool("completed"); done {
+		if done, _ := m.GetBool(fieldCompleted); done {
 			toDelete = append(toDelete, id)
 		}
 	}
@@ -730,10 +731,10 @@ func writeItem(m *loro.LoroMap, t todo.Todo) error {
 	if err := m.InsertAny("id", t.ID); err != nil {
 		return err
 	}
-	if err := m.InsertAny("title", t.Title); err != nil {
+	if err := m.InsertAny(fieldTitle, t.Title); err != nil {
 		return err
 	}
-	if err := m.InsertAny("completed", t.Completed); err != nil {
+	if err := m.InsertAny(fieldCompleted, t.Completed); err != nil {
 		return err
 	}
 	now := time.Now().UTC().Format(time.RFC3339)
@@ -786,8 +787,8 @@ func readAll(d *loro.LoroDoc) []todo.Todo {
 // todoFromLoro decodes one item LoroMap into a todo.Todo. Missing
 // timestamps parse to the zero time (callers can detect via IsZero).
 func todoFromLoro(id string, m *loro.LoroMap) todo.Todo {
-	title, _ := m.GetString("title")
-	completed, _ := m.GetBool("completed")
+	title, _ := m.GetString(fieldTitle)
+	completed, _ := m.GetBool(fieldCompleted)
 	createdStr, hasCreated := m.GetString("created")
 	updatedStr, hasUpdated := m.GetString("updated")
 	created, _ := time.Parse(time.RFC3339, createdStr)

@@ -5,19 +5,19 @@
 // db/seed.go can decide what to wire based on OfflineSync.Enabled:
 //
 //   - AddIdemKeyField     — always called. The idem_key column is sent
-//                            by every Create POST (the createForm
-//                            hidden input). It is also useful as a
-//                            request dedupe token even when offline-sync
-//                            is disabled (retries / double-click).
+//     by every Create POST (the createForm
+//     hidden input). It is also useful as a
+//     request dedupe token even when offline-sync
+//     is disabled (retries / double-click).
 //   - AddIdemKeyUniqueIndex — called ONLY when offline-sync is on.
-//                             The (idem_key, owner) unique index is
-//                             what the OnRecordCreateRequest hook
-//                             relies on to dedupe replays of the SW
-//                             queue. Without offline-sync there are
-//                             no replays to dedupe; the index is dead
-//                             weight.
+//     The (idem_key, owner) unique index is
+//     what the OnRecordCreateRequest hook
+//     relies on to dedupe replays of the SW
+//     queue. Without offline-sync there are
+//     no replays to dedupe; the index is dead
+//     weight.
 //   - enableTodosIdempotency — the original combined helper; field +
-//                             index. Kept for tests that want both.
+//     index. Kept for tests that want both.
 //
 // Companion: db/idempotency_hook.go (the OnRecordCreateRequest dedup
 // hook itself). Remove by deleting this file + idempotency_hook.go +
