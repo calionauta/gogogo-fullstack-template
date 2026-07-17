@@ -1,5 +1,22 @@
 
-## [0.23.0] - 2026-07-17
+## [0.23.1] - 2026-07-17
+
+### Fixed
+
+- **CRDTStore add-task stuck in loading/disabled** — `handleCreate` now forwards
+the client-generated `idem_key` into the todo `ID`. `CRDTStore.Create` requires a
+non-empty client id (it keys the Loro map by it) and was returning
+`crdtstore: empty todo ID (client must generate UUID)` → HTTP 500, so the
+Datastar `@post` never received the success SSE that resets `$loading=false`.
+PBStore ignores the value and still uses `idem_key` for offline-replay dedup, so
+pb mode is unaffected. Add → toggle → clear-completed now work end-to-end in
+`ENTITY_STORE=crdt` mode (regression test added in `crdt_repro_test.go`).
+- **Offline banner correctness** — read `offlineSync` from a rendered
+`data-offline-sync` attribute (Templ does not interpolate Go expressions inside
+script text, so the previous `{offlineSync}` trick left `OFFLINE_SYNC`
+undefined), and post `replay-queue` to the active service worker on reconnect so
+queued mutations drain without the banner getting stuck in `is-syncing`.
+
 
 ### Added
 
