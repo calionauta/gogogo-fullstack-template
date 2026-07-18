@@ -1,4 +1,26 @@
 
+
+## [0.23.2] - 2026-07-18
+
+### Changed
+
+- **`css-install` skips `npm ci` on warm checkouts** — guards the install with
+a `node_modules` presence check, so `make css` / `make css-check` no longer
+reinstall Tailwind v4 + DaisyUI + Playwright from scratch every run. Fresh
+clones (or a forced `make css-install`) still do a clean `npm ci`.
+- **DagNats test engine store trimmed** — `internal/dagnats` boots its embedded
+engine with `MaxStoreBytes: 256 << 20` (256 MiB) instead of 1 GiB. The
+onboarding workflow persists almost nothing; the smaller store boots the
+engine lighter, which helps when several packages run their engines under
+`-p 1`.
+
+### Added
+
+- **`make test-fast`** — the tight TDD loop. Keeps `-p 1` (DagNats engine
+stability) but drops `-race`, the dominant cost of the full gate (~5min →
+~1min). Use for red/green iteration; run `make test` / `make ci-local`
+before committing.
+
 ## [0.23.1] - 2026-07-17
 
 ### Fixed

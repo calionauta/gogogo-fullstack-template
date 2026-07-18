@@ -42,13 +42,24 @@ test:
 	# engine always gets enough CPU to complete runs within the test timeout.
 	@go test -race -p 1 ./... -count=1
 
+# test-fast is the tight TDD loop. It keeps -p 1 (so the DagNats
+# embedded-engine stability holds) but drops -race, which is the
+# dominant cost of the full gate (~5min -> ~1min). Use it for
+# red/green iteration; run `test` (or `make ci-local`) before commit.
+test-fast:
+	@go test -p 1 ./... -count=1
+
 # css-install installs the npm dev dependencies (Tailwind CLI + DaisyUI
 # v5). Idempotent. Run once after cloning; CI calls this in the
 # Docker build stage so contributors don't need to.
 css-install:
-	@echo "→ Installing CSS build dependencies (tailwindcss v4 + daisyui v5)..."
-	@npm ci --silent
-	@echo "  ✓ installed"
+	@if [ ! -d node_modules ]; then \
+		echo "→ Installing CSS build dependencies (tailwindcss v4 + daisyui v5)..."; \
+		npm ci --silent; \
+		echo "  ✓ installed"; \
+	else \
+		echo "  ✓ node_modules present — skipping npm ci (run \`make css-install\` to force a clean reinstall)"; \
+	fi
 
 # css runs the Tailwind v4 CLI to build web/resources/static/app.min.css
 # from src/css/input.css. Run this whenever you add new utility
