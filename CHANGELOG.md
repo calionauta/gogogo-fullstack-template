@@ -21,6 +21,27 @@ stability) but drops `-race`, the dominant cost of the full gate (~5min →
 ~1min). Use for red/green iteration; run `make test` / `make ci-local`
 before committing.
 
+### Fixed
+
+- **Landing page (`/`) hero text contrast in dark mode** — the pre-CTA text
+(`.landing-tagline` / `.landing-about`) used a hardcoded
+`oklch(0.32 0.02 250)` that only read on a light background. Replaced with
+DaisyUI's theme-aware `var(--color-base-content)`, so the text now has good
+contrast in both light and dark themes. Swapped the "Built to be useful"
+tagline + about paragraphs for the single canonical line
+(_Go full-stack template. Single binary, no dependencies. Database & Auth.
+Reactive UI. Background jobs. Offline-first. Real-time multi-user. Durable
+workflows. Desktop & Android capable._).
+- **Config (`/config`) Read-only banner contrast** — the banner keeps its light
+callout background in dark mode, so its text now stays near-black
+(`oklch(0.2 0.02 250)`) and remains readable instead of inheriting the light
+`base-content` used on dark pages. `.config-env` / `.config-not-set` now use
+theme-aware `var(--color-base-content)` for correct contrast in both themes.
+- **CI smoke test** — the browser smoke test navigated to `/todos`, which is
+not a registered route and fell through to the landing page, so the offline
+todo queue exercise could never find the create-form input and timed out.
+Corrected the exercised route to `/todo` (the real route); CI now goes green.
+
 ## [0.23.1] - 2026-07-17
 
 ### Fixed

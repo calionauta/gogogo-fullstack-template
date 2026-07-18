@@ -23,7 +23,7 @@ const SU_PASS = "SmokeSuperuserPass!123";
 const USER_EMAIL = "smoke-user@local.dev";
 const USER_PASS = "SmokeUserPass!123";
 
-const ROUTES = ["/todos", "/whiteboard", "/login"];
+const ROUTES = ["/todo", "/whiteboard", "/login"];
 
 const fail = (msg) => {
   console.error("❌ " + msg);
@@ -119,7 +119,7 @@ async function waitForServiceWorkerControl(page) {
 async function verifyOfflineTodoQueue(page, context) {
   const title = `offline-smoke-${Date.now()}`;
   console.log("→ Exercising offline todo add + delete queue…");
-  await page.goto(BASE + "/todos", { waitUntil: "load", timeout: 20000 });
+  await page.goto(BASE + "/todo", { waitUntil: "load", timeout: 20000 });
   await waitForServiceWorkerControl(page);
 
   const banner = page.locator("#offline-banner");
@@ -268,7 +268,7 @@ try {
     } catch (e) {
       console.error(`  ! navigation to ${route} failed: ${e.message}`);
     }
-    if (route === "/todos") {
+    if (route === "/todo") {
       await page.content().then((c) => writeFileSync("/tmp/served_todos.html", c));
     }
     // Give inline scripts + SSE a moment to execute.

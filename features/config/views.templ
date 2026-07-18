@@ -49,16 +49,21 @@ templ Page(data PageData, userEmail string, buildLabel string, buildCommit strin
 				}
 				.config-env {
 					font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-					color: oklch(0.55 0.06 250);
+					color: var(--color-base-content);
 					font-size: 0.75rem;
 				}
 				.config-not-set {
-					color: oklch(0.55 0.02 250);
+					color: var(--color-base-content);
 					font-style: italic;
 				}
 				.config-banner {
 					border-left: 4px solid oklch(0.7 0.18 50);
 					background: oklch(0.96 0.04 80);
+					/* Keep the banner text dark in both themes: the callout keeps
+					   its light background even in dark mode, so a fixed near-black
+					   color guarantees readable contrast instead of inheriting the
+					   light base-content used on dark pages. */
+					color: oklch(0.2 0.02 250);
 					padding: 0.75rem 1rem;
 					border-radius: 0.25rem;
 					margin-bottom: 1.25rem;

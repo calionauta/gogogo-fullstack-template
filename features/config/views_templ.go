@@ -63,7 +63,7 @@ func Page(data PageData, userEmail string, buildLabel string, buildCommit string
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<script defer type=\"module\" src=\"/static/theme.js\"></script><script src=\"/static/iconify-icon.min.js\"></script><style>\n\t\t\t\t/* Tighten the table on small screens; the read-only\n\t\t\t\t   nature of the page means we don't need a wide edit\n\t\t\t\t   surface — operators usually open /config on a laptop. */\n\t\t\t\t.config-group {\n\t\t\t\t\tmargin-bottom: 1.5rem;\n\t\t\t\t}\n\t\t\t\t.config-mask {\n\t\t\t\t\tfont-family: ui-monospace, SFMono-Regular, Menlo, monospace;\n\t\t\t\t\tcolor: oklch(0.45 0.06 250);\n\t\t\t\t\tbackground: oklch(0.92 0.02 250 / 0.6);\n\t\t\t\t\tpadding: 0.1rem 0.4rem;\n\t\t\t\t\tborder-radius: 0.25rem;\n\t\t\t\t\tfont-size: 0.85em;\n\t\t\t\t}\n\t\t\t\t.config-env {\n\t\t\t\t\tfont-family: ui-monospace, SFMono-Regular, Menlo, monospace;\n\t\t\t\t\tcolor: oklch(0.55 0.06 250);\n\t\t\t\t\tfont-size: 0.75rem;\n\t\t\t\t}\n\t\t\t\t.config-not-set {\n\t\t\t\t\tcolor: oklch(0.55 0.02 250);\n\t\t\t\t\tfont-style: italic;\n\t\t\t\t}\n\t\t\t\t.config-banner {\n\t\t\t\t\tborder-left: 4px solid oklch(0.7 0.18 50);\n\t\t\t\t\tbackground: oklch(0.96 0.04 80);\n\t\t\t\t\tpadding: 0.75rem 1rem;\n\t\t\t\t\tborder-radius: 0.25rem;\n\t\t\t\t\tmargin-bottom: 1.25rem;\n\t\t\t\t}\n\t\t\t</style></head><body class=\"bg-base-200 min-h-screen\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<script defer type=\"module\" src=\"/static/theme.js\"></script><script src=\"/static/iconify-icon.min.js\"></script><style>\n\t\t\t\t/* Tighten the table on small screens; the read-only\n\t\t\t\t   nature of the page means we don't need a wide edit\n\t\t\t\t   surface — operators usually open /config on a laptop. */\n\t\t\t\t.config-group {\n\t\t\t\t\tmargin-bottom: 1.5rem;\n\t\t\t\t}\n\t\t\t\t.config-mask {\n\t\t\t\t\tfont-family: ui-monospace, SFMono-Regular, Menlo, monospace;\n\t\t\t\t\tcolor: oklch(0.45 0.06 250);\n\t\t\t\t\tbackground: oklch(0.92 0.02 250 / 0.6);\n\t\t\t\t\tpadding: 0.1rem 0.4rem;\n\t\t\t\t\tborder-radius: 0.25rem;\n\t\t\t\t\tfont-size: 0.85em;\n\t\t\t\t}\n\t\t\t\t.config-env {\n\t\t\t\t\tfont-family: ui-monospace, SFMono-Regular, Menlo, monospace;\n\t\t\t\t\tcolor: var(--color-base-content);\n\t\t\t\t\tfont-size: 0.75rem;\n\t\t\t\t}\n\t\t\t\t.config-not-set {\n\t\t\t\t\tcolor: var(--color-base-content);\n\t\t\t\t\tfont-style: italic;\n\t\t\t\t}\n\t\t\t\t.config-banner {\n\t\t\t\t\tborder-left: 4px solid oklch(0.7 0.18 50);\n\t\t\t\t\tbackground: oklch(0.96 0.04 80);\n\t\t\t\t\t/* Keep the banner text dark in both themes: the callout keeps\n\t\t\t\t\t   its light background even in dark mode, so a fixed near-black\n\t\t\t\t\t   color guarantees readable contrast instead of inheriting the\n\t\t\t\t\t   light base-content used on dark pages. */\n\t\t\t\t\tcolor: oklch(0.2 0.02 250);\n\t\t\t\t\tpadding: 0.75rem 1rem;\n\t\t\t\t\tborder-radius: 0.25rem;\n\t\t\t\t\tmargin-bottom: 1.25rem;\n\t\t\t\t}\n\t\t\t</style></head><body class=\"bg-base-200 min-h-screen\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -83,7 +83,7 @@ func Page(data PageData, userEmail string, buildLabel string, buildCommit string
 			var templ_7745c5c3_Var2 string
 			templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(data.BuildLabel)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/config/views.templ`, Line: 74, Col: 84}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/config/views.templ`, Line: 79, Col: 84}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 			if templ_7745c5c3_Err != nil {
@@ -106,7 +106,7 @@ func Page(data PageData, userEmail string, buildLabel string, buildCommit string
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(group.Name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/config/views.templ`, Line: 88, Col: 50}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/config/views.templ`, Line: 93, Col: 50}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
@@ -124,7 +124,7 @@ func Page(data PageData, userEmail string, buildLabel string, buildCommit string
 				var templ_7745c5c3_Var4 string
 				templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(group.Note)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/config/views.templ`, Line: 90, Col: 65}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/config/views.templ`, Line: 95, Col: 65}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 				if templ_7745c5c3_Err != nil {
@@ -147,7 +147,7 @@ func Page(data PageData, userEmail string, buildLabel string, buildCommit string
 				var templ_7745c5c3_Var5 string
 				templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(row.Key)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/config/views.templ`, Line: 105, Col: 47}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/config/views.templ`, Line: 110, Col: 47}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 				if templ_7745c5c3_Err != nil {
@@ -160,7 +160,7 @@ func Page(data PageData, userEmail string, buildLabel string, buildCommit string
 				var templ_7745c5c3_Var6 string
 				templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(row.Env)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/config/views.templ`, Line: 106, Col: 50}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/config/views.templ`, Line: 111, Col: 50}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 				if templ_7745c5c3_Err != nil {
@@ -195,7 +195,7 @@ func Page(data PageData, userEmail string, buildLabel string, buildCommit string
 					var templ_7745c5c3_Var7 string
 					templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(row.Display)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/config/views.templ`, Line: 117, Col: 74}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/config/views.templ`, Line: 122, Col: 74}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 					if templ_7745c5c3_Err != nil {
@@ -213,7 +213,7 @@ func Page(data PageData, userEmail string, buildLabel string, buildCommit string
 					var templ_7745c5c3_Var8 string
 					templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(row.Display)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/config/views.templ`, Line: 119, Col: 49}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/config/views.templ`, Line: 124, Col: 49}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 					if templ_7745c5c3_Err != nil {
@@ -231,7 +231,7 @@ func Page(data PageData, userEmail string, buildLabel string, buildCommit string
 				var templ_7745c5c3_Var9 string
 				templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(row.Description)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/config/views.templ`, Line: 122, Col: 91}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/config/views.templ`, Line: 127, Col: 91}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 				if templ_7745c5c3_Err != nil {
@@ -254,7 +254,7 @@ func Page(data PageData, userEmail string, buildLabel string, buildCommit string
 		var templ_7745c5c3_Var10 string
 		templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(data.AppName)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/config/views.templ`, Line: 133, Col: 69}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/config/views.templ`, Line: 138, Col: 69}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 		if templ_7745c5c3_Err != nil {
