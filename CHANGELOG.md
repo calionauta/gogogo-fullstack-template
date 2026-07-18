@@ -39,6 +39,7 @@ script text, so the previous `{offlineSync}` trick left `OFFLINE_SYNC`
 undefined), and post `replay-queue` to the active service worker on reconnect so
 queued mutations drain without the banner getting stuck in `is-syncing`.
 
+## [0.23.0] - 2026-07-17
 
 ### Added
 
