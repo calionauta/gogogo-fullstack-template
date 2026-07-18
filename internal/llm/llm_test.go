@@ -47,13 +47,27 @@ func TestMustConfigured_DescriptiveError(t *testing.T) {
 	}
 }
 
-func TestChatSuggest_EmptyPartial_ReturnsError(t *testing.T) {
-	// Even with a key configured, an empty partial is a user error,
-	// not a config error. ChatSuggest should reject it without
-	// hitting the network.
+func TestChatSuggest_EmptyPartial_ReturnsRandomTasks(t *testing.T) {
+	// An empty partial must NOT error: ChatSuggest returns a few random
+	// safe tasks so the one-click AI Suggest works without seed text (and
+	// offline / without an API key).
 	c := New("test-key")
-	if _, err := c.ChatSuggest(context.Background(), ""); err == nil {
-		t.Fatal("expected error for empty partial")
+	got, err := c.ChatSuggest(context.Background(), "")
+	if err != nil {
+		t.Fatalf("unexpected error for empty partial: %v", err)
+	}
+	if len(got) != 3 {
+		t.Fatalf("expected 3 random tasks, got %d: %v", len(got), got)
+	}
+	seen := map[string]bool{}
+	for _, s := range got {
+		if s == "" {
+			t.Fatalf("empty task in result: %v", got)
+		}
+		if seen[s] {
+			t.Fatalf("duplicate task in result: %v", got)
+		}
+		seen[s] = true
 	}
 }
 

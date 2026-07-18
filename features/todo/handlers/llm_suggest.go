@@ -73,9 +73,12 @@ func (h *TodoHandler) enqueueSuggest(c *core.RequestEvent, jobType, partial stri
 
 	sse := sdk.NewSSE(c.Response, c.Request)
 	return dshelpers.MergeSignals(sse, map[string]any{
-		signalSuggestions:    []string{},
-		signalSuggestErr:     "",
-		signalSuggestPending: true,
+		signalSuggestions: []string{},
+		signalSuggestErr:  "",
+		// Pulse the AI Suggest stepper directly (aiPending) rather than the
+		// shared suggestPending signal, so running the Queue + Retry demo
+		// is never affected by an AI Suggest click.
+		signalAiPending: true,
 	})
 }
 

@@ -37,7 +37,7 @@ func marshalSignals(s todo.Signals) string {
 // other browser tabs share the same view via the broadcaster.
 templ TodoList(signals todo.Signals) {
 	<div class="max-w-5xl mx-auto mt-8 px-4 animate-in fade-in zoom-in-95 animate-duration-500">
-		<div data-signals={ marshalSignals(signals) } data-on:gogogo:queued__window="$loading = false; $newTitle = ''">
+		<div data-signals={ marshalSignals(signals) } data-on:gogogo:queued__window="$loading = false; $newTitle = ''; $deleting = false; $confirmingDeleteId = ''; $confirmingDeleteTitle = ''">
 
 			<!-- ═══════════════ HEADER ═══════════════ -->
 			<div class="flex items-center justify-between mb-6">
@@ -206,7 +206,7 @@ templ TodoList(signals todo.Signals) {
 								<li
 									class="step transition-all duration-500"
 									data-class={ "{'step-success': $demoStep >= 3, 'step-primary text-base-content': $demoStep === 2}" }
-								>Retry on simulated failure (retry-go)<span class="block text-xs text-base-content/60 mt-0.5 normal-case" data-show="$lastRetryStatus === 'attempt'" data-text="'Retrying — attempt ' + ($lastRetryAttempt || 1) + ' (retry-go)'"></span></li>
+								>Retry on simulated failure (retry-go)<span class="inline text-xs text-base-content/60 ml-1 normal-case" data-show="$lastRetryStatus === 'attempt'" data-text="'Retrying — attempt ' + ($lastRetryAttempt || 1) + ' (retry-go)'"></span></li>
 								<li
 									class="step transition-all duration-500"
 									data-class={ "{'step-success': $demoStep >= 3 && $techPhase !== 'error', 'step-primary text-base-content': $demoStep === 3 && $techPhase === 'error'}" }
@@ -234,8 +234,8 @@ templ TodoList(signals todo.Signals) {
 
 							<div
 								class="mt-2 flex items-center gap-1.5 text-xs text-success transition-all duration-500"
-								data-show="$techStep === 'retry-demo' && !$suggestPending && $techPhase !== 'error'"
-								data-init__delay.3s="$techStep = ''"
+								data-show="$aiStep >= 3 && !$aiPending && $aiPhase !== 'error'"
+								data-init__delay.4s="$aiStep = 0"
 							>
 								<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" viewBox="0 0 20 20" fill="currentColor">
 									<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
@@ -268,39 +268,39 @@ templ TodoList(signals todo.Signals) {
 								<ul class="steps steps-vertical w-full mb-3 text-xs">
 									<li
 										class="step transition-all duration-500"
-										data-class={ "{'step-primary text-base-content': $techStep === 'retry-demo' && $suggestPending, 'step-success': $techStep === 'retry-demo' && !$suggestPending && $techPhase !== 'error', 'step-error': $techStep === 'retry-demo' && $techPhase === 'error'}" }
+										data-class={ "{'step-primary text-base-content': $aiStep >= 1 && $aiPending, 'step-success': $aiStep >= 1 && !$aiPending && $aiPhase !== 'error', 'step-error': $aiPhase === 'error'}" }
 									>Queue suggest job (goqite)</li>
 									<li
 										class="step transition-all duration-500"
-										data-class={ "{'step-primary text-base-content': $techStep === 'retry-demo' && $suggestPending, 'step-success': $techStep === 'retry-demo' && !$suggestPending && $techPhase !== 'error', 'step-error': $techStep === 'retry-demo' && $techPhase === 'error'}" }
-									>Retry on transient error (retry-go)<span class="block text-xs text-base-content/60 mt-0.5 normal-case" data-show="$lastRetryStatus === 'attempt'" data-text="'Retrying — attempt ' + ($lastRetryAttempt || 1) + ' (retry-go)'"></span></li>
+										data-class={ "{'step-primary text-base-content': $aiStep >= 1 && $aiPending, 'step-success': $aiStep >= 1 && !$aiPending && $aiPhase !== 'error', 'step-error': $aiPhase === 'error'}" }
+									>Retry on transient error (retry-go)<span class="inline text-xs text-base-content/60 ml-1 normal-case" data-show="$lastRetryStatus === 'attempt'" data-text="'Retrying — attempt ' + ($lastRetryAttempt || 1) + ' (retry-go)'"></span></li>
 									<li
 										class="step transition-all duration-500"
-										data-class={ "{'step-primary': $techStep === 'retry-demo' && $suggestPending, 'step-success': $techStep === 'retry-demo' && !$suggestPending && $techPhase !== 'error', 'step-error': $techStep === 'retry-demo' && $techPhase === 'error'}" }
+										data-class={ "{'step-primary': $aiStep >= 3 && $aiPending, 'step-success': $aiStep >= 3 && !$aiPending && $aiPhase !== 'error', 'step-error': $aiPhase === 'error'}" }
 									>Return suggestions</li>
 								</ul>
 
 								<button
 									class="btn btn-primary btn-sm w-full transition-all duration-200 hover:scale-[1.02] active:scale-98"
-									data-on:click="$techStep = 'retry-demo'; $suggestPending = true; @post('/api/todos/suggest?clientID=' + encodeURIComponent($clientID || '') + '&partial=' + encodeURIComponent($newTitle))"
+									data-on:click="$aiStep = 1; $aiPending = true; @post('/api/todos/suggest?clientID=' + encodeURIComponent($clientID || '') + '&partial=' + encodeURIComponent($newTitle))"
 									title="Ask the configured LLM (Groq) for 3 todo suggestions via goqite + retry-go"
 								>
 									<span class="inline-flex items-center gap-2">
 										<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" viewBox="0 0 20 20" fill="currentColor">
 											<path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd"/>
 										</svg>
-										<span data-show="!$suggestPending">AI Suggest</span>
-										<span data-show="$suggestPending" class="inline-flex items-center gap-1.5">
-											<span class="loading loading-spinner loading-xs"></span>
-											<span>Asking AI…</span>
+										<span data-show="!$aiPending">AI Suggest</span>
+										<span data-show="$aiPending" class="inline-flex items-center gap-1.5">
+													<span class="loading loading-spinner loading-xs"></span>
+													<span>Asking AI…</span>
 										</span>
 									</span>
 								</button>
 
 								<div
 									class="mt-2 flex items-center gap-1.5 text-xs text-success transition-all duration-500"
-									data-show="$techStep === 'retry-demo' && !$suggestPending && $techPhase !== 'error'"
-									data-init__delay.3s="$techStep = ''"
+									data-show="$aiStep >= 3 && !$aiPending && $aiPhase !== 'error'"
+									data-init__delay.4s="$aiStep = 0"
 								>
 									<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" viewBox="0 0 20 20" fill="currentColor">
 										<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
@@ -405,13 +405,8 @@ templ TodoList(signals todo.Signals) {
 templ createForm(signals todo.Signals) {
 	<form
 		class="join w-full mb-4"
-		data-on:submit__prevent="if (!$loading) { $loading = true; $idemKey = crypto.randomUUID(); @post('/api/todos?clientID=' + encodeURIComponent($clientID || ''), {contentType: 'form'}); }"
+		data-on:submit__prevent="if (!$loading) { $loading = true; @post('/api/todos?clientID=' + encodeURIComponent($clientID || '') + '&idem_key=' + encodeURIComponent(crypto.randomUUID()), {contentType: 'form'}); }"
 	>
-		<input
-			type="hidden"
-			name="idem_key"
-			data-bind="idemKey"
-		/>
 		<input
 			type="text"
 			name="title"
@@ -470,7 +465,7 @@ templ filterTab(label, value, endpoint string) {
 templ TodoListRegion(signals todo.Signals) {
 	<div class="divide-y divide-base-200" id="todo-list">
 		if len(signals.Todos) == 0 {
-			<div class="py-8 text-center text-base-content/40">
+			<div class="py-8 text-center text-base-content/40" id="todo-empty-state">
 				<svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto mb-3 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
 				</svg>

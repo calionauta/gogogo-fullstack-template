@@ -66,6 +66,9 @@ func (h *TodoHandler) handleSSEStream(c *core.RequestEvent) error {
 		ConnectedClients: h.q.Hub().Stats().Clients,
 		ClientID:         clientID,
 		SidebarTab:       "queue",
+		AIStep:           0,
+		AIPending:        false,
+		AIPhase:          "",
 	}); err != nil {
 		return err
 	}
@@ -150,61 +153,79 @@ func (h *TodoHandler) streamToast(sse *sdk.ServerSentEventGenerator, payload []b
 	return emitToast(sse, p.Message, p.ToastType)
 }
 
-func (h *TodoHandler) streamRetry(sse *sdk.ServerSentEventGenerator, payload []byte) error {
-	var p struct {
-		Operation string `json:"operation"`
-		Attempt   int    `json:"attempt"`
-		Status    string `json:"status"`
-		Error     string `json:"error"`
-	}
-	if err := json.Unmarshal(payload, &p); err != nil {
-		return fmt.Errorf("decode retry payload: %w", err)
-	}
-	// Merge both the raw JSON (signal marker for data-text) and the
-	// structured fields so the AI-suggest queue panel can drive pill
-	// transitions via boolean signals.
-	if err := dshelpers.MergeSignals(sse, map[string]any{
-		"lastRetry":          string(payload),
+// retryEvent is the parsed payload of a retry / AI-Suggest broadcast.
+type retryEvent struct {
+	Operation string `json:"operation"`
+	Attempt   int    `json:"attempt"`
+	Status    string `json:"status"`
+	Error     string `json:"error"`
+	Raw       []byte `json:-`
+}
+
+// retrySignalFields builds the Datastar signal map for a retry / AI-Suggest
+// event. AI Suggest jobs drive a dedicated stepper (aiStep/aiPending); the
+// Queue + Retry demo drives demoStep — running one never lights the other.
+func retrySignalFields(p retryEvent) map[string]any {
+	fields := map[string]any{
+		"lastRetry":          string(p.Raw),
 		"lastRetryOperation": p.Operation,
 		"lastRetryStatus":    p.Status,
 		"lastRetryAttempt":   p.Attempt,
-		// Advance the progressive step lighting: step 2 (running/retrying)
-		// as soon as the first attempt feedback arrives, step 3 on success.
-		"demoStep": 2,
-	}); err != nil {
-		return err
 	}
-	// Techstack diagnostics panel: once the retry demo reaches its
-	// final successful attempt, flip techDone so the DaisyUI <ul
-	// class="steps"> node turns step-success (green check). Without
-	// this the step stayed step-primary forever and the demo looked
-	// stuck. The button click sets $techStep='retry-demo' up front;
-	// we only complete it here on the real success event.
+	isSuggest := p.Operation == signalJobSuggest || p.Operation == signalJobSuggestSimulated
+	if isSuggest {
+		if p.Status == retryStatusSuccess {
+			fields["aiStep"] = 3
+			fields["aiPending"] = false
+		} else {
+			fields["aiStep"] = 2
+			fields["aiPending"] = true
+		}
+		return fields
+	}
+	fields["demoStep"] = 2
 	if p.Status == retryStatusSuccess {
-		if err := h.applyTechStep(sse, "retry-demo", true, ""); err != nil {
-			return err
-		}
-		// Final step lit only on success.
-		if err := dshelpers.MergeSignals(sse, map[string]any{"demoStep": 3}); err != nil {
-			return err
-		}
+		fields["demoStep"] = 3
 	}
+	return fields
+}
+
+// retryToastMessage returns the user-facing toast text and kind for a
+// retry / AI-Suggest event.
+func retryToastMessage(p retryEvent) (msg, kind string) {
 	verb := p.Operation
-	if verb == "suggest_simulated" {
+	if verb == signalJobSuggestSimulated {
 		verb = "suggest (simulated)"
 	}
-	var msg, kind string
 	switch p.Status {
 	case retryStatusSuccess:
-		msg, kind = fmt.Sprintf("%s: completed", verb), retryStatusSuccess
-	default: // retryStatusAttempt
+		return fmt.Sprintf("%s: completed", verb), retryStatusSuccess
+	default:
 		msg = fmt.Sprintf("%s: attempt %d failed", verb, p.Attempt)
 		if p.Error != "" {
 			msg += " (" + p.Error + ")"
 		}
 		msg += ", retrying…"
-		kind = "warning"
+		return msg, "warning"
 	}
+}
+
+func (h *TodoHandler) streamRetry(sse *sdk.ServerSentEventGenerator, payload []byte) error {
+	var p retryEvent
+	if err := json.Unmarshal(payload, &p); err != nil {
+		return fmt.Errorf("decode retry payload: %w", err)
+	}
+	p.Raw = payload
+	isSuggest := p.Operation == signalJobSuggest || p.Operation == signalJobSuggestSimulated
+	if err := dshelpers.MergeSignals(sse, retrySignalFields(p)); err != nil {
+		return err
+	}
+	if p.Status == retryStatusSuccess && !isSuggest {
+		if err := h.applyTechStep(sse, signalJobRetryDemo, true, ""); err != nil {
+			return err
+		}
+	}
+	msg, kind := retryToastMessage(p)
 	return emitToast(sse, msg, kind)
 }
 
@@ -330,10 +351,21 @@ func (h *TodoHandler) streamSuggestResult(sse *sdk.ServerSentEventGenerator, pay
 	if err := json.Unmarshal(payload, &p); err != nil {
 		return fmt.Errorf("decode suggest_result payload: %w", err)
 	}
+	phase := ""
+	if p.SuggestErr != "" {
+		phase = "error"
+	}
+	// AI Suggest stepper lives on its own signals (aiStep/aiPending/
+	// aiPhase) so running the Queue + Retry demo never lights this tab's
+	// "Suggestions ready" status. We deliberately do NOT call applyTechStep
+	// (which would set the shared techStep/suggestPending/techDone used by
+	// the Queue + Retry demo).
 	merge := map[string]any{
-		signalSuggestions:    p.Suggestions,
-		signalSuggestErr:     p.SuggestErr,
-		signalSuggestPending: p.SuggestPending,
+		signalSuggestions: p.Suggestions,
+		signalSuggestErr:  p.SuggestErr,
+		signalAiStep:      3,
+		signalAiPending:   false,
+		signalAiPhase:     phase,
 	}
 	if err := dshelpers.MergeSignals(sse, merge); err != nil {
 		return err
@@ -346,17 +378,6 @@ func (h *TodoHandler) streamSuggestResult(sse *sdk.ServerSentEventGenerator, pay
 	// but no button shows up".
 	if err := dshelpers.RenderAndPatch(sse, components.SuggestionsList(p.Suggestions),
 		sdk.WithSelector("#suggestions-region")); err != nil {
-		return err
-	}
-	// Techstack diagnostic panel: highlight the single "Queue + retry"
-	// node (goqite + retry-go + fake LLM) and mark done once the result
-	// lands. Always reset techPhase so a prior error does not stick on
-	// the next (successful) result.
-	phase := ""
-	if p.SuggestErr != "" {
-		phase = "error"
-	}
-	if err := h.applyTechStep(sse, "retry-demo", p.SuggestErr == "" && !p.SuggestPending, phase); err != nil {
 		return err
 	}
 	if p.SuggestErr != "" {
@@ -483,6 +504,7 @@ func (h *TodoHandler) broadcastClientCount() {
 	payload := mustJSON(map[string]any{"count": h.q.Hub().CountUserClients()})
 	h.q.Hub().Broadcast(mustJSON(queue.Job{Type: "clients", Payload: payload}))
 } // EmitToast renders a toast component and appends it to the
+
 // toast-container. The toast's open state, dismiss timer, and progress
 // bar are all driven by Datastar attributes on the rendered template.
 func emitToast(sse *sdk.ServerSentEventGenerator, message, toastType string) error {

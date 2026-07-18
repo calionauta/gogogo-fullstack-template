@@ -129,11 +129,26 @@ async function staleWhileRevalidate(request) {
 }
 
 // ---- POST/PUT/PATCH/DELETE: network-first with offline queue ----
+//
+// Offline-first UX: when the network is down we still want the UI to
+// behave "as if online" — the row appears/disappears immediately, and the
+// queued request is replayed on reconnect. The server's realtime broadcast
+// then re-syncs the list with authoritative data (and any optimistic row
+// is replaced by the real one). buildOfflineMutation() returns a Datastar
+// HTML-patch for the known CRUD endpoints; everything else falls back to
+// the generic offline toast.
 async function networkFirstWithQueue(request) {
   // Clone before fetch consumes the request body. Cloning in the catch block
   // loses form mutations because a failed fetch can still mark the original
   // body as used, making request.clone() throw before IndexedDB is reached.
   var replayable = request.clone();
+  // A separate clone for reading the body so we don't consume replayable's
+  // stream before queueRequest() clones it again.
+  var bodyProbe = request.clone();
+  var bodyText = "";
+  try {
+    bodyText = await bodyProbe.text();
+  } catch (_) { /* body read is best-effort */ }
   try {
     // Try the real request first.
     return await fetch(request);
@@ -154,42 +169,128 @@ async function networkFirstWithQueue(request) {
       // Queue failed — the mutation is lost. In practice this only
       // happens if IndexedDB is unavailable (private browsing, disk full).
     }
-    // Return a Datastar-format fragment that appends an offline toast into
-    // the styled #toast-container stack (falling back to <body> on pages
-    // without that container). The awaited service-worker postMessage above
-    // is the single source of the `gogogo:queued` UI-reset event.
-    //
-    // A bare 202/JSON response was insufficient: Datastar's @post helper
-    // applied no patch and the loading spinner stuck forever. Returning a
-    // fragment completes Datastar's normal HTML patch path and shows feedback.
-    //
-    // The toast HTML reuses the same DaisyUI surface as in-process toasts.
-    // Using literal HTML keeps the SW self-contained (no compile step).
-    return new Response(
-      '<div data-offline-toast class="alert alert-warning mb-2">' +
-        '<span>Offline — request queued. Will sync when you reconnect.</span>' +
-      '</div>' +
-      '<script>' +
-        // Keep only one offline toast in the stack. The form reset
-        // ($loading/$newTitle) is driven solely by the offline-banner
-        // postMessage bridge, which is the single source of the
-        // gogogo:queued event (see internal/components/offline_banner.templ).
-        'var __old = document.querySelector("[data-offline-toast]");' +
-        'if (__old) __old.remove();' +
-      '</script>',
-      {
-        status: 200,
-        headers: {
-          "Content-Type": "text/html",
-          // Append into the styled #toast-container stack so the offline
-          // toast renders in the same fixed bottom-right stack as the
-          // in-process toasts (Datastar falls back to <body> if absent).
-          "datastar-selector": "#toast-container",
-          "datastar-mode": "append",
-        },
-      }
-    );
+    // Optimistic UI for known CRUD endpoints; otherwise the generic toast.
+    var optimistic = buildOfflineMutation(new URL(request.url), bodyText, request.method);
+    if (optimistic) return optimistic;
+    return buildOfflineToastResponse();
   }
+}
+
+// escapeHTML makes user-provided text (todo titles) safe inside an HTML
+// attribute / text node of the optimistic fragment we inject.
+function escapeHTML(str) {
+  return String(str == null ? "" : str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+// datastarPatchResponse wraps an HTML fragment in the Datastar single-patch
+// envelope (selector + mode headers) that @post/@get understand.
+function datastarPatchResponse(html, selector, mode) {
+  return new Response(html, {
+    status: 200,
+    headers: {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-store",
+      "datastar-selector": selector,
+      "datastar-mode": mode,
+    },
+  });
+}
+
+// BIN_SVG is the trash-can icon reused from the server-rendered rows so the
+// optimistic row matches the real ones.
+var BIN_SVG = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>';
+
+// buildOfflineMutation returns an optimistic Datastar patch for the known
+// todo CRUD endpoints, or null to fall back to the generic offline toast.
+function buildOfflineMutation(url, bodyText, method) {
+  if (method !== "POST") return null;
+  var path = url.pathname;
+  if (path === "/api/todos" || path === "/api/todos/") {
+    var params = new URLSearchParams(bodyText || "");
+    var title = params.get("title") || "";
+    var idemKey = url.searchParams.get("idem_key") || "";
+    if (!idemKey && title.trim() === "") return null;
+    return optimisticCreateFragment(title, idemKey);
+  }
+  var del = /\/api\/todos\/([^/]+)\/delete\/?$/.exec(path);
+  if (del) return optimisticDeleteFragment(del[1]);
+  var togg = /\/api\/todos\/([^/]+)\/toggle\/?$/.exec(path);
+  if (togg) return optimisticToggleFragment(togg[1]);
+  return null;
+}
+
+// optimisticCreateFragment appends a temporary row so the new todo is
+// visible immediately offline. The id is derived from idem_key so the
+// pending item is stable across re-renders; on reconnect the server's
+// realtime broadcast replaces the whole list with authoritative rows.
+function optimisticCreateFragment(title, idemKey) {
+  var id = "todo-" + escapeHTML(idemKey || "tmp-" + Date.now());
+  var safeTitle = escapeHTML(title);
+  var html =
+    '<div class="todo-item flex items-center gap-3 p-3 border-b border-base-300 hover:bg-base-200 transition-colors opacity-70" id="' + id + '" data-pending="true">' +
+      '<input type="checkbox" class="checkbox checkbox-primary checkbox-sm" disabled />' +
+      '<span class="flex-1">' + safeTitle + '</span>' +
+      '<span class="text-xs text-base-content/40">agora</span>' +
+      '<button type="button" class="btn btn-ghost btn-xs text-error" disabled aria-label="Delete todo">' + BIN_SVG + '</button>' +
+    '</div>' +
+    '<script id="__gogogo_add">var __e=document.getElementById("todo-empty-state");if(__e){__e.remove();}var __s=document.getElementById("__gogogo_add");if(__s){__s.remove();}</' + 'script>';
+  return datastarPatchResponse(html, "#todo-list", "append");
+}
+
+// optimisticDeleteFragment removes the row immediately so the list reflects
+// the deletion while offline.
+function optimisticDeleteFragment(todoID) {
+  var safeID = escapeHTML(todoID);
+  var html = '<script id="__gogogo_del">var __d=document.getElementById("todo-' + safeID + '");if(__d){__d.remove();}var __s=document.getElementById("__gogogo_del");if(__s){__s.remove();}</' + 'script>';
+  return datastarPatchResponse(html, "#todo-list", "append");
+}
+
+// optimisticToggleFragment flips the row's completed state immediately so
+// the checkbox reflects the offline toggle; the realtime broadcast corrects
+// it on reconnect.
+function optimisticToggleFragment(todoID) {
+  var safeID = escapeHTML(todoID);
+  var html = '<script id="__gogogo_tog">var __t=document.getElementById("todo-' + safeID + '");' +
+    'if(__t){var __c=__t.querySelector("input[type=checkbox]");if(__c){__c.checked=!__c.checked;}' +
+    'var __s=__t.querySelector(".flex-1");if(__s){__s.classList.toggle("line-through");__s.classList.toggle("text-base-content/50");}}' +
+    'var __ss=document.getElementById("__gogogo_tog");if(__ss){__ss.remove();}</' + 'script>';
+  return datastarPatchResponse(html, "#todo-list", "append");
+}
+
+// buildOfflineToastResponse returns the generic Datastar fragment for
+// mutations that don't have a dedicated optimistic UI (e.g. AI suggest).
+// The awaited service-worker postMessage above is the single source of the
+// `gogogo:queued` UI-reset event.
+function buildOfflineToastResponse() {
+  return new Response(
+    '<div data-offline-toast class="alert alert-warning mb-2">' +
+      '<span>Offline — request queued. Will sync when you reconnect.</span>' +
+    '</div>' +
+    '<script>' +
+      // Keep only one offline toast in the stack. The form reset
+      // ($loading/$newTitle) is driven solely by the offline-banner
+      // postMessage bridge, which is the single source of the
+      // gogogo:queued event (see internal/components/offline_banner.templ).
+      'var __old = document.querySelector("[data-offline-toast]");' +
+      'if (__old) __old.remove();' +
+    '</script>',
+    {
+      status: 200,
+      headers: {
+        "Content-Type": "text/html",
+        // Append into the styled #toast-container stack so the offline
+        // toast renders in the same fixed bottom-right stack as the
+        // in-process toasts (Datastar falls back to <body> if absent).
+        "datastar-selector": "#toast-container",
+        "datastar-mode": "append",
+      },
+    }
+  );
 }
 
 // ---- IndexedDB queue ----

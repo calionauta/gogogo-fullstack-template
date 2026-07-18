@@ -42,6 +42,16 @@ type Signals struct {
 	// light one-by-one with a visible gap between attempts instead of
 	// all flipping at once when the job finishes.
 	DemoStep int `json:"demoStep"`
+
+	// AIStep, AIPending, AIPhase drive the *AI Suggest* stepper, kept
+	// deliberately separate from the Queue + Retry demo stepper
+	// (TechStep/SuggestPending/TechPhase). They were previously shared,
+	// which made running the Queue + Retry demo light up the AI Suggest
+	// tab's "Suggestions ready" status erroneously. Seeded so the
+	// stepper is inert on first paint.
+	AIStep    int    `json:"aiStep"`
+	AIPending bool   `json:"aiPending"`
+	AIPhase   string `json:"aiPhase"`
 	// ClientID is the SSE client id assigned when the stream opens. The
 	// UI uses it to route queued-job results and retry feedback back to
 	// the correct browser tab, so a Suggest triggered here lands here

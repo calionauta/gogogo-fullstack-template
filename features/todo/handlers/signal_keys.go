@@ -9,4 +9,17 @@ const (
 	signalSuggestErr     = "suggestErr"
 	signalSuggestPending = "suggestPending"
 	signalItemCount      = "itemCount"
+
+	// AI Suggest stepper signals — kept independent from the Queue +
+	// Retry demo stepper (techStep/suggestPending/techPhase) so running
+	// one never lights the other.
+	signalAiStep    = "aiStep"
+	signalAiPending = "aiPending"
+	signalAiPhase   = "aiPhase"
+
+	// Job type strings emitted by the worker's retry layer. The AI
+	// Suggest jobs stream their own stepper via these operations.
+	signalJobSuggest          = "suggest"
+	signalJobSuggestSimulated = "suggest_simulated"
+	signalJobRetryDemo        = "retry-demo"
 )

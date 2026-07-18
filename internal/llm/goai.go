@@ -28,6 +28,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math/rand"
 	"os"
 	"time"
 
@@ -197,10 +198,58 @@ func (c *Client) Chat(ctx context.Context, prompt string) (string, error) {
 // ChatSuggest is a higher-level helper for the "AI suggest next todo"
 // feature: sends the partial title as a prompt that asks the model
 // for 3 short completions, returns them as a string slice. Same
+// safeSeedTasks is a curated pool of short, safe, actionable todo items.
+// Every entry starts with an infinitive/imperative verb and is
+// non-violent, non-harmful, and non-prejudiced. ChatSuggest falls back to
+// these when the user supplies no seed text, so the one-click "AI Suggest"
+// still produces useful output offline or without an API key.
+var safeSeedTasks = []string{
+	"Read the project README",
+	"Write the meeting notes",
+	"Review the pull request",
+	"Plan the sprint backlog",
+	"Drink a glass of water",
+	"Stretch for five minutes",
+	"Reply to the customer email",
+	"Update the changelog",
+	"Refactor the helper function",
+	"Sketch the architecture diagram",
+	"Test the login flow",
+	"Backup the database",
+	"Organize the download folder",
+	"Schedule the standup",
+	"Learn one new keyboard shortcut",
+	"Clean up the todo list",
+	"Prepare the demo script",
+	"Verify the deployment",
+	"Write a unit test",
+	"Take a short walk",
+	"Brainstorm feature names",
+	"Summarize the article",
+	"Fix the failing CI job",
+	"Message the on-call engineer",
+}
+
+// randomTasks returns 3 distinct safe seed tasks in random order.
+func randomTasks() []string {
+	idx := rand.Perm(len(safeSeedTasks))
+	out := make([]string, 0, 3)
+	for _, i := range idx[:3] {
+		out = append(out, safeSeedTasks[i])
+	}
+	return out
+}
+
+// ChatSuggest returns 3 short, distinct, actionable todo suggestions. If
+// partial is empty it does NOT error: it returns a few random safe tasks
+// instead, so the user is never forced to type seed text first (and the
+// feature works offline / without an API key).
+//
+// When partial is non-empty it asks the LLM for completions, with the same
 // retry semantics as Chat. Empty slice + nil error on "I don't know".
 func (c *Client) ChatSuggest(ctx context.Context, partial string) ([]string, error) {
 	if partial == "" {
-		return nil, errors.New("llm: empty partial title")
+		return randomTasks(), nil
 	}
 	prompt := fmt.Sprintf(
 		"You are helping a user write a todo list item. The user has typed %q so far. "+
