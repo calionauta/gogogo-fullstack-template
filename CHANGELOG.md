@@ -1,3 +1,12 @@
+## [0.23.5] - 2026-07-18
+
+### Fixed
+- Offline presence pill (header): the Todo page header `X online` indicator still rendered a live-green dot while offline. Root cause — it used Tailwind `bg-success`/`animate-ping` instead of the shared `.online-pill` component, so the `reflectPresence()` `navigator.onLine` bridge (added in v0.23.4) never touched it. It now uses `.online-pill`, so it greys out (warning colour, static dot) the moment the network drops and returns to live on reconnect.
+
+### Added
+- Offline navigation caching: the service worker now serves visited HTML pages network-first with a cache fallback, so navigating while offline shows the last visited page instead of `ERR_INTERNET_DISCONNECTED`. Unvisited URLs get a generic offline page. The page cache is purged on logout (`clear-pages` postMessage from the auth navbar) so a different user on a shared device does not see stale authenticated pages.
+- `todo_sse.go`: corrected a malformed `json:-` struct tag to `json:"-"` (go vet fails on it under Go 1.25+).
+
 ## [0.23.4] - 2026-07-18
 
 ### Fixed
