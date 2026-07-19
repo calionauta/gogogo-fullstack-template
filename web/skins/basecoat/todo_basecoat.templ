@@ -1,0 +1,194 @@
+// SCOPE:feature — BasecoatUI (shadcn) skin template.
+// Remove by: deleting this file and the `if skinName == "basecoat"`
+// branch in features/todo/handlers/todo.go (handleIndex).
+package basecoat
+
+import (
+	"github.com/calionauta/gogogo-fullstack-template/features/auth"
+	"github.com/calionauta/gogogo-fullstack-template/features/todo"
+	"github.com/calionauta/gogogo-fullstack-template/internal/components"
+	"github.com/calionauta/gogogo-fullstack-template/web/skins"
+)
+
+templ TodoPage(title string, signals todo.Signals, userEmail string, buildLabel string, buildCommit string, offlineSync bool, skinName string) {
+	<!DOCTYPE html>
+	<html lang="en" data-signals={ `{"theme":"light"}` } data-attr:data-theme="$theme" data-class:dark="$theme === 'dark'">
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<title>{ title }</title>
+			@skins.ActiveAssets(skinName)
+			@auth.ThemeHead()
+			@components.OfflineSyncScript(offlineSync)
+		</head>
+		<body class="bg-background text-foreground min-h-screen">
+			@auth.Navbar(userEmail, "todo", buildLabel, buildCommit)
+			@skins.SkinSelector(skinName)
+			@components.OfflineBanner(offlineSync)
+			<main class="max-w-5xl mx-auto mt-8 px-4">
+				@TodoList(signals)
+			</main>
+			@sseOpener()
+			@pbRealtime()
+		</body>
+	</html>
+}
+
+templ TodoList(signals todo.Signals) {
+	<div data-signals={ marshalSignals(signals) } data-on:gogogo__queued__window="$loading = false; $newTitle = ''; $deleting = false; $confirmingDeleteId = ''; $confirmingDeleteTitle = ''">
+		<div class="card">
+			<header>
+				<h2 class="card-title">Tasks</h2>
+				<div class="card-action">
+					<span class="badge" data-variant="outline" data-text="$itemCount + ' items'"></span>
+				</div>
+			</header>
+			<section>
+				@createForm(signals)
+				@filterTabs(signals)
+				@TodoListRegion(signals)
+			</section>
+			if signals.ItemCount > 0 {
+				<footer class="flex justify-between items-center">
+					<span class="text-sm text-muted-foreground" data-text="$itemCount + ' items'"></span>
+					<button type="button" class="btn" data-variant="outline" data-size="sm"
+						data-on:click="while (document.querySelector('.todo-item')) { @post('/api/todos/completed/delete?clientID=' + encodeURIComponent($clientID || '')); break; }">
+						Clear completed
+					</button>
+				</footer>
+			}
+		</div>
+	</div>
+}
+
+templ createForm(signals todo.Signals) {
+	<form data-on:submit__prevent="if (!$loading) { $loading = true; @post('/api/todos?clientID=' + encodeURIComponent($clientID || '') + '&idem_key=' + encodeURIComponent(crypto.randomUUID()), {contentType: 'form'}); }"
+		class="flex gap-2 mb-4">
+		<div class="flex-1">
+			<input type="text" name="title" class="input w-full" placeholder="Add a new todo..." data-bind="newTitle"/>
+		</div>
+		<button type="submit" class="btn" data-variant="primary"
+			data-attr:disabled="$loading || !$newTitle.trim()">
+			<span data-show="!$loading">Add</span>
+			<span data-show="$loading" class="flex items-center gap-1">
+				<span class="spinner"></span>
+				<span>Adding</span>
+			</span>
+		</button>
+	</form>
+}
+
+templ filterTabs(signals todo.Signals) {
+	<div class="tabs mb-4" id="filter-tabs-basecoat">
+		<nav role="tablist" aria-orientation="horizontal">
+			<button type="button" role="tab" aria-selected={ ternary(signals.Filter == "all", "true", "false") } tabindex={ ternary(signals.Filter == "all", "0", "-1") }
+				data-on:click__prevent="$loading = true; @get('/api/todos?filter=all')">All</button>
+			<button type="button" role="tab" aria-selected={ ternary(signals.Filter == "active", "true", "false") } tabindex={ ternary(signals.Filter == "active", "0", "-1") }
+				data-on:click__prevent="$loading = true; @get('/api/todos?filter=active')">Active</button>
+			<button type="button" role="tab" aria-selected={ ternary(signals.Filter == "completed", "true", "false") } tabindex={ ternary(signals.Filter == "completed", "0", "-1") }
+				data-on:click__prevent="$loading = true; @get('/api/todos?filter=completed')">Completed</button>
+		</nav>
+	</div>
+}
+
+templ TodoListRegion(signals todo.Signals) {
+	<div id="todo-list">
+		if len(signals.Todos) == 0 {
+			<div class="empty" id="todo-empty-state">
+				<header>
+					<h3>No todos here yet.</h3>
+					<p>Add one above to get started.</p>
+				</header>
+			</div>
+		}
+		for _, item := range signals.Todos {
+			@todoItem(item)
+		}
+	</div>
+}
+
+templ todoItem(item todo.Todo) {
+	<div class="item" data-variant="outline" data-size="sm" id={ "todo-" + item.ID }>
+		<input type="checkbox"
+			if item.Completed {
+				checked
+			}
+			data-on:click__prevent={ "@post('/api/todos/" + item.ID + "/toggle')" }
+		/>
+		<section style="flex: 1;">
+			if item.Completed {
+				<span class="line-through text-muted-foreground">{ item.Title }</span>
+			} else {
+				<span>{ item.Title }</span>
+			}
+		</section>
+		<span class="text-xs text-muted-foreground">{ timeAgo(item.CreatedAt) }</span>
+		<button type="button" class="btn-icon" data-variant="destructive" aria-label="Delete"
+			data-on:click__prevent={ "$confirmingDeleteId = " + safeJSString(item.ID) + "; $confirmingDeleteTitle = " + safeJSString(item.Title) + "" }>
+			<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+				<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+			</svg>
+		</button>
+	</div>
+}
+
+templ sseOpener() {
+	<button
+		id="sse-opener"
+		class="hidden"
+		data-on:click={ "@get('/api/todos/stream?clientID=' + encodeURIComponent(window.__gogogoClientID || '') + '', { permanent: true })" }
+		aria-hidden="true"
+	></button>
+	<script type="module">
+		(function () {
+			try {
+				var id = sessionStorage.getItem('gogogoClientID');
+				if (!id) { id = 'tab-' + Math.random().toString(36).slice(2, 10); sessionStorage.setItem('gogogoClientID', id); }
+				window.__gogogoClientID = id;
+				var b = document.getElementById('sse-opener');
+				if (b) { b.click(); }
+			} catch (e) {}
+		})();
+		document.addEventListener('visibilitychange', function () {
+			if (document.hidden) { return; }
+			var b = document.getElementById('sse-opener');
+			if (b) { b.click(); }
+		});
+	</script>
+}
+
+templ pbRealtime() {
+	<button
+		id="pb-realtime-resync"
+		type="button"
+		class="hidden"
+		data-on:click={ "@get('/api/todos/fragment')" }
+		aria-hidden="true"
+	></button>
+	<script type="module">
+		var clientID = 'pb-' + Math.random().toString(36).slice(2, 10);
+		var es = new EventSource('/api/realtime?clientId=' + encodeURIComponent(clientID));
+		function subscribe(clientId) {
+			fetch('/api/realtime', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ clientId: clientId, action: 'subscribe', subscriptions: ['todos'] })
+			}).catch(function () {});
+		}
+		function resync() {
+			var b = document.getElementById('pb-realtime-resync');
+			if (b) { b.click(); }
+		}
+		es.addEventListener('PB_CONNECT', function (e) {
+			var msg;
+			try { msg = JSON.parse(e.data); } catch (_) { return; }
+			if (!msg.clientId) { return; }
+			es.addEventListener('todos', function () { resync(); });
+			subscribe(msg.clientId);
+			resync();
+		});
+		document.addEventListener('visibilitychange', function () {
+			if (!document.hidden) { resync(); }
+		});
+	</script>
+}

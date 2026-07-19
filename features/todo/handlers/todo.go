@@ -31,6 +31,9 @@ import (
 	"github.com/calionauta/gogogo-fullstack-template/internal/nats"
 	"github.com/calionauta/gogogo-fullstack-template/internal/queue"
 	morpheus "github.com/calionauta/gogogo-fullstack-template/web/skins/morpheus"
+
+	// basecoat skin imported via features/todo/components/skin_imports.go
+	basecoat "github.com/calionauta/gogogo-fullstack-template/web/skins/basecoat"
 )
 
 // HTTP status codes used by the handlers. Centralized so the lint
@@ -293,10 +296,20 @@ func (h *TodoHandler) handleIndex(c *core.RequestEvent) error {
 	}
 	c.Response.Header().Set("Content-Type", "text/html; charset=utf-8")
 	// Dispatch to skin-specific template.
-	// DaisyUI and BasecoatUI use the shared components.Layout.
+	// DaisyUI uses the shared components.Layout.
+	// BasecoatUI uses its own template with shadcn-style HTML.
 	// Morpheus uses a web component layout (neo.*).
 	if skinName == "morpheus" {
 		return morpheus.TodoPage(
+			"Todos — gogogo-fullstack-template",
+			signals, userEmail,
+			h.cfg.BuildLabel, h.cfg.BuildCommit,
+			h.cfg.OfflineSync.Enabled,
+			skinName,
+		).Render(c.Request.Context(), c.Response)
+	}
+	if skinName == "basecoat" {
+		return basecoat.TodoPage(
 			"Todos — gogogo-fullstack-template",
 			signals, userEmail,
 			h.cfg.BuildLabel, h.cfg.BuildCommit,
