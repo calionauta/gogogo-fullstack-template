@@ -21,7 +21,7 @@ import (
 // guests; the navbar shows a "Sign in" CTA instead.
 templ Layout(title string, signals todo.Signals, userEmail string, buildLabel string, buildCommit string, offlineSync bool, skinName string) {
 	<!DOCTYPE html>
-	<html lang="en" data-theme="light">
+	<html lang="en" data-signals="{theme: 'light'}" data-attr:data-theme="$theme" data-class:dark="$theme === 'dark'">
 		<head>
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>

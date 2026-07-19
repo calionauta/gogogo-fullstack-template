@@ -136,7 +136,7 @@ func Navbar(userEmail string, active string, buildLabel string, buildCommit stri
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\">Config</a></div></div><div class=\"navbar-end gap-2\"><button type=\"button\" class=\"btn btn-ghost btn-sm btn-circle theme-toggle\" aria-label=\"Alternar tema\" title=\"Alternar tema claro/escuro\" data-variant=\"ghost\"><iconify-icon icon=\"material-symbols:dark-mode\" class=\"text-lg theme-toggle-icon icon-dark-mode\"></iconify-icon> <iconify-icon icon=\"material-symbols:light-mode\" class=\"text-lg theme-toggle-icon icon-light-mode\"></iconify-icon></button> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\">Config</a></div></div><div class=\"navbar-end gap-2\"><button type=\"button\" class=\"btn btn-ghost btn-sm btn-circle\" aria-label=\"Alternar tema\" title=\"Alternar tema claro/escuro\" data-on:click=\"var t = (typeof $theme !== 'undefined' ? ($theme === 'dark' ? 'light' : 'dark') : 'light'); $theme = t; localStorage.setItem('themeMode', t)\" data-variant=\"ghost\"><iconify-icon icon=\"material-symbols:dark-mode\" class=\"text-lg theme-toggle-icon icon-dark-mode\"></iconify-icon> <iconify-icon icon=\"material-symbols:light-mode\" class=\"text-lg theme-toggle-icon icon-light-mode\"></iconify-icon></button> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -153,7 +153,7 @@ func Navbar(userEmail string, active string, buildLabel string, buildCommit stri
 			var templ_7745c5c3_Var10 string
 			templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(userEmail)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/auth/views.templ`, Line: 59, Col: 71}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/auth/views.templ`, Line: 60, Col: 71}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 			if templ_7745c5c3_Err != nil {
@@ -166,7 +166,7 @@ func Navbar(userEmail string, active string, buildLabel string, buildCommit stri
 			var templ_7745c5c3_Var11 string
 			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(userEmail)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/auth/views.templ`, Line: 66, Col: 60}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/auth/views.templ`, Line: 67, Col: 60}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 			if templ_7745c5c3_Err != nil {
@@ -217,7 +217,7 @@ func LoginPage(next string, errMsg string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<script defer type=\"module\" src=\"/static/theme.js\"></script><script src=\"/static/iconify-icon.min.js\"></script><script defer type=\"module\" src=\"/static/datastar.js\"></script></head><body class=\"bg-base-200 min-h-screen flex items-center justify-center p-4\"><div class=\"card w-full max-w-md bg-base-100 shadow-xl\"><div class=\"card-body\"><h1 class=\"text-2xl font-bold text-center mb-2\">gogogo-fullstack-template</h1><p class=\"text-center text-base-content/60 mb-6\">Sign in to manage your todos</p>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<script src=\"/static/iconify-icon.min.js\"></script><script defer type=\"module\" src=\"/static/datastar.js\"></script></head><body class=\"bg-base-200 min-h-screen flex items-center justify-center p-4\"><div class=\"card w-full max-w-md bg-base-100 shadow-xl\"><div class=\"card-body\"><h1 class=\"text-2xl font-bold text-center mb-2\">gogogo-fullstack-template</h1><p class=\"text-center text-base-content/60 mb-6\">Sign in to manage your todos</p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -30,7 +30,6 @@ func assets() templ.Component {
 	return templ.Raw(`
 <link rel="stylesheet" href="/static/morpheus/theme-default.css"/>
 <link rel="stylesheet" href="/static/morpheus/morpheus.css"/>
-<script defer type="module" src="/static/theme.js"></script>
 <script src="/static/iconify-icon.min.js"></script>
 <script defer type="module" src="/static/datastar.js"></script>
 <script defer src="/static/morpheus/bundle.js"></script>

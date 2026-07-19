@@ -35,9 +35,10 @@ templ Navbar(userEmail string, active string, buildLabel string, buildCommit str
 		<div class="navbar-end gap-2">
 			<button
 				type="button"
-				class="btn btn-ghost btn-sm btn-circle theme-toggle"
+				class="btn btn-ghost btn-sm btn-circle"
 				aria-label="Alternar tema"
 				title="Alternar tema claro/escuro"
+				data-on:click="var t = (typeof $theme !== 'undefined' ? ($theme === 'dark' ? 'light' : 'dark') : 'light'); $theme = t; localStorage.setItem('themeMode', t)"
 			 data-variant="ghost">
 				<iconify-icon icon="material-symbols:dark-mode" class="text-lg theme-toggle-icon icon-dark-mode"></iconify-icon>
 				<iconify-icon icon="material-symbols:light-mode" class="text-lg theme-toggle-icon icon-light-mode"></iconify-icon>
@@ -111,7 +112,6 @@ templ LoginPage(next string, errMsg string) {
 			<link rel="stylesheet" href="/static/app.min.css"/>
 			<link rel="stylesheet" href="/static/app.css"/>
 			@ThemeHead()
-			<script defer type="module" src="/static/theme.js"></script>
 			<script src="/static/iconify-icon.min.js"></script>
 			<script defer type="module" src="/static/datastar.js"></script>
 		</head>

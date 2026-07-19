@@ -29,7 +29,6 @@ func assets() templ.Component {
 	return templ.Raw(`
 <link rel="stylesheet" href="/static/app.min.css"/>
 <link rel="stylesheet" href="/static/app.css"/>
-<script defer type="module" src="/static/theme.js"></script>
 <script src="/static/iconify-icon.min.js"></script>
 <script defer type="module" src="/static/datastar.js"></script>
 	`)

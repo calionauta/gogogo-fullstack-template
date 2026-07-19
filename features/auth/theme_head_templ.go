@@ -35,7 +35,7 @@ func ThemeHead() templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<script>\n\t\t(function () {\n\t\t\ttry {\n\t\t\t\tvar t = localStorage.getItem(\"theme\");\n\t\t\t\tif (t !== \"light\" && t !== \"dark\") {\n\t\t\t\t\tt = window.matchMedia &&\n\t\t\t\t\t\twindow.matchMedia(\"(prefers-color-scheme: dark)\").matches\n\t\t\t\t\t\t? \"dark\"\n\t\t\t\t\t\t: \"light\";\n\t\t\t\t}\n\t\t\t\tdocument.documentElement.setAttribute(\"data-theme\", t);\n\t\t\t} catch (e) {\n\t\t\t\tdocument.documentElement.setAttribute(\"data-theme\", \"light\");\n\t\t\t}\n\t\t})();\n\t</script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<script>\n\t\t(function() {\n\t\t\ttry {\n\t\t\t\tvar theme = localStorage.getItem('themeMode');\n\t\t\t\tif (theme !== 'light' && theme !== 'dark') {\n\t\t\t\t\ttheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';\n\t\t\t\t}\n\t\t\t\tvar html = document.documentElement;\n\t\t\t\thtml.dataset.theme = theme;\n\t\t\t\thtml.classList.toggle('dark', theme === 'dark');\n\t\t\t\thtml.dataset.signals = JSON.stringify({theme: theme});\n\t\t\t} catch(e) {\n\t\t\t\tdocument.documentElement.dataset.theme = 'light';\n\t\t\t}\n\t\t})();\n\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

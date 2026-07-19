@@ -8,18 +8,18 @@ package auth
 // /static/theme.js (loaded with the rest of the page scripts).
 templ ThemeHead() {
 	<script>
-		(function () {
+		(function() {
 			try {
-				var t = localStorage.getItem("theme");
-				if (t !== "light" && t !== "dark") {
-					t = window.matchMedia &&
-						window.matchMedia("(prefers-color-scheme: dark)").matches
-						? "dark"
-						: "light";
+				var theme = localStorage.getItem('themeMode');
+				if (theme !== 'light' && theme !== 'dark') {
+					theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 				}
-				document.documentElement.setAttribute("data-theme", t);
-			} catch (e) {
-				document.documentElement.setAttribute("data-theme", "light");
+				var html = document.documentElement;
+				html.dataset.theme = theme;
+				html.classList.toggle('dark', theme === 'dark');
+				html.dataset.signals = JSON.stringify({theme: theme});
+			} catch(e) {
+				document.documentElement.dataset.theme = 'light';
 			}
 		})();
 	</script>
