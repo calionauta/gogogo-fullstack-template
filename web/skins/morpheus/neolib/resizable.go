@@ -71,12 +71,12 @@ var resizableIconByName = map[string]string{
 }
 
 type ResizableOpts[N Number] struct {
-	Handles                       Attr[ResizableHandles]
-	Width, Height                 Attr[CSSUnit]
-	MinWidth, MaxWidth            Attr[CSSUnit]
-	MinHeight, MaxHeight          Attr[CSSUnit]
-	StepHorizontal, StepVertical  Attr[N]
-	HandleIcons                   map[string]templ.Component
+	Handles                      Attr[ResizableHandles]
+	Width, Height                Attr[CSSUnit]
+	MinWidth, MaxWidth           Attr[CSSUnit]
+	MinHeight, MaxHeight         Attr[CSSUnit]
+	StepHorizontal, StepVertical Attr[N]
+	HandleIcons                  map[string]templ.Component
 }
 
 func resizableMergedAttrs[N Number](
