@@ -10,7 +10,7 @@ templ SkinSelector(current string) {
 			<svg xmlns="http://www.w3.org/2000/svg" style="width:1rem;height:1rem;flex-shrink:0" viewBox="0 0 20 20" fill="currentColor">
 				<path fill-rule="evenodd" d="M4 2a2 2 0 00-2 2v11a3 3 0 106 0V4a2 2 0 00-2-2H4zm1 14a1 1 0 100-2 1 1 0 000 2zm5-1.757l4.9-4.9a2 2 0 000-2.828L13.485 5.1a2 2 0 00-2.828 0L10 5.757v8.486zM16 18H9.071l6-6H16a2 2 0 012 2v2a2 2 0 01-2 2z" clip-rule="evenodd"/>
 			</svg>
-			<span style="display:none" class="skin-label-sm">{ current }</span>
+			<span class="skin-label-sm">{ current }</span>
 		</div>
 		<ul tabindex="0" role="menu" style="position:absolute;z-index:60;top:100%;right:0;margin-top:0.5rem;min-width:10rem;padding:0.25rem;list-style:none;border-radius:0.5rem;border:1px solid;background:var(--page-bg,var(--color-base-100,oklch(1 0 0)));color:var(--page-fg,var(--color-base-content,oklch(0.145 0 0)));border-color:var(--muted,var(--color-base-300,oklch(0.556 0 0 / 0.2)));box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);display:none">
 			for _, name := range List() {

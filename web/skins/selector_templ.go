@@ -33,14 +33,14 @@ func SkinSelector(current string) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div style=\"position:relative;display:inline-block\"><div tabindex=\"0\" role=\"button\" style=\"display:inline-flex;align-items:center;gap:0.25rem;padding:0.25rem 0.5rem;font-size:0.75rem;cursor:pointer;border-radius:0.375rem;border:1px solid transparent;background:transparent;color:inherit\" title=\"Select UI skin\"><svg xmlns=\"http://www.w3.org/2000/svg\" style=\"width:1rem;height:1rem;flex-shrink:0\" viewBox=\"0 0 20 20\" fill=\"currentColor\"><path fill-rule=\"evenodd\" d=\"M4 2a2 2 0 00-2 2v11a3 3 0 106 0V4a2 2 0 00-2-2H4zm1 14a1 1 0 100-2 1 1 0 000 2zm5-1.757l4.9-4.9a2 2 0 000-2.828L13.485 5.1a2 2 0 00-2.828 0L10 5.757v8.486zM16 18H9.071l6-6H16a2 2 0 012 2v2a2 2 0 01-2 2z\" clip-rule=\"evenodd\"></path></svg> <span style=\"display:none\" class=\"skin-label-sm\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div style=\"position:relative;display:inline-block\"><div tabindex=\"0\" role=\"button\" style=\"display:inline-flex;align-items:center;gap:0.25rem;padding:0.25rem 0.5rem;font-size:0.75rem;cursor:pointer;border-radius:0.375rem;border:1px solid transparent;background:transparent;color:inherit\" title=\"Select UI skin\"><svg xmlns=\"http://www.w3.org/2000/svg\" style=\"width:1rem;height:1rem;flex-shrink:0\" viewBox=\"0 0 20 20\" fill=\"currentColor\"><path fill-rule=\"evenodd\" d=\"M4 2a2 2 0 00-2 2v11a3 3 0 106 0V4a2 2 0 00-2-2H4zm1 14a1 1 0 100-2 1 1 0 000 2zm5-1.757l4.9-4.9a2 2 0 000-2.828L13.485 5.1a2 2 0 00-2.828 0L10 5.757v8.486zM16 18H9.071l6-6H16a2 2 0 012 2v2a2 2 0 01-2 2z\" clip-rule=\"evenodd\"></path></svg> <span class=\"skin-label-sm\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(current)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/selector.templ`, Line: 13, Col: 61}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/selector.templ`, Line: 13, Col: 40}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {
