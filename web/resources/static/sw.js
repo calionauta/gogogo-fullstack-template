@@ -267,6 +267,12 @@ function buildOfflineMutation(url, bodyText, method) {
     if (!idemKey && title.trim() === "") return null;
     return optimisticCreateFragment(title, idemKey);
   }
+  // Clear Completed has its own URL pattern — must be checked BEFORE the
+  // generic delete regex, otherwise /api/todos/completed/delete is matched
+  // as a delete of id="completed" (which silently does nothing).
+  if (path === "/api/todos/completed/delete" || path === "/api/todos/completed/delete/") {
+    return optimisticClearCompletedFragment();
+  }
   var del = /\/api\/todos\/([^/]+)\/delete\/?$/.exec(path);
   if (del) return optimisticDeleteFragment(del[1]);
   var togg = /\/api\/todos\/([^/]+)\/toggle\/?$/.exec(path);
@@ -297,6 +303,13 @@ function optimisticCreateFragment(title, idemKey) {
 function optimisticDeleteFragment(todoID) {
   var safeID = escapeHTML(todoID);
   var html = '<script id="__gogogo_del">var __d=document.getElementById("todo-' + safeID + '");if(__d){__d.remove();}var __s=document.getElementById("__gogogo_del");if(__s){__s.remove();}</' + 'script>';
+  return datastarPatchResponse(html, "#todo-list", "append");
+}
+
+// optimisticClearCompletedFragment removes every visible todo row and shows
+// the empty state, so clearing completed items works offline too.
+function optimisticClearCompletedFragment() {
+  var html = '<script id="__gogogo_clr">var __items=document.querySelectorAll("#todo-list > .todo-item");if(__items){__items.forEach(function(e){e.remove();});}var __empty=document.getElementById("todo-empty-state");if(!__empty){var __list=document.getElementById("todo-list");if(__list){var __div=document.createElement("div");__div.id="todo-empty-state";__div.className="py-8 text-center text-base-content/40";__div.innerHTML=\'<p>No todos here yet.</p>\';__list.appendChild(__div);}}document.getElementById("__gogogo_clr")&&document.getElementById("__gogogo_clr").remove();<' + '/script>';
   return datastarPatchResponse(html, "#todo-list", "append");
 }
 

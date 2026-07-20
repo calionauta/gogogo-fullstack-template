@@ -1,3 +1,21 @@
+## [0.24.9] - 2026-07-20
+
+### Fixed
+
+- **Offline delete now works in all skins (CAL-16).** Three issues prevented the delete button from
+  working offline:
+  - **Basecoat skin** — the delete button only set `$confirmingDeleteId`/`$confirmingDeleteTitle`
+    signals but never called `showModal()`, so the confirmation dialog never appeared.
+  - **Morpheus skin** — same: relied solely on `data-neo-dialog-trigger` (web component) instead
+    of explicitly calling the dialog open API, with no fallback.
+  - **Service Worker** — the "Clear completed" URL (`/api/todos/completed/delete`) was incorrectly
+    matched by the generic delete regex, which treated `"completed"` as a todo ID and returned a
+    no-op fragment. Added explicit check + `optimisticClearCompletedFragment()` that removes all
+    rows and shows the empty state.
+
+  All four CRUD operations (create, toggle, delete, clear-completed) now have optimistic offline
+  handling via the Service Worker.
+
 ## [0.24.8] - 2026-07-20
 
 ### Fixed
