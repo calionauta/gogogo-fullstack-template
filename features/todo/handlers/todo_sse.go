@@ -283,12 +283,20 @@ func (h *TodoHandler) streamTodo(c *core.RequestEvent, sse *sdk.ServerSentEventG
 		// For "created" and "toggled" events re-render the entire list.
 		// This is safe because listTodos scopes by c.Auth, which is
 		// loaded from the cookie on every SSE connection (see
-		// handleSSEStream).
+		// handleSSEStream). The skin is read from the same SSE
+		// connection's URL — every client opening an SSE stream is
+		// expected to forward their current `?skin=` query param so the
+		// broadcast HTML matches the chrome they're rendering
+		// (morpheus.TodoListRegion for morpheus clients, basecoat for
+		// basecoat, components for DaisyUI). The morpheus and basecoat
+		// page templates already do this; without it the broadcast
+		// would replace the client's rows with mismatched HTML on
+		// every remote mutation (CAL-14).
 		todos, err := h.listTodos(c, "all")
 		if err != nil {
 			return fmt.Errorf("list todos for broadcast: %w", err)
 		}
-		return dshelpers.RenderAndPatch(sse, h.renderTodoList(todos),
+		return dshelpers.RenderAndPatch(sse, h.renderTodoList(todos, h.resolveSkin(c)),
 			sdk.WithSelector("#todo-list"))
 	}
 }

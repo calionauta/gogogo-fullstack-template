@@ -13,6 +13,7 @@ import (
 	"github.com/calionauta/gogogo-fullstack-template/features/todo"
 	"github.com/calionauta/gogogo-fullstack-template/internal/components"
 	"github.com/calionauta/gogogo-fullstack-template/web/skins"
+	"github.com/calionauta/gogogo-fullstack-template/web/skins/morpheus/neolib"
 )
 
 // TodoPage renders the full Morpheus-themed todo page using <neo-*> web
@@ -21,6 +22,12 @@ import (
 //
 // Datastar wiring (data-on:*, data-bind, data-signals, @post, @get) is
 // identical to the DaisyUI version — only the component markup differs.
+//
+// Every Datastar @get/@post to /api/todos/* carries `&skin=morpheus` so
+// the SSE dispatcher (features/todo/handlers) returns the morpheus list
+// region instead of the DaisyUI default — without this, filter clicks
+// and CRUD mutations would replace the morpheus rows with DaisyUI rows
+// and break the morpheus skin (CAL-14).
 func TodoPage(title string, signals todo.Signals, userEmail string, buildLabel string, buildCommit string, offlineSync bool, skinName string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -49,7 +56,7 @@ func TodoPage(title string, signals todo.Signals, userEmail string, buildLabel s
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 22, Col: 17}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 29, Col: 17}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {
@@ -94,7 +101,7 @@ func TodoPage(title string, signals todo.Signals, userEmail string, buildLabel s
 		var templ_7745c5c3_Var3 string
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue(marshalSignals(signals))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 33, Col: 47}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 40, Col: 47}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 		if templ_7745c5c3_Err != nil {
@@ -161,7 +168,7 @@ func TodoMorpheusHeader(signals todo.Signals) templ.Component {
 		var templ_7745c5c3_Var5 string
 		templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(signals.StoreLabel)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 58, Col: 57}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 65, Col: 57}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 		if templ_7745c5c3_Err != nil {
@@ -174,7 +181,7 @@ func TodoMorpheusHeader(signals todo.Signals) templ.Component {
 		var templ_7745c5c3_Var6 string
 		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(signals.OfflineLabel)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 60, Col: 33}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 67, Col: 33}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 		if templ_7745c5c3_Err != nil {
@@ -189,6 +196,15 @@ func TodoMorpheusHeader(signals todo.Signals) templ.Component {
 }
 
 // TodoMorpheusGrid renders the main content grid: todo list (left) + sidebar (right).
+//
+// Uses the real morpheus card slot API: <neo-card> > <div data-neo-card-inner>
+// > <div data-neo-card-header> > <h3 data-neo-card-title> + content, then
+// <div data-neo-card-body> / <div data-neo-card-footer> as needed. The
+// <neo-card-header> / <neo-card-title> / <neo-card-body> custom element
+// names from the previous version are NOT defined by morpheus (they are
+// CSS-only utility elements in the bundle's `Ra` set with no inner
+// styling) — that's why the cards looked unstyled in the screenshots
+// from CAL-14. The data-neo-card-* slots are the supported API.
 func TodoMorpheusGrid(signals todo.Signals) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -210,7 +226,7 @@ func TodoMorpheusGrid(signals todo.Signals) templ.Component {
 			templ_7745c5c3_Var7 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<div style=\"display: grid; grid-template-columns: 1fr; gap: 1.25rem;\"><!-- ─── TODO LIST ─── --><neo-card><neo-card-header><neo-card-title>Tasks</neo-card-title> <neo-badge variant=\"neutral\" slot=\"extra\"><span data-text=\"$itemCount + ' items'\"></span></neo-badge></neo-card-header>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<div style=\"display: grid; grid-template-columns: 1fr; gap: 1.25rem;\"><!-- ─── TODO LIST ─── --><neo-card><div data-neo-card-inner><div data-neo-card-header style=\"display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;\"><h3 data-neo-card-title>Tasks</h3><neo-badge variant=\"neutral\"><span data-text=\"$itemCount + ' items'\"></span></neo-badge></div><div data-neo-card-body>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -233,12 +249,12 @@ func TodoMorpheusGrid(signals todo.Signals) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		if signals.ItemCount > 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<div style=\"display: flex; justify-content: space-between; align-items: center; margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid var(--neo-color-border, #e7e5e4);\"><span style=\"font-size: 0.75rem; color: var(--neo-color-muted-foreground, #78716c);\" data-text=\"$itemCount + ' items'\"></span> <neo-button variant=\"danger\" size=\"sm\" data-neo-dialog-trigger=\"confirm-delete-modal\" data-on:click=\"while (document.querySelector('.todo-item')) { @post('/api/todos/completed/delete?clientID=' + encodeURIComponent($clientID || '')); break; }\">Clear completed</neo-button></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<div style=\"display: flex; justify-content: space-between; align-items: center; margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid var(--neo-color-border, #e7e5e4);\"><span style=\"font-size: 0.75rem; color: var(--neo-color-muted-foreground, #78716c);\" data-text=\"$itemCount + ' items'\"></span> <neo-button variant=\"danger\" size=\"sm\" data-neo-dialog-trigger=\"confirm-delete-modal\" data-on:click=\"while (document.querySelector('.todo-item')) { @post('/api/todos/completed/delete?clientID=' + encodeURIComponent($clientID || '') + '&skin=morpheus'); break; }\">Clear completed</neo-button></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</neo-card><!-- ─── SIDEBAR CARDS ─── -->")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</div></div></neo-card><!-- ─── SIDEBAR CARDS ─── -->")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -279,7 +295,7 @@ func createFormMorpheus(signals todo.Signals) templ.Component {
 			templ_7745c5c3_Var8 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<form data-on:submit__prevent=\"if (!$loading) { $loading = true; @post('/api/todos?clientID=' + encodeURIComponent($clientID || '') + '&idem_key=' + encodeURIComponent(crypto.randomUUID()), {contentType: 'form'}); }\" style=\"display: flex; gap: 0.5rem; margin-bottom: 1rem;\"><div style=\"flex: 1;\"><input type=\"text\" name=\"title\" placeholder=\"Add a new todo...\" data-bind=\"newTitle\" style=\"width: 100%; box-sizing: border-box; padding: 0.5rem 0.75rem; font-size: 0.875rem; border: 1px solid var(--page-border, #d6d3d1); border-radius: 0.375rem; background: var(--page-bg, #ffffff); color: var(--page-fg, #1c1917); font-family: inherit; outline: none;\"></div><neo-button variant=\"primary\" data-attr:disabled=\"$loading || !$newTitle.trim()\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" style=\"margin-right: 0.25rem;\"><line x1=\"12\" y1=\"5\" x2=\"12\" y2=\"19\"></line><line x1=\"5\" y1=\"12\" x2=\"19\" y2=\"12\"></line></svg> <span data-show=\"!$loading\">Add</span> <span data-show=\"$loading\" style=\"display: inline-flex; align-items: center; gap: 0.25rem;\"><neo-spinner size=\"sm\"></neo-spinner> <span>Adding</span></span></neo-button></form>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<form data-on:submit__prevent=\"if (!$loading) { $loading = true; @post('/api/todos?clientID=' + encodeURIComponent($clientID || '') + '&idem_key=' + encodeURIComponent(crypto.randomUUID()) + '&skin=morpheus', {contentType: 'form'}); }\" style=\"display: flex; gap: 0.5rem; margin-bottom: 1rem;\"><div style=\"flex: 1;\"><input type=\"text\" name=\"title\" placeholder=\"Add a new todo...\" data-bind=\"newTitle\" style=\"width: 100%; box-sizing: border-box; padding: 0.5rem  0.75rem; font-size: 0.875rem; border: 1px solid var(--page-border, #d6d3d1); border-radius: 0.375rem; background: var(--page-bg, #ffffff); color: var(--page-fg, #1c1917); font-family: inherit; outline: none;\"></div><neo-button variant=\"primary\" data-attr:disabled=\"$loading || !$newTitle.trim()\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" style=\"margin-right: 0.25rem;\"><line x1=\"12\" y1=\"5\" x2=\"12\" y2=\"19\"></line><line x1=\"5\" y1=\"12\" x2=\"19\" y2=\"12\"></line></svg> <span data-show=\"!$loading\">Add</span> <span data-show=\"$loading\" style=\"display: inline-flex; align-items: center; gap: 0.25rem;\"><neo-spinner size=\"sm\"></neo-spinner> <span>Adding</span></span></neo-button></form>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -287,7 +303,10 @@ func createFormMorpheus(signals todo.Signals) templ.Component {
 	})
 }
 
-// filterTabsMorpheus renders the All/Active/Completed filter tabs.
+// filterTabsMorpheus renders the All/Active/Completed filter tabs. Each
+// @get carries `&skin=morpheus` so handleList returns the morpheus list
+// region — the SSE patch then morphs into the existing #todo-list
+// without losing the morpheus chrome (CAL-14).
 func filterTabsMorpheus(signals todo.Signals) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -309,7 +328,7 @@ func filterTabsMorpheus(signals todo.Signals) templ.Component {
 			templ_7745c5c3_Var9 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<neo-tabs value=\"all\" id=\"filter-tabs\" style=\"margin-bottom: 1rem;\"><neo-tablist aria-label=\"Filter todos\"><neo-tab value=\"all\" data-class=\"{ 'neo-tab-active': $filter === 'all' }\" data-on:click__prevent=\"$loading = true; @get('/api/todos?filter=all')\">All</neo-tab> <neo-tab value=\"active\" data-class=\"{ 'neo-tab-active': $filter === 'active' }\" data-on:click__prevent=\"$loading = true; @get('/api/todos?filter=active')\">Active</neo-tab> <neo-tab value=\"completed\" data-class=\"{ 'neo-tab-active': $filter === 'completed' }\" data-on:click__prevent=\"$loading = true; @get('/api/todos?filter=completed')\">Completed</neo-tab></neo-tablist></neo-tabs>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<neo-tabs value=\"all\" id=\"filter-tabs\" style=\"margin-bottom: 1rem;\"><neo-tablist aria-label=\"Filter todos\"><neo-tab value=\"all\" data-class=\"{ 'neo-tab-active': $filter === 'all' }\" data-on:click__prevent=\"$loading = true; @get('/api/todos?filter=all&skin=morpheus')\">All</neo-tab> <neo-tab value=\"active\" data-class=\"{ 'neo-tab-active': $filter === 'active' }\" data-on:click__prevent=\"$loading = true; @get('/api/todos?filter=active&skin=morpheus')\">Active</neo-tab> <neo-tab value=\"completed\" data-class=\"{ 'neo-tab-active': $filter === 'completed' }\" data-on:click__prevent=\"$loading = true; @get('/api/todos?filter=completed&skin=morpheus')\">Completed</neo-tab></neo-tablist></neo-tabs>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -317,7 +336,11 @@ func filterTabsMorpheus(signals todo.Signals) templ.Component {
 	})
 }
 
-// todoListMorpheus renders the todo list items.
+// todoListMorpheus renders the todo list items. Matches the SSE-patched
+// region in todo_list_morpheus.templ 1:1 — same `<div id="todo-list">`
+// wrapper, same `todo-{ID}` row ids — so Datastar's morph patches
+// preserve the existing neo-checkbox / neo-button custom-element state
+// across filter clicks and CRUD mutations.
 func todoListMorpheus(signals todo.Signals) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -364,6 +387,12 @@ func todoListMorpheus(signals todo.Signals) templ.Component {
 }
 
 // todoItemMorpheus renders a single todo row with neo.Checkbox.
+//
+// Toggle wiring: the row-level click handler posts the toggle endpoint
+// and passes `evt.detail.checked` via the `neo-checkbox-change` event
+// (morpheus's checkbox fires this custom event on toggle). Using a
+// row-level click keeps the action working whether the user clicks
+// the checkbox itself or anywhere else on the row's left edge.
 func todoItemMorpheus(item todo.Todo) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -392,50 +421,65 @@ func todoItemMorpheus(item todo.Todo) templ.Component {
 		var templ_7745c5c3_Var12 string
 		templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.ResolveAttributeValue("todo-" + item.ID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 178, Col: 45}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 211, Col: 45}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var12)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "\" style=\"display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border-bottom: 1px solid var(--neo-color-border, #e7e5e4);\"><input type=\"checkbox\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		if item.Completed {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, " checked")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, " style=\"width: 1rem; height: 1rem; cursor: pointer; accent-color: var(--page-fg, #1c1917);\" data-on:click__prevent=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "\" data-on:click__prevent=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var13 string
-		templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.ResolveAttributeValue("@post('/api/todos/" + item.ID + "/toggle')")
+		templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.ResolveAttributeValue("@post('/api/todos/" + item.ID + "/toggle?skin=morpheus')")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 185, Col: 72}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 212, Col: 85}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var13)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "\"> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "\" style=\"display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border-bottom: 1px solid var(--neo-color-border, #e7e5e4); cursor: pointer;\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = neo.Checkbox(neo.CheckboxOpts{
+			Checked: neo.Set(item.Completed),
+			Size:    neo.Set("sm"),
+		}).Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if item.Completed {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "<span style=\"flex: 1; text-decoration: line-through; color: var(--neo-color-muted-foreground, #78716c);\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 23, "<span style=\"flex: 1; text-decoration: line-through; color: var(--neo-color-muted-foreground, #78716c);\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var14 string
 			templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(item.Title)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 188, Col: 120}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 219, Col: 120}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 24, "</span> ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		} else {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 25, "<span style=\"flex: 1;\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var15 string
+			templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(item.Title)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 221, Col: 38}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -443,52 +487,34 @@ func todoItemMorpheus(item todo.Todo) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-		} else {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "<span style=\"flex: 1;\">")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var15 string
-			templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(item.Title)
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 190, Col: 38}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "</span> ")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "<span style=\"font-size: 0.75rem; color: var(--neo-color-muted-foreground, #78716c);\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "<span style=\"font-size: 0.75rem; color: var(--neo-color-muted-foreground, #78716c);\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var16 string
 		templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(timeAgo(item.CreatedAt))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 192, Col: 112}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 223, Col: 112}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "</span> <neo-button variant=\"danger\" size=\"sm\" data-neo-dialog-trigger=\"confirm-delete-modal\" data-on:click__prevent=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, "</span> <neo-button variant=\"danger\" size=\"sm\" data-neo-dialog-trigger=\"confirm-delete-modal\" data-on:click__prevent=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var17 string
 		templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.ResolveAttributeValue("$confirmingDeleteId = " + safeJSStringMorpheus(item.ID) + "; $confirmingDeleteTitle = " + safeJSStringMorpheus(item.Title) + "")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 194, Col: 156}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 225, Col: 156}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var17)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><polyline points=\"3 6 5 6 21 6\"></polyline><path d=\"M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2\"></path></svg></neo-button></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><polyline points=\"3 6 5 6 21 6\"></polyline><path d=\"M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2\"></path></svg></neo-button></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -518,43 +544,43 @@ func SuggestionsMorpheus(suggestions []string) templ.Component {
 			templ_7745c5c3_Var18 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "<div id=\"suggestions-region\" data-show=\"$suggestions && $suggestions.length > 0\" style=\"margin-bottom: 1rem; padding: 0.75rem; border-radius: 0.5rem; background: var(--neo-color-muted, #f0efed);\"><div style=\"font-size: 0.75rem; margin-bottom: 0.5rem; color: var(--neo-color-muted-foreground, #78716c);\">Suggestions — click to use:</div><div style=\"display: flex; flex-wrap: wrap; gap: 0.5rem;\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "<div id=\"suggestions-region\" data-show=\"$suggestions && $suggestions.length > 0\" style=\"margin-bottom: 1rem; padding: 0.75rem; border-radius: 0.5rem; background: var(--neo-color-muted, #f0efed);\"><div style=\"font-size: 0.75rem; margin-bottom: 0.5rem; color: var(--neo-color-muted-foreground, #78716c);\">Suggestions — click to use:</div><div style=\"display: flex; flex-wrap: wrap; gap: 0.5rem;\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		for _, s := range suggestions {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "<neo-button variant=\"secondary\" size=\"sm\" data-on:click=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "<neo-button variant=\"secondary\" size=\"sm\" data-on:click=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var19 string
 			templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.ResolveAttributeValue("$newTitle = " + safeJSStringMorpheus(s))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 212, Col: 61}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 243, Col: 61}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var19)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var20 string
 			templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs(s)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 213, Col: 8}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 244, Col: 8}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "</neo-button>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "</neo-button>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "</div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "</div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -563,6 +589,7 @@ func SuggestionsMorpheus(suggestions []string) templ.Component {
 }
 
 // sidebarMorpheus renders the right sidebar with async demo cards.
+// Uses the same data-neo-card-* slot pattern as TodoMorpheusGrid.
 func sidebarMorpheus(signals todo.Signals) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -584,27 +611,27 @@ func sidebarMorpheus(signals todo.Signals) templ.Component {
 			templ_7745c5c3_Var21 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "<div style=\"display: flex; flex-direction: column; gap: 1rem;\"><!-- Realtime Card --><neo-card variant=\"outline\"><neo-card-header><neo-card-title>Realtime</neo-card-title> <neo-badge variant=\"neutral\" slot=\"extra\" data-text=\"$realtimeKind\"></neo-badge></neo-card-header> <neo-card-body><div style=\"display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;\"><neo-badge variant=\"success\"><span data-text=\"$connectedClients + ' online'\"></span></neo-badge></div><p style=\"font-size: 0.75rem; color: var(--neo-color-muted-foreground, #78716c); margin: 0;\">Every CRUD mutation streams through PocketBase realtime. Open this page in two tabs to watch todos sync live.</p></neo-card-body></neo-card><!-- Queue + Retry Card --><neo-card variant=\"outline\"><neo-card-header><neo-card-title>Queue + Retry</neo-card-title><div slot=\"extra\" style=\"display: flex; gap: 0.25rem;\"><neo-badge variant=\"secondary\">goqite</neo-badge> <neo-badge variant=\"neutral\">retry-go</neo-badge></div></neo-card-header> <neo-card-description>Enqueues a hard-coded background job that fails twice then succeeds — exercising the queue + retry layer.</neo-card-description> <neo-card-body><div style=\"display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.75rem;\"><div style=\"display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem;\"><neo-badge variant=\"neutral\" data-class=\"{ 'neo-badge-success': $demoStep >= 2 }\">1. Enqueue job</neo-badge></div><div style=\"display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem;\"><neo-badge variant=\"neutral\" data-class=\"{ 'neo-badge-success': $demoStep >= 3, 'neo-badge-primary': $demoStep === 2 }\">2. Retry</neo-badge> <span data-show=\"$lastRetryStatus === 'attempt'\" data-text=\"'— attempt ' + ($lastRetryAttempt || 1)\" style=\"color: var(--neo-color-muted-foreground, #78716c);\"></span></div><div style=\"display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem;\"><neo-badge variant=\"neutral\" data-class=\"{ 'neo-badge-success': $demoStep >= 3 && $techPhase !== 'error', 'neo-badge-danger': $techPhase === 'error' }\">3. Complete</neo-badge></div></div><form data-on:submit__prevent=\"$techStep = 'retry-demo'; $demoStep = 1; $suggestPending = true; @post('/api/todos/retry-demo?clientID=' + encodeURIComponent($clientID || ''))\" style=\"display: contents;\"><neo-button variant=\"secondary\" size=\"sm\" type=\"submit\" style=\"width: 100%;\"><span data-show=\"!$suggestPending\">Run queue + retry demo</span> <span data-show=\"$suggestPending\" style=\"display: inline-flex; align-items: center; gap: 0.25rem;\"><neo-spinner size=\"sm\"></neo-spinner> <span>Running demo…</span></span></neo-button></form></neo-card-body></neo-card><!-- AI Suggest Card -->")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "<div style=\"display: flex; flex-direction: column; gap: 1rem;\"><!-- Realtime Card --><neo-card variant=\"outline\"><div data-neo-card-inner><div data-neo-card-header style=\"display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;\"><h3 data-neo-card-title>Realtime</h3><neo-badge variant=\"neutral\" data-text=\"$realtimeKind\"></neo-badge></div><div data-neo-card-body><div style=\"display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;\"><neo-badge variant=\"success\"><span data-text=\"$connectedClients + ' online'\"></span></neo-badge></div><p style=\"font-size: 0.75rem; color: var(--neo-color-muted-foreground, #78716c); margin: 0;\">Every CRUD mutation streams through PocketBase realtime. Open this page in two tabs to watch todos sync live.</p></div></div></neo-card><!-- Queue + Retry Card --><neo-card variant=\"outline\"><div data-neo-card-inner><div data-neo-card-header style=\"display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;\"><h3 data-neo-card-title>Queue + Retry</h3><div style=\"display: flex; gap: 0.25rem;\"><neo-badge variant=\"secondary\">goqite</neo-badge> <neo-badge variant=\"neutral\">retry-go</neo-badge></div></div><p data-neo-card-description>Enqueues a hard-coded background job that fails twice then succeeds — exercising the queue + retry layer.</p><div data-neo-card-body><div style=\"display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.75rem;\"><div style=\"display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem;\"><neo-badge variant=\"neutral\" data-class=\"{ 'neo-badge-success': $demoStep >= 2 }\">1. Enqueue job</neo-badge></div><div style=\"display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem;\"><neo-badge variant=\"neutral\" data-class=\"{ 'neo-badge-success': $demoStep >= 3, 'neo-badge-primary': $demoStep === 2 }\">2. Retry</neo-badge> <span data-show=\"$lastRetryStatus === 'attempt'\" data-text=\"'— attempt ' + ($lastRetryAttempt || 1)\" style=\"color: var(--neo-color-muted-foreground, #78716c);\"></span></div><div style=\"display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem;\"><neo-badge variant=\"neutral\" data-class=\"{ 'neo-badge-success': $demoStep >= 3 && $techPhase !== 'error', 'neo-badge-danger': $techPhase === 'error' }\">3. Complete</neo-badge></div></div><form data-on:submit__prevent=\"$techStep = 'retry-demo'; $demoStep = 1; $suggestPending = true; @post('/api/todos/retry-demo?clientID=' + encodeURIComponent($clientID || '') + '&skin=morpheus')\" style=\"display: contents;\"><neo-button variant=\"secondary\" size=\"sm\" type=\"submit\" style=\"width: 100%;\"><span data-show=\"!$suggestPending\">Run queue + retry demo</span> <span data-show=\"$suggestPending\" style=\"display: inline-flex; align-items: center; gap: 0.25rem;\"><neo-spinner size=\"sm\"></neo-spinner> <span>Running demo…</span></span></neo-button></form></div></div></neo-card><!-- AI Suggest Card -->")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if signals.LLMEnabled || signals.SimulatedLLM {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, "<neo-card variant=\"outline\"><neo-card-header><neo-card-title>AI Suggest</neo-card-title> <neo-badge variant=\"primary\" slot=\"extra\">GoAI</neo-badge></neo-card-header> <neo-card-description>Asks the configured LLM for 3 todo suggestions. The request is queued (goqite) and retried (retry-go).</neo-card-description> <neo-card-body><neo-button variant=\"primary\" size=\"sm\" style=\"width: 100%;\" data-on:click=\"$aiStep = 1; $aiPending = true; @post('/api/todos/suggest?clientID=' + encodeURIComponent($clientID || '') + '&partial=' + encodeURIComponent($newTitle))\"><span data-show=\"!$aiPending\">AI Suggest</span> <span data-show=\"$aiPending\" style=\"display: inline-flex; align-items: center; gap: 0.25rem;\"><neo-spinner size=\"sm\"></neo-spinner> <span>Asking AI…</span></span></neo-button></neo-card-body></neo-card>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "<neo-card variant=\"outline\"><div data-neo-card-inner><div data-neo-card-header style=\"display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;\"><h3 data-neo-card-title>AI Suggest</h3><neo-badge variant=\"primary\">GoAI</neo-badge></div><p data-neo-card-description>Asks the configured LLM for 3 todo suggestions. The request is queued (goqite) and retried (retry-go).</p><div data-neo-card-body><neo-button variant=\"primary\" size=\"sm\" style=\"width: 100%;\" data-on:click=\"$aiStep = 1; $aiPending = true; @post('/api/todos/suggest?clientID=' + encodeURIComponent($clientID || '') + '&partial=' + encodeURIComponent($newTitle) + '&skin=morpheus')\"><span data-show=\"!$aiPending\">AI Suggest</span> <span data-show=\"$aiPending\" style=\"display: inline-flex; align-items: center; gap: 0.25rem;\"><neo-spinner size=\"sm\"></neo-spinner> <span>Asking AI…</span></span></neo-button></div></div></neo-card>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "<!-- Durable Workflow Card -->")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "<!-- Durable Workflow Card -->")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if signals.DagNatsEnabled {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, "<neo-card variant=\"outline\"><neo-card-header><neo-card-title>Durable Workflow</neo-card-title> <neo-badge variant=\"primary\" slot=\"extra\">DagNats</neo-badge></neo-card-header> <neo-card-body><neo-button variant=\"primary\" size=\"sm\" style=\"width: 100%;\" data-attr:disabled=\"$onboardingActive && !$workflowCompleted\" data-on:click=\"$sidebarTab = 'workflow'; $techStep = 'workflow'; $onboardingActive = true; $workflowCompleted = false; @post('/api/onboarding/start?clientID=' + encodeURIComponent($clientID || ''))\"><span data-show=\"!$onboardingActive || $workflowCompleted\">Run durable workflow</span> <span data-show=\"$onboardingActive && !$workflowCompleted\" style=\"display: inline-flex; align-items: center; gap: 0.25rem;\"><neo-spinner size=\"sm\"></neo-spinner> <span data-text=\"'Running ' + ($onboardingStep || 1) + '/' + ($onboardingTotal || 6) + '…'\"></span></span></neo-button></neo-card-body></neo-card>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, "<neo-card variant=\"outline\"><div data-neo-card-inner><div data-neo-card-header style=\"display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;\"><h3 data-neo-card-title>Durable Workflow</h3><neo-badge variant=\"primary\">DagNats</neo-badge></div><div data-neo-card-body><neo-button variant=\"primary\" size=\"sm\" style=\"width: 100%;\" data-attr:disabled=\"$onboardingActive && !$workflowCompleted\" data-on:click=\"$sidebarTab = 'workflow'; $techStep = 'workflow'; $onboardingActive = true; $workflowCompleted = false; @post('/api/onboarding/start?clientID=' + encodeURIComponent($clientID || '') + '&skin=morpheus')\"><span data-show=\"!$onboardingActive || $workflowCompleted\">Run durable workflow</span> <span data-show=\"$onboardingActive && !$workflowCompleted\" style=\"display: inline-flex; align-items: center; gap: 0.25rem;\"><neo-spinner size=\"sm\"></neo-spinner> <span data-text=\"'Running ' + ($onboardingStep || 1) + '/' + ($onboardingTotal || 6) + '…'\"></span></span></neo-button></div></div></neo-card>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "</div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "</div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -634,7 +661,7 @@ func deleteConfirmMorpheus() templ.Component {
 			templ_7745c5c3_Var22 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, "<neo-dialog id=\"confirm-delete-modal\" data-on:close=\"$confirmingDeleteId = ''; $confirmingDeleteTitle = ''; $deleting = false\"><dialog><header data-neo-dialog-header><h2 data-neo-dialog-title style=\"display: flex; align-items: center; gap: 0.5rem; color: var(--neo-color-danger, #dc2626);\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z\"></path><line x1=\"12\" y1=\"9\" x2=\"12\" y2=\"13\"></line><line x1=\"12\" y1=\"17\" x2=\"12.01\" y2=\"17\"></line></svg> Delete this todo?</h2></header><div data-neo-dialog-body><p style=\"font-size: 0.875rem;\">This will permanently remove <span style=\"font-weight: 600;\" data-text=\"$confirmingDeleteTitle\"></span>. This can't be undone.</p></div><footer data-neo-dialog-footer><neo-button variant=\"ghost\" size=\"sm\" data-on:click=\"document.getElementById('confirm-delete-modal').open = false\">Cancel</neo-button> <neo-button variant=\"danger\" size=\"sm\" data-neo-dialog-trigger=\"confirm-delete-modal\" data-attr:disabled=\"$deleting\" data-on:click=\"$deleting = true; document.getElementById('confirm-delete-modal').open = false; @post('/api/todos/' + $confirmingDeleteId + '/delete?clientID=' + encodeURIComponent($clientID || ''))\"><span data-show=\"!$deleting\">Delete</span> <span data-show=\"$deleting\" style=\"display: inline-flex; align-items: center; gap: 0.25rem;\"><neo-spinner size=\"sm\"></neo-spinner> <span>Deleting</span></span></neo-button></footer></dialog></neo-dialog>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, "<neo-dialog id=\"confirm-delete-modal\" data-on:close=\"$confirmingDeleteId = ''; $confirmingDeleteTitle = ''; $deleting = false\"><dialog><header data-neo-dialog-header><h2 data-neo-dialog-title style=\"display: flex; align-items: center; gap: 0.5rem; color: var(--neo-color-danger, #dc2626);\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z\"></path><line x1=\"12\" y1=\"9\" x2=\"12\" y2=\"13\"></line><line x1=\"12\" y1=\"17\" x2=\"12.01\" y2=\"17\"></line></svg> Delete this todo?</h2></header><div data-neo-dialog-body><p style=\"font-size: 0.875rem;\">This will permanently remove <span style=\"font-weight: 600;\" data-text=\"$confirmingDeleteTitle\"></span>. This can't be undone.</p></div><footer data-neo-dialog-footer><neo-button variant=\"ghost\" size=\"sm\" data-on:click=\"document.getElementById('confirm-delete-modal').open = false\">Cancel</neo-button> <neo-button variant=\"danger\" size=\"sm\" data-neo-dialog-trigger=\"confirm-delete-modal\" data-attr:disabled=\"$deleting\" data-on:click=\"$deleting = true; document.getElementById('confirm-delete-modal').open = false; @post('/api/todos/' + $confirmingDeleteId + '/delete?clientID=' + encodeURIComponent($clientID || '') + '&skin=morpheus')\"><span data-show=\"!$deleting\">Delete</span> <span data-show=\"$deleting\" style=\"display: inline-flex; align-items: center; gap: 0.25rem;\"><neo-spinner size=\"sm\"></neo-spinner> <span>Deleting</span></span></neo-button></footer></dialog></neo-dialog>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -642,7 +669,11 @@ func deleteConfirmMorpheus() templ.Component {
 	})
 }
 
-// realtimeMorpheus wire the SSE stream and PocketBase realtime.
+// realtimeMorpheus wire the SSE stream and PocketBase realtime. The
+// stream URL carries `&skin=morpheus` so the broadcaster (which reads
+// the SSE connection's request URL) returns morpheus rows to morpheus
+// clients — otherwise a remote mutation would replace the morpheus
+// list with DaisyUI HTML mid-session (CAL-14).
 func realtimeMorpheus() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -664,20 +695,20 @@ func realtimeMorpheus() templ.Component {
 			templ_7745c5c3_Var23 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, "<button id=\"sse-opener\" style=\"display: none;\" data-on:click=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "<button id=\"sse-opener\" style=\"display: none;\" data-on:click=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var24 string
-		templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.ResolveAttributeValue("@get('/api/todos/stream?clientID=' + encodeURIComponent(window.__gogogoClientID || '') + '', { permanent: true })")
+		templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.ResolveAttributeValue("@get('/api/todos/stream?clientID=' + encodeURIComponent(window.__gogogoClientID || '') + '&skin=morpheus', { permanent: true })")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 373, Col: 133}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 417, Col: 147}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var24)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, "\" aria-hidden=\"true\"></button><script type=\"module\">\n\t\t(function () {\n\t\t\ttry {\n\t\t\t\tif (window.__gogogoSSEWired) return;\n\t\t\t\twindow.__gogogoSSEWired = true;\n\t\t\t\tvar cid = sessionStorage.getItem(\"gogogo_cid\");\n\t\t\t\tif (!cid) { cid = crypto.randomUUID(); sessionStorage.setItem(\"gogogo_cid\", cid); }\n\t\t\t\twindow.__gogogoClientID = cid;\n\t\t\t\tfunction openSSE() {\n\t\t\t\t\tvar btn = document.getElementById(\"sse-opener\");\n\t\t\t\t\tif (btn) btn.click();\n\t\t\t\t}\n\t\t\t\tdocument.addEventListener(\"datastar-ready\", openSSE);\n\t\t\t\tsetTimeout(openSSE, 1500);\n\t\t\t\tdocument.addEventListener(\"visibilitychange\", function () {\n\t\t\t\t\tif (!document.hidden) { var btn = document.getElementById(\"sse-opener\"); if (btn) btn.click(); }\n\t\t\t\t});\n\t\t\t} catch (e) { console.warn(\"SSE init:\", e); }\n\t\t})();\n\t</script><script>\n\t\t/* PocketBase realtime subscription (same as PbRealtimeRecords in the DaisyUI layout) */\n\t\t(function(){var pbUrl=\"/api/todos/fragment\";var sub=null;var rc=null;function connect(){if(sub)return;sub=new EventSource(\"/api/realtime\");sub.addEventListener(\"PB_CONNECT\",function(){rc=new EventSource(\"/api/realtime?sub=todos\");rc.addEventListener(\"PB_RECORD\",function(e){try{var d=JSON.parse(e.data);if(d.record&&d.action){var a=document.getElementById(\"todo-list\");if(a&&window.datastar){window.datastar.actions.get(pbUrl);}}}catch(e){}});});}connect();})();\n\t</script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, "\" aria-hidden=\"true\"></button><script type=\"module\">\n\t\t(function () {\n\t\t\ttry {\n\t\t\t\tif (window.__gogogoSSEWired) return;\n\t\t\t\twindow.__gogogoSSEWired = true;\n\t\t\t\tvar cid = sessionStorage.getItem(\"gogogo_cid\");\n\t\t\t\tif (!cid) { cid = crypto.randomUUID(); sessionStorage.setItem(\"gogogo_cid\", cid); }\n\t\t\t\twindow.__gogogoClientID = cid;\n\t\t\t\tfunction openSSE() {\n\t\t\t\t\tvar btn = document.getElementById(\"sse-opener\");\n\t\t\t\t\tif (btn) btn.click();\n\t\t\t\t}\n\t\t\t\tdocument.addEventListener(\"datastar-ready\", openSSE);\n\t\t\t\tsetTimeout(openSSE, 1500);\n\t\t\t\tdocument.addEventListener(\"visibilitychange\", function () {\n\t\t\t\t\tif (!document.hidden) { var btn = document.getElementById(\"sse-opener\"); if (btn) btn.click(); }\n\t\t\t\t});\n\t\t\t} catch (e) { console.warn(\"SSE init:\", e); }\n\t\t})();\n\t</script><script>\n\t\t/* PocketBase realtime subscription: when a remote todo mutation\n\t\t   arrives, re-fetch the list fragment with `&skin=morpheus` so\n\t\t   the fragment handler returns the morpheus rows. */\n\t\t(function(){\n\t\t\tvar sub = null;\n\t\t\tfunction connect() {\n\t\t\t\tif (sub) return;\n\t\t\t\tsub = new EventSource(\"/api/realtime\");\n\t\t\t\tsub.addEventListener(\"PB_CONNECT\", function () {\n\t\t\t\t\tvar rc = new EventSource(\"/api/realtime?sub=todos\");\n\t\t\t\t\trc.addEventListener(\"PB_RECORD\", function (e) {\n\t\t\t\t\t\ttry {\n\t\t\t\t\t\t\tvar d = JSON.parse(e.data);\n\t\t\t\t\t\t\tif (d.record && d.action && window.datastar) {\n\t\t\t\t\t\t\t\twindow.datastar.actions.get(\"/api/todos/fragment?skin=morpheus\");\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t} catch (e) {}\n\t\t\t\t\t});\n\t\t\t\t});\n\t\t\t}\n\t\t\tconnect();\n\t\t})();\n\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

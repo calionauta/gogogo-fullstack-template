@@ -1,0 +1,71 @@
+// SCOPE:skin — Morpheus-only TodoListRegion + todoItemMorpheus.
+//
+// Rendered by the SSE dispatcher (see features/todo/handlers/todo_repo.go
+// renderTodoList) when the active skin is "morpheus". Identical signal
+// shape as components.TodoListRegion / components.TodoItem — just morpheus
+// markup. The morph target is still #todo-list, and every row keeps the
+// `todo-{ID}` id so existing elements are reused (preserves the
+// neo-checkbox / neo-button custom-element state across re-renders).
+//
+// Uses real morpheus web components and the correct slot API:
+//   - <neo-checkbox> for the toggle (a proper custom element, not a
+//     native <input type="checkbox">)
+//   - <neo-button variant="danger" size="sm"> for the delete icon
+//   - empty state is inline SVG with explicit width/height so it can't
+//     expand to fill its parent if a parent CSS rule ever drops a
+//     constraint.
+package morpheus
+
+import (
+	"github.com/calionauta/gogogo-fullstack-template/features/todo"
+	"github.com/calionauta/gogogo-fullstack-template/web/skins/morpheus/neolib"
+)
+
+// TodoListRegion renders the morpheus list rows + empty state. The SSE
+// dispatcher targets #todo-list for morph patches.
+templ TodoListRegion(signals todo.Signals) {
+	<div id="todo-list">
+		if len(signals.Todos) == 0 {
+			<div id="todo-empty-state" style="padding: 2rem 0; text-align: center; color: var(--neo-color-muted-foreground, #78716c);">
+				<svg xmlns="http://www.w3.org/2000/svg" style="width:2rem;height:2rem;opacity:0.3;display:inline-block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" x2="21" y1="6" y2="6"/><line x1="8" x2="21" y1="12" y2="12"/><line x1="8" x2="21" y1="18" y2="18"/><line x1="3" x2="3.01" y1="6" y2="6"/><line x1="3" x2="3.01" y1="12" y2="12"/><line x1="3" x2="3.01" y1="18" y2="18"/></svg>
+				<p style="margin: 0.5rem 0 0;">No todos here yet.</p>
+				<p style="font-size: 0.75rem; margin-top: 0.25rem;">Add one above to get started, or click "Run durable workflow" in the sidebar.</p>
+			</div>
+		}
+		for _, item := range signals.Todos {
+			@todoItemMorpheusRegion(item)
+		}
+	</div>
+}
+
+// todoItemMorpheusRegion is the SSE-patched row (one row per todo).
+// Uses the real <neo-checkbox> + <neo-button> so the row looks like a
+// morpheus component, not a hand-styled DaisyUI row. Matches the
+// layout of the initial-load row in todo_morpheus.templ so a refresh
+// from filter/CRUD keeps the same look. Renamed from
+// todoItemMorpheus to avoid colliding with the identically-named row
+// in todo_morpheus.templ (which the initial page render uses) — they
+// render the same HTML, and templ enforces unique symbol names per
+// package.
+templ todoItemMorpheusRegion(item todo.Todo) {
+	<div class="todo-item" id={"todo-" + item.ID}
+		data-on:click__prevent={ "@post('/api/todos/" + item.ID + "/toggle?skin=morpheus')" }
+		style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border-bottom: 1px solid var(--neo-color-border, #e7e5e4); cursor: pointer;">
+		@neo.Checkbox(neo.CheckboxOpts{
+			Checked: neo.Set(item.Completed),
+			Size:    neo.Set("sm"),
+		})
+		if item.Completed {
+			<span style="flex: 1; text-decoration: line-through; color: var(--neo-color-muted-foreground, #78716c);">{ item.Title }</span>
+		} else {
+			<span style="flex: 1;">{ item.Title }</span>
+		}
+		<span style="font-size: 0.75rem; color: var(--neo-color-muted-foreground, #78716c);">{ timeAgo(item.CreatedAt) }</span>
+		<neo-button variant="danger" size="sm" data-neo-dialog-trigger="confirm-delete-modal"
+			data-on:click__prevent={ "$confirmingDeleteId = " + safeJSStringMorpheus(item.ID) + "; $confirmingDeleteTitle = " + safeJSStringMorpheus(item.Title) + "" }>
+			<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+				<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+			</svg>
+		</neo-button>
+	</div>
+}

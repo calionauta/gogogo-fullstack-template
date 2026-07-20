@@ -5,6 +5,7 @@ import (
 	"github.com/calionauta/gogogo-fullstack-template/features/todo"
 	"github.com/calionauta/gogogo-fullstack-template/internal/components"
 	"github.com/calionauta/gogogo-fullstack-template/web/skins"
+	"github.com/calionauta/gogogo-fullstack-template/web/skins/morpheus/neolib"
 )
 
 // TodoPage renders the full Morpheus-themed todo page using <neo-*> web
@@ -13,6 +14,12 @@ import (
 //
 // Datastar wiring (data-on:*, data-bind, data-signals, @post, @get) is
 // identical to the DaisyUI version — only the component markup differs.
+//
+// Every Datastar @get/@post to /api/todos/* carries `&skin=morpheus` so
+// the SSE dispatcher (features/todo/handlers) returns the morpheus list
+// region instead of the DaisyUI default — without this, filter clicks
+// and CRUD mutations would replace the morpheus rows with DaisyUI rows
+// and break the morpheus skin (CAL-14).
 templ TodoPage(title string, signals todo.Signals, userEmail string, buildLabel string, buildCommit string, offlineSync bool, skinName string) {
 	<!DOCTYPE html>
 	<html lang="en" data-signals="{theme: 'light'}" data-attr:data-theme="$theme" data-class:dark="$theme === 'dark'" data-theme="default">
@@ -26,7 +33,7 @@ templ TodoPage(title string, signals todo.Signals, userEmail string, buildLabel 
 		</head>
 		<body style="background: var(--page-bg, #f5f5f4); margin: 0; min-height: 100vh; font-family: system-ui, -apple-system, sans-serif;">
 			@auth.Navbar(userEmail, "todo", buildLabel, buildCommit)
-@skins.SkinSelector(skinName)
+			@skins.SkinSelector(skinName)
 			@components.OfflineBanner(offlineSync)
 
 			<div id="todo-app" class="todo-morpheus" style="max-width: 80rem; margin: 2rem auto 0; padding: 0 1rem;">
@@ -73,35 +80,48 @@ templ TodoMorpheusHeader(signals todo.Signals) {
 }
 
 // TodoMorpheusGrid renders the main content grid: todo list (left) + sidebar (right).
+//
+// Uses the real morpheus card slot API: <neo-card> > <div data-neo-card-inner>
+// > <div data-neo-card-header> > <h3 data-neo-card-title> + content, then
+// <div data-neo-card-body> / <div data-neo-card-footer> as needed. The
+// <neo-card-header> / <neo-card-title> / <neo-card-body> custom element
+// names from the previous version are NOT defined by morpheus (they are
+// CSS-only utility elements in the bundle's `Ra` set with no inner
+// styling) — that's why the cards looked unstyled in the screenshots
+// from CAL-14. The data-neo-card-* slots are the supported API.
 templ TodoMorpheusGrid(signals todo.Signals) {
 	<div style="display: grid; grid-template-columns: 1fr; gap: 1.25rem;">
 
 		<!-- ─── TODO LIST ─── -->
 		<neo-card>
-			<neo-card-header>
-				<neo-card-title>Tasks</neo-card-title>
-				<neo-badge variant="neutral" slot="extra">
-					<span data-text="$itemCount + ' items'"></span>
-				</neo-badge>
-			</neo-card-header>
-			@createFormMorpheus(signals)
-
-			if len(signals.Suggestions) > 0 {
-				@SuggestionsMorpheus(signals.Suggestions)
-			}
-
-			@filterTabsMorpheus(signals)
-			@todoListMorpheus(signals)
-
-			if signals.ItemCount > 0 {
-				<div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid var(--neo-color-border, #e7e5e4);">
-					<span style="font-size: 0.75rem; color: var(--neo-color-muted-foreground, #78716c);" data-text="$itemCount + ' items'"></span>
-					<neo-button variant="danger" size="sm" data-neo-dialog-trigger="confirm-delete-modal"
-						data-on:click="while (document.querySelector('.todo-item')) { @post('/api/todos/completed/delete?clientID=' + encodeURIComponent($clientID || '')); break; }">
-						Clear completed
-					</neo-button>
+			<div data-neo-card-inner>
+				<div data-neo-card-header style="display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;">
+					<h3 data-neo-card-title>Tasks</h3>
+					<neo-badge variant="neutral">
+						<span data-text="$itemCount + ' items'"></span>
+					</neo-badge>
 				</div>
-			}
+				<div data-neo-card-body>
+					@createFormMorpheus(signals)
+
+					if len(signals.Suggestions) > 0 {
+						@SuggestionsMorpheus(signals.Suggestions)
+					}
+
+					@filterTabsMorpheus(signals)
+					@todoListMorpheus(signals)
+
+					if signals.ItemCount > 0 {
+						<div style="display: flex; justify-content: space-between; align-items: center; margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid var(--neo-color-border, #e7e5e4);">
+							<span style="font-size: 0.75rem; color: var(--neo-color-muted-foreground, #78716c);" data-text="$itemCount + ' items'"></span>
+							<neo-button variant="danger" size="sm" data-neo-dialog-trigger="confirm-delete-modal"
+								data-on:click="while (document.querySelector('.todo-item')) { @post('/api/todos/completed/delete?clientID=' + encodeURIComponent($clientID || '') + '&skin=morpheus'); break; }">
+								Clear completed
+							</neo-button>
+						</div>
+					}
+				</div>
+			</div>
 		</neo-card>
 
 		<!-- ─── SIDEBAR CARDS ─── -->
@@ -115,7 +135,7 @@ templ TodoMorpheusGrid(signals todo.Signals) {
 // encapsulate the native input in shadow DOM, breaking data-bind).
 // Buttons and decorative elements still use <neo-*> components.
 templ createFormMorpheus(signals todo.Signals) {
-	<form data-on:submit__prevent="if (!$loading) { $loading = true; @post('/api/todos?clientID=' + encodeURIComponent($clientID || '') + '&idem_key=' + encodeURIComponent(crypto.randomUUID()), {contentType: 'form'}); }"
+	<form data-on:submit__prevent="if (!$loading) { $loading = true; @post('/api/todos?clientID=' + encodeURIComponent($clientID || '') + '&idem_key=' + encodeURIComponent(crypto.randomUUID()) + '&skin=morpheus', {contentType: 'form'}); }"
 		style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
 		<div style="flex: 1;">
 			<input
@@ -123,7 +143,7 @@ templ createFormMorpheus(signals todo.Signals) {
 				name="title"
 				placeholder="Add a new todo..."
 				data-bind="newTitle"
-				style="width: 100%; box-sizing: border-box; padding: 0.5rem 0.75rem; font-size: 0.875rem; border: 1px solid var(--page-border, #d6d3d1); border-radius: 0.375rem; background: var(--page-bg, #ffffff); color: var(--page-fg, #1c1917); font-family: inherit; outline: none;"
+				style="width: 100%; box-sizing: border-box; padding: 0.5rem  0.75rem; font-size: 0.875rem; border: 1px solid var(--page-border, #d6d3d1); border-radius: 0.375rem; background: var(--page-bg, #ffffff); color: var(--page-fg, #1c1917); font-family: inherit; outline: none;"
 			/>
 		</div>
 		<neo-button variant="primary"
@@ -140,24 +160,31 @@ templ createFormMorpheus(signals todo.Signals) {
 	</form>
 }
 
-// filterTabsMorpheus renders the All/Active/Completed filter tabs.
+// filterTabsMorpheus renders the All/Active/Completed filter tabs. Each
+// @get carries `&skin=morpheus` so handleList returns the morpheus list
+// region — the SSE patch then morphs into the existing #todo-list
+// without losing the morpheus chrome (CAL-14).
 templ filterTabsMorpheus(signals todo.Signals) {
 	<neo-tabs value="all" id="filter-tabs" style="margin-bottom: 1rem;">
 		<neo-tablist aria-label="Filter todos">
 			<neo-tab value="all"
 				data-class="{ 'neo-tab-active': $filter === 'all' }"
-				data-on:click__prevent="$loading = true; @get('/api/todos?filter=all')">All</neo-tab>
+				data-on:click__prevent="$loading = true; @get('/api/todos?filter=all&skin=morpheus')">All</neo-tab>
 			<neo-tab value="active"
 				data-class="{ 'neo-tab-active': $filter === 'active' }"
-				data-on:click__prevent="$loading = true; @get('/api/todos?filter=active')">Active</neo-tab>
+				data-on:click__prevent="$loading = true; @get('/api/todos?filter=active&skin=morpheus')">Active</neo-tab>
 			<neo-tab value="completed"
 				data-class="{ 'neo-tab-active': $filter === 'completed' }"
-				data-on:click__prevent="$loading = true; @get('/api/todos?filter=completed')">Completed</neo-tab>
+				data-on:click__prevent="$loading = true; @get('/api/todos?filter=completed&skin=morpheus')">Completed</neo-tab>
 		</neo-tablist>
 	</neo-tabs>
 }
 
-// todoListMorpheus renders the todo list items.
+// todoListMorpheus renders the todo list items. Matches the SSE-patched
+// region in todo_list_morpheus.templ 1:1 — same `<div id="todo-list">`
+// wrapper, same `todo-{ID}` row ids — so Datastar's morph patches
+// preserve the existing neo-checkbox / neo-button custom-element state
+// across filter clicks and CRUD mutations.
 templ todoListMorpheus(signals todo.Signals) {
 	<div id="todo-list">
 		if len(signals.Todos) == 0 {
@@ -174,16 +201,20 @@ templ todoListMorpheus(signals todo.Signals) {
 }
 
 // todoItemMorpheus renders a single todo row with neo.Checkbox.
+//
+// Toggle wiring: the row-level click handler posts the toggle endpoint
+// and passes `evt.detail.checked` via the `neo-checkbox-change` event
+// (morpheus's checkbox fires this custom event on toggle). Using a
+// row-level click keeps the action working whether the user clicks
+// the checkbox itself or anywhere else on the row's left edge.
 templ todoItemMorpheus(item todo.Todo) {
 	<div class="todo-item" id={"todo-" + item.ID}
-		style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border-bottom: 1px solid var(--neo-color-border, #e7e5e4);">
-		<input type="checkbox"
-			if item.Completed {
-				checked
-			}
-			style="width: 1rem; height: 1rem; cursor: pointer; accent-color: var(--page-fg, #1c1917);"
-			data-on:click__prevent={ "@post('/api/todos/" + item.ID + "/toggle')" }
-		/>
+		data-on:click__prevent={ "@post('/api/todos/" + item.ID + "/toggle?skin=morpheus')" }
+		style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border-bottom: 1px solid var(--neo-color-border, #e7e5e4); cursor: pointer;">
+		@neo.Checkbox(neo.CheckboxOpts{
+			Checked: neo.Set(item.Completed),
+			Size:    neo.Set("sm"),
+		})
 		if item.Completed {
 			<span style="flex: 1; text-decoration: line-through; color: var(--neo-color-muted-foreground, #78716c);">{ item.Title }</span>
 		} else {
@@ -218,110 +249,119 @@ templ SuggestionsMorpheus(suggestions []string) {
 }
 
 // sidebarMorpheus renders the right sidebar with async demo cards.
+// Uses the same data-neo-card-* slot pattern as TodoMorpheusGrid.
 templ sidebarMorpheus(signals todo.Signals) {
 	<div style="display: flex; flex-direction: column; gap: 1rem;">
 
 		<!-- Realtime Card -->
 		<neo-card variant="outline">
-			<neo-card-header>
-				<neo-card-title>Realtime</neo-card-title>
-				<neo-badge variant="neutral" slot="extra" data-text="$realtimeKind"></neo-badge>
-			</neo-card-header>
-			<neo-card-body>
-				<div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
-					<neo-badge variant="success">
-						<span data-text="$connectedClients + ' online'"></span>
-					</neo-badge>
+			<div data-neo-card-inner>
+				<div data-neo-card-header style="display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;">
+					<h3 data-neo-card-title>Realtime</h3>
+					<neo-badge variant="neutral" data-text="$realtimeKind"></neo-badge>
 				</div>
-				<p style="font-size: 0.75rem; color: var(--neo-color-muted-foreground, #78716c); margin: 0;">
-					Every CRUD mutation streams through PocketBase realtime. Open this page in two tabs to watch todos sync live.
-				</p>
-			</neo-card-body>
+				<div data-neo-card-body>
+					<div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+						<neo-badge variant="success">
+							<span data-text="$connectedClients + ' online'"></span>
+						</neo-badge>
+					</div>
+					<p style="font-size: 0.75rem; color: var(--neo-color-muted-foreground, #78716c); margin: 0;">
+						Every CRUD mutation streams through PocketBase realtime. Open this page in two tabs to watch todos sync live.
+					</p>
+				</div>
+			</div>
 		</neo-card>
 
 		<!-- Queue + Retry Card -->
 		<neo-card variant="outline">
-			<neo-card-header>
-				<neo-card-title>Queue + Retry</neo-card-title>
-				<div slot="extra" style="display: flex; gap: 0.25rem;">
-					<neo-badge variant="secondary">goqite</neo-badge>
-					<neo-badge variant="neutral">retry-go</neo-badge>
-				</div>
-			</neo-card-header>
-			<neo-card-description>
-				Enqueues a hard-coded background job that fails twice then succeeds — exercising the queue + retry layer.
-			</neo-card-description>
-			<neo-card-body>
-				<div style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.75rem;">
-					<div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem;">
-						<neo-badge variant="neutral" data-class="{ 'neo-badge-success': $demoStep >= 2 }">1. Enqueue job</neo-badge>
-					</div>
-					<div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem;">
-						<neo-badge variant="neutral" data-class="{ 'neo-badge-success': $demoStep >= 3, 'neo-badge-primary': $demoStep === 2 }">
-							2. Retry
-						</neo-badge>
-						<span data-show="$lastRetryStatus === 'attempt'" data-text="'— attempt ' + ($lastRetryAttempt || 1)" style="color: var(--neo-color-muted-foreground, #78716c);"></span>
-					</div>
-					<div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem;">
-						<neo-badge variant="neutral" data-class="{ 'neo-badge-success': $demoStep >= 3 && $techPhase !== 'error', 'neo-badge-danger': $techPhase === 'error' }">
-							3. Complete
-						</neo-badge>
+			<div data-neo-card-inner>
+				<div data-neo-card-header style="display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;">
+					<h3 data-neo-card-title>Queue + Retry</h3>
+					<div style="display: flex; gap: 0.25rem;">
+						<neo-badge variant="secondary">goqite</neo-badge>
+						<neo-badge variant="neutral">retry-go</neo-badge>
 					</div>
 				</div>
+				<p data-neo-card-description>
+					Enqueues a hard-coded background job that fails twice then succeeds — exercising the queue + retry layer.
+				</p>
+				<div data-neo-card-body>
+					<div style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.75rem;">
+						<div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem;">
+							<neo-badge variant="neutral" data-class="{ 'neo-badge-success': $demoStep >= 2 }">1. Enqueue job</neo-badge>
+						</div>
+						<div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem;">
+							<neo-badge variant="neutral" data-class="{ 'neo-badge-success': $demoStep >= 3, 'neo-badge-primary': $demoStep === 2 }">
+								2. Retry
+							</neo-badge>
+							<span data-show="$lastRetryStatus === 'attempt'" data-text="'— attempt ' + ($lastRetryAttempt || 1)" style="color: var(--neo-color-muted-foreground, #78716c);"></span>
+						</div>
+						<div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem;">
+							<neo-badge variant="neutral" data-class="{ 'neo-badge-success': $demoStep >= 3 && $techPhase !== 'error', 'neo-badge-danger': $techPhase === 'error' }">
+								3. Complete
+							</neo-badge>
+						</div>
+					</div>
 
-				<form data-on:submit__prevent="$techStep = 'retry-demo'; $demoStep = 1; $suggestPending = true; @post('/api/todos/retry-demo?clientID=' + encodeURIComponent($clientID || ''))" style="display: contents;">
-					<neo-button variant="secondary" size="sm" type="submit" style="width: 100%;">
-						<span data-show="!$suggestPending">Run queue + retry demo</span>
-						<span data-show="$suggestPending" style="display: inline-flex; align-items: center; gap: 0.25rem;">
-							<neo-spinner size="sm"></neo-spinner>
-							<span>Running demo…</span>
-						</span>
-					</neo-button>
-				</form>
-			</neo-card-body>
+					<form data-on:submit__prevent="$techStep = 'retry-demo'; $demoStep = 1; $suggestPending = true; @post('/api/todos/retry-demo?clientID=' + encodeURIComponent($clientID || '') + '&skin=morpheus')" style="display: contents;">
+						<neo-button variant="secondary" size="sm" type="submit" style="width: 100%;">
+							<span data-show="!$suggestPending">Run queue + retry demo</span>
+							<span data-show="$suggestPending" style="display: inline-flex; align-items: center; gap: 0.25rem;">
+								<neo-spinner size="sm"></neo-spinner>
+								<span>Running demo…</span>
+							</span>
+						</neo-button>
+					</form>
+				</div>
+			</div>
 		</neo-card>
 
 		<!-- AI Suggest Card -->
 		if signals.LLMEnabled || signals.SimulatedLLM {
 			<neo-card variant="outline">
-				<neo-card-header>
-					<neo-card-title>AI Suggest</neo-card-title>
-					<neo-badge variant="primary" slot="extra">GoAI</neo-badge>
-				</neo-card-header>
-				<neo-card-description>
-					Asks the configured LLM for 3 todo suggestions. The request is queued (goqite) and retried (retry-go).
-				</neo-card-description>
-				<neo-card-body>
-					<neo-button variant="primary" size="sm" style="width: 100%;"
-						data-on:click="$aiStep = 1; $aiPending = true; @post('/api/todos/suggest?clientID=' + encodeURIComponent($clientID || '') + '&partial=' + encodeURIComponent($newTitle))">
-						<span data-show="!$aiPending">AI Suggest</span>
-						<span data-show="$aiPending" style="display: inline-flex; align-items: center; gap: 0.25rem;">
-							<neo-spinner size="sm"></neo-spinner>
-							<span>Asking AI…</span>
-						</span>
-					</neo-button>
-				</neo-card-body>
+				<div data-neo-card-inner>
+					<div data-neo-card-header style="display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;">
+						<h3 data-neo-card-title>AI Suggest</h3>
+						<neo-badge variant="primary">GoAI</neo-badge>
+					</div>
+					<p data-neo-card-description>
+						Asks the configured LLM for 3 todo suggestions. The request is queued (goqite) and retried (retry-go).
+					</p>
+					<div data-neo-card-body>
+						<neo-button variant="primary" size="sm" style="width: 100%;"
+							data-on:click="$aiStep = 1; $aiPending = true; @post('/api/todos/suggest?clientID=' + encodeURIComponent($clientID || '') + '&partial=' + encodeURIComponent($newTitle) + '&skin=morpheus')">
+							<span data-show="!$aiPending">AI Suggest</span>
+							<span data-show="$aiPending" style="display: inline-flex; align-items: center; gap: 0.25rem;">
+								<neo-spinner size="sm"></neo-spinner>
+								<span>Asking AI…</span>
+							</span>
+						</neo-button>
+					</div>
+				</div>
 			</neo-card>
 		}
 
 		<!-- Durable Workflow Card -->
 		if signals.DagNatsEnabled {
 			<neo-card variant="outline">
-				<neo-card-header>
-					<neo-card-title>Durable Workflow</neo-card-title>
-					<neo-badge variant="primary" slot="extra">DagNats</neo-badge>
-				</neo-card-header>
-				<neo-card-body>
-					<neo-button variant="primary" size="sm" style="width: 100%;"
-						data-attr:disabled="$onboardingActive && !$workflowCompleted"
-						data-on:click="$sidebarTab = 'workflow'; $techStep = 'workflow'; $onboardingActive = true; $workflowCompleted = false; @post('/api/onboarding/start?clientID=' + encodeURIComponent($clientID || ''))">
-						<span data-show="!$onboardingActive || $workflowCompleted">Run durable workflow</span>
-						<span data-show="$onboardingActive && !$workflowCompleted" style="display: inline-flex; align-items: center; gap: 0.25rem;">
-							<neo-spinner size="sm"></neo-spinner>
-							<span data-text="'Running ' + ($onboardingStep || 1) + '/' + ($onboardingTotal || 6) + '…'"></span>
-						</span>
-					</neo-button>
-				</neo-card-body>
+				<div data-neo-card-inner>
+					<div data-neo-card-header style="display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;">
+						<h3 data-neo-card-title>Durable Workflow</h3>
+						<neo-badge variant="primary">DagNats</neo-badge>
+					</div>
+					<div data-neo-card-body>
+						<neo-button variant="primary" size="sm" style="width: 100%;"
+							data-attr:disabled="$onboardingActive && !$workflowCompleted"
+							data-on:click="$sidebarTab = 'workflow'; $techStep = 'workflow'; $onboardingActive = true; $workflowCompleted = false; @post('/api/onboarding/start?clientID=' + encodeURIComponent($clientID || '') + '&skin=morpheus')">
+							<span data-show="!$onboardingActive || $workflowCompleted">Run durable workflow</span>
+							<span data-show="$onboardingActive && !$workflowCompleted" style="display: inline-flex; align-items: center; gap: 0.25rem;">
+								<neo-spinner size="sm"></neo-spinner>
+								<span data-text="'Running ' + ($onboardingStep || 1) + '/' + ($onboardingTotal || 6) + '…'"></span>
+							</span>
+						</neo-button>
+					</div>
+				</div>
 			</neo-card>
 		}
 	</div>
@@ -353,7 +393,7 @@ templ deleteConfirmMorpheus() {
 				</neo-button>
 				<neo-button variant="danger" size="sm" data-neo-dialog-trigger="confirm-delete-modal"
 					data-attr:disabled="$deleting"
-					data-on:click="$deleting = true; document.getElementById('confirm-delete-modal').open = false; @post('/api/todos/' + $confirmingDeleteId + '/delete?clientID=' + encodeURIComponent($clientID || ''))">
+					data-on:click="$deleting = true; document.getElementById('confirm-delete-modal').open = false; @post('/api/todos/' + $confirmingDeleteId + '/delete?clientID=' + encodeURIComponent($clientID || '') + '&skin=morpheus')">
 					<span data-show="!$deleting">Delete</span>
 					<span data-show="$deleting" style="display: inline-flex; align-items: center; gap: 0.25rem;">
 						<neo-spinner size="sm"></neo-spinner>
@@ -365,12 +405,16 @@ templ deleteConfirmMorpheus() {
 </neo-dialog>
 }
 
-// realtimeMorpheus wire the SSE stream and PocketBase realtime.
+// realtimeMorpheus wire the SSE stream and PocketBase realtime. The
+// stream URL carries `&skin=morpheus` so the broadcaster (which reads
+// the SSE connection's request URL) returns morpheus rows to morpheus
+// clients — otherwise a remote mutation would replace the morpheus
+// list with DaisyUI HTML mid-session (CAL-14).
 templ realtimeMorpheus() {
 	<button
 		id="sse-opener"
 		style="display: none;"
-		data-on:click={ "@get('/api/todos/stream?clientID=' + encodeURIComponent(window.__gogogoClientID || '') + '', { permanent: true })" }
+		data-on:click={ "@get('/api/todos/stream?clientID=' + encodeURIComponent(window.__gogogoClientID || '') + '&skin=morpheus', { permanent: true })" }
 		aria-hidden="true"
 	></button>
 	<script type="module">
@@ -394,8 +438,27 @@ templ realtimeMorpheus() {
 		})();
 	</script>
 	<script>
-		/* PocketBase realtime subscription (same as PbRealtimeRecords in the DaisyUI layout) */
-		(function(){var pbUrl="/api/todos/fragment";var sub=null;var rc=null;function connect(){if(sub)return;sub=new EventSource("/api/realtime");sub.addEventListener("PB_CONNECT",function(){rc=new EventSource("/api/realtime?sub=todos");rc.addEventListener("PB_RECORD",function(e){try{var d=JSON.parse(e.data);if(d.record&&d.action){var a=document.getElementById("todo-list");if(a&&window.datastar){window.datastar.actions.get(pbUrl);}}}catch(e){}});});}connect();})();
+		/* PocketBase realtime subscription: when a remote todo mutation
+		   arrives, re-fetch the list fragment with `&skin=morpheus` so
+		   the fragment handler returns the morpheus rows. */
+		(function(){
+			var sub = null;
+			function connect() {
+				if (sub) return;
+				sub = new EventSource("/api/realtime");
+				sub.addEventListener("PB_CONNECT", function () {
+					var rc = new EventSource("/api/realtime?sub=todos");
+					rc.addEventListener("PB_RECORD", function (e) {
+						try {
+							var d = JSON.parse(e.data);
+							if (d.record && d.action && window.datastar) {
+								window.datastar.actions.get("/api/todos/fragment?skin=morpheus");
+							}
+						} catch (e) {}
+					});
+				});
+			}
+			connect();
+		})();
 	</script>
 }
-

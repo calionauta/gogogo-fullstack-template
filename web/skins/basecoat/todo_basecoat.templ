@@ -52,7 +52,7 @@ templ TodoList(signals todo.Signals) {
 				<footer class="flex justify-between items-center">
 					<span class="text-sm soft" data-text="$itemCount + ' items'"></span>
 					<button type="button" class="btn" data-variant="outline" data-size="sm"
-						data-on:click="while (document.querySelector('.todo-item')) { @post('/api/todos/completed/delete?clientID=' + encodeURIComponent($clientID || '')); break; }">
+						data-on:click="while (document.querySelector('.todo-item')) { @post('/api/todos/completed/delete?clientID=' + encodeURIComponent($clientID || '') + '&skin=basecoat'); break; }">
 						Clear completed
 					</button>
 				</footer>
@@ -62,7 +62,7 @@ templ TodoList(signals todo.Signals) {
 }
 
 templ createForm(signals todo.Signals) {
-	<form data-on:submit__prevent="if (!$loading) { $loading = true; @post('/api/todos?clientID=' + encodeURIComponent($clientID || '') + '&idem_key=' + encodeURIComponent(crypto.randomUUID()), {contentType: 'form'}); }"
+	<form data-on:submit__prevent="if (!$loading) { $loading = true; @post('/api/todos?clientID=' + encodeURIComponent($clientID || '') + '&idem_key=' + encodeURIComponent(crypto.randomUUID()) + '&skin=basecoat', {contentType: 'form'}); }"
 		class="flex gap-2 mb-4">
 		<div class="flex-1">
 			<input type="text" name="title" class="input w-full" placeholder="Add a new todo..." data-bind="newTitle"/>
@@ -82,11 +82,11 @@ templ filterTabs(signals todo.Signals) {
 	<div class="tabs mb-4" id="filter-tabs-basecoat">
 		<nav role="tablist" aria-orientation="horizontal">
 			<button type="button" role="tab" aria-selected={ ternary(signals.Filter == "all", "true", "false") } tabindex={ ternary(signals.Filter == "all", "0", "-1") }
-				data-on:click__prevent="$loading = true; @get('/api/todos?filter=all')">All</button>
+				data-on:click__prevent="$loading = true; @get('/api/todos?filter=all&skin=basecoat')">All</button>
 			<button type="button" role="tab" aria-selected={ ternary(signals.Filter == "active", "true", "false") } tabindex={ ternary(signals.Filter == "active", "0", "-1") }
-				data-on:click__prevent="$loading = true; @get('/api/todos?filter=active')">Active</button>
+				data-on:click__prevent="$loading = true; @get('/api/todos?filter=active&skin=basecoat')">Active</button>
 			<button type="button" role="tab" aria-selected={ ternary(signals.Filter == "completed", "true", "false") } tabindex={ ternary(signals.Filter == "completed", "0", "-1") }
-				data-on:click__prevent="$loading = true; @get('/api/todos?filter=completed')">Completed</button>
+				data-on:click__prevent="$loading = true; @get('/api/todos?filter=completed&skin=basecoat')">Completed</button>
 		</nav>
 	</div>
 }
@@ -113,7 +113,7 @@ templ todoItem(item todo.Todo) {
 			if item.Completed {
 				checked
 			}
-			data-on:click__prevent={ "@post('/api/todos/" + item.ID + "/toggle')" }
+			data-on:click__prevent={ "@post('/api/todos/" + item.ID + "/toggle?skin=basecoat')" }
 		/>
 		<section style="flex: 1;">
 			if item.Completed {
@@ -136,7 +136,7 @@ templ sseOpener() {
 	<button
 		id="sse-opener"
 		class="hidden"
-		data-on:click={ "@get('/api/todos/stream?clientID=' + encodeURIComponent(window.__gogogoClientID || '') + '', { permanent: true })" }
+		data-on:click={ "@get('/api/todos/stream?clientID=' + encodeURIComponent(window.__gogogoClientID || '') + '&skin=basecoat', { permanent: true })" }
 		aria-hidden="true"
 	></button>
 	<script type="module">
@@ -162,7 +162,7 @@ templ pbRealtime() {
 		id="pb-realtime-resync"
 		type="button"
 		class="hidden"
-		data-on:click={ "@get('/api/todos/fragment')" }
+		data-on:click={ "@get('/api/todos/fragment?skin=basecoat')" }
 		aria-hidden="true"
 	></button>
 	<script type="module">

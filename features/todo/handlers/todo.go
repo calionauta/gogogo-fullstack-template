@@ -44,6 +44,30 @@ const (
 	statusInternal   = 500
 )
 
+// resolveSkin picks the active UI skin for a request. Mirrors the
+// logic in handleIndex: the `?skin=` query param overrides the
+// configured default (UI_SKIN env var / config.Config.Skin). Returns
+// "daisyui" when the requested skin is unknown so the caller always
+// has a valid skin name to dispatch on. Used by SSE handlers
+// (handleList, handleListFragment, patchTodoListWithSelfOrigin) that
+// must morph #todo-list with HTML matching the skin the client is
+// currently rendering — without this, every filter click / mutation
+// swapped morpheus rows for DaisyUI rows (the bug behind CAL-14).
+func (h *TodoHandler) resolveSkin(c *core.RequestEvent) string {
+	skinName := h.cfg.Skin
+	if c != nil && c.Request != nil {
+		if q := c.Request.URL.Query().Get("skin"); q != "" {
+			skinName = q
+		}
+	}
+	switch skinName {
+	case "morpheus", "basecoat":
+		return skinName
+	default:
+		return "daisyui"
+	}
+}
+
 // SSE channel buffer size per client. Each buffered chunk is a few
 // hundred bytes (one Datastar event), so the default (64) gives ~30KB
 // headroom per slow client before backpressure kicks in. Defined in

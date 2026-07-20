@@ -15,7 +15,6 @@ import (
 	"github.com/calionauta/gogogo-fullstack-template/features/auth"
 	"github.com/calionauta/gogogo-fullstack-template/features/store"
 	"github.com/calionauta/gogogo-fullstack-template/features/todo"
-	"github.com/calionauta/gogogo-fullstack-template/features/todo/components"
 	dshelpers "github.com/calionauta/gogogo-fullstack-template/internal/datastar"
 	"github.com/calionauta/gogogo-fullstack-template/internal/nats"
 )
@@ -45,6 +44,18 @@ func (h *TodoHandler) handleList(c *core.RequestEvent) error {
 	// header/footer count update; then patch the #todo-list region with
 	// the matching rows. Both must happen on the same SSE response so
 	// the active-tab class and the visible rows update in lockstep.
+	//
+	// The list region must match the skin the client is currently
+	// rendering — a morpheus client must receive morpheus rows so the
+	// neo-checkbox / neo-button custom elements stay in their upgraded
+	// state across the morph. Dispatching here (instead of always
+	// returning the DaisyUI component) is what stops filter clicks from
+	// breaking the morpheus skin (CAL-14).
+	skinName := h.resolveSkin(c)
+	signals := todo.Signals{
+		Todos: todos, Filter: filter, ItemCount: len(todos),
+		LLMEnabled: h.llmEnabled(),
+	}
 	sse := sdk.NewSSE(c.Response, c.Request)
 	if err := dshelpers.MergeSignals(sse, todo.Signals{
 		Filter:     filter,
@@ -55,10 +66,7 @@ func (h *TodoHandler) handleList(c *core.RequestEvent) error {
 		return err
 	}
 	return dshelpers.RenderAndPatch(
-		sse, components.TodoListRegion(todo.Signals{
-			Todos: todos, Filter: filter, ItemCount: len(todos),
-			LLMEnabled: h.llmEnabled(),
-		}),
+		sse, h.renderTodoListRegion(signals, skinName),
 		sdk.WithSelector("#todo-list"),
 	)
 }
@@ -85,13 +93,15 @@ func (h *TodoHandler) handleListFragment(c *core.RequestEvent) error {
 		slog.Error("todo: fragment list failed", "filter", filter, "error", err)
 		return c.String(statusInternal, "error listing todos")
 	}
-	var buf bytes.Buffer
-	if err := components.TodoListRegion(todo.Signals{
+	skinName := h.resolveSkin(c)
+	signals := todo.Signals{
 		Todos:      todos,
 		Filter:     filter,
 		ItemCount:  len(todos),
 		LLMEnabled: h.llmEnabled(),
-	}).Render(c.Request.Context(), &buf); err != nil {
+	}
+	var buf bytes.Buffer
+	if err := h.renderTodoListRegion(signals, skinName).Render(c.Request.Context(), &buf); err != nil {
 		slog.Error("todo: fragment render failed", "error", err)
 		return c.String(statusInternal, "error rendering list")
 	}
@@ -116,14 +126,19 @@ func (h *TodoHandler) handleListFragment(c *core.RequestEvent) error {
 // header badge and the footer count update together — previously the
 // count lived only on the rendered HTML and never refreshed from the
 // server.
-func (h *TodoHandler) patchTodoListWithSelfOrigin(sse *sdk.ServerSentEventGenerator, todos []todo.Todo) error {
+//
+// skinName must match the skin the originating client is currently
+// rendering so the morph-patched rows match the surrounding chrome.
+// Without it a morpheus client receives DaisyUI rows after every
+// mutation (CAL-14).
+func (h *TodoHandler) patchTodoListWithSelfOrigin(sse *sdk.ServerSentEventGenerator, todos []todo.Todo, skinName string) error {
 	if err := dshelpers.MergeSignals(sse, map[string]any{
 		"lastItemSource": "self",
 		signalItemCount:  len(todos),
 	}); err != nil {
 		return err
 	}
-	return dshelpers.RenderAndPatch(sse, h.renderTodoList(todos),
+	return dshelpers.RenderAndPatch(sse, h.renderTodoList(todos, skinName),
 		sdk.WithSelector("#todo-list"),
 		sdk.WithViewTransitions())
 }
@@ -205,7 +220,8 @@ func (h *TodoHandler) handleCreate(c *core.RequestEvent) error {
 	// other connected clients in real time, so the queue would only add
 	// latency for a fast local mutation. View Transitions give a free
 	// cross-fade on the new item (and any reordered/removed items).
-	if err := h.patchTodoListWithSelfOrigin(sse, todos); err != nil {
+	skinName := h.resolveSkin(c)
+	if err := h.patchTodoListWithSelfOrigin(sse, todos, skinName); err != nil {
 		return err
 	}
 	// DB actions now propagate to every client (including the
@@ -256,7 +272,7 @@ func (h *TodoHandler) handleToggle(c *core.RequestEvent) error {
 
 	sse := sdk.NewSSE(c.Response, c.Request)
 	// Record propagation is via PocketBase realtime (see handleCreate).
-	return h.patchTodoListWithSelfOrigin(sse, todos)
+	return h.patchTodoListWithSelfOrigin(sse, todos, h.resolveSkin(c))
 }
 
 func (h *TodoHandler) handleConfirmDelete(c *core.RequestEvent) error {
@@ -325,7 +341,7 @@ func (h *TodoHandler) handleDelete(c *core.RequestEvent) error {
 	}); err != nil {
 		return err
 	}
-	if err := h.patchTodoListWithSelfOrigin(sse, todos); err != nil {
+	if err := h.patchTodoListWithSelfOrigin(sse, todos, h.resolveSkin(c)); err != nil {
 		return err
 	}
 	// Record propagation is via PocketBase realtime (see handleCreate).
@@ -360,7 +376,7 @@ func (h *TodoHandler) handleClearCompleted(c *core.RequestEvent) error {
 	h.publishCrudOp(nats.CrudOpClearCompleted, ownerOf(c), nil)
 
 	sse := sdk.NewSSE(c.Response, c.Request)
-	if err := h.patchTodoListWithSelfOrigin(sse, todos); err != nil {
+	if err := h.patchTodoListWithSelfOrigin(sse, todos, h.resolveSkin(c)); err != nil {
 		return err
 	}
 	// Record propagation is via PocketBase realtime (see handleCreate); no
