@@ -31,14 +31,14 @@
 
 ---
 
-Every web project we start begins with the same conversation: pick a database, auth, router, reactive UI framework, task queue… and the project stalls at the decisions, installations, and configurations — not the code.
+Every web project we start begins with the same conversation: pick a database, auth, router, reactive frontend, task queue… and the project stalls at the decisions, installations, and configurations — not the code.
 
 ## Who this template is for
 
 - **You who get tired of configuring the same stack over and over**
 - **You who want everything in one binary, with no external dependencies, no Docker required.** One self-contained file. Environment-independent.
 - **You who need offline-first resilience.** A Service Worker + Background Sync queue (web) and a NATS Leaf Node (desktop) let clients keep working without a connection and replay mutations on reconnect, with idempotency so replays never duplicate. See [Hybrid offline sync](#feature-overview).
-- **You who prefer a single source of truth on the backend, one language for the whole stack, and reactive UI without heavy frontend frameworks** — server-rendered HTML via SSE, lightweight and fast, no bloated SPAs, no JS build step.
+- **You who prefer a single source of truth on the backend, one language for the whole stack, and reactive frontend without heavy frontend frameworks** — server-rendered HTML via SSE, lightweight and fast, no bloated SPAs, no JS build step.
 - **You who want a language that is predictable for both humans and LLMs.** Go's syntax is minimal and consistent. Same formatting everywhere (`gofumpt`). No surprises. Static typing catches whole classes of bugs at compile time. Native concurrency (goroutines + channels) that is easy to reason about — no async/await chains, no callback pyramids. This makes the codebase equally readable by you, your team, and AI coding agents.
 - **You who care about supply chain security.** Go has no mass npm-style dependency trees. Every module is verified by content hash (`go.sum`). Built-in vulnerability auditing (`govulncheck`) scans your dependency graph for known CVEs. No transitive dependency hell.
 - **You who want an LLM client wired in without pulling in a whole orchestration framework** — `internal/llm` wraps GoAI (any OpenAI-compatible provider) behind an injectable interface, callable from handlers. It calls a *remote* provider API; it is **not** a local-model runtime.
@@ -196,7 +196,7 @@ pushing. Same checks the remote CI runs.
 We ship a working Todo App:
 
 - Full CRUD via PocketBase
-- Reactive UI with Datastar + the active skin (DaisyUI by default; BasecoatUI / Morpheus switchable via `UI_SKIN` or `?skin=` — see [UI skins](#ui-skins-pluggable-daisyui--basecoat--morpheus))
+- Reactive frontend with Datastar + the active skin (DaisyUI by default; BasecoatUI / Morpheus switchable via `UI_SKIN` or `?skin=` — see [UI skins](#ui-skins-pluggable-daisyui--basecoat--morpheus))
 - **Database actions stream through PocketBase realtime.** Todo `create`/`toggle`/`delete` fire PocketBase record events; each subscribed client re-fetches the fragment and morphs `#todo-list`. Delivery is per-user scoped by the collection's `owner` rule (`@request.auth.id != '' && owner = @request.auth.id`), so a client only receives events for its own records. The SSE Hub is reserved for ephemeral signals (success/retry toasts, live clients count, AI suggest) and the originating client's own synchronous patch.
 - Stacked toast notifications (auto-dismiss, manual close, progress bar)
 - Async jobs: `handleCreate` enqueues a `todo_created` job; a worker picks it up and streams a success toast to the right browser tab via the SSE Hub (`clientID` routing)
@@ -221,7 +221,7 @@ Every feature in this template follows the same pattern. Use it as a blueprint w
 
 1. Create `features/<name>/` with your HTTP handlers + Templ components.
 2. Wire it in `router/router.go` → `Init()` with a single function call.
-3. Use **goqite** for async work, **SSE Hub** for user-facing feedback (toasts, progress), and **Datastar** for reactive UI.
+3. Use **goqite** for async work, **SSE Hub** for user-facing feedback (toasts, progress), and **Datastar** for reactive frontend.
 4. Add `SCOPE:feature` or `SCOPE:core` annotations so agents know what they can remove.
 5. Add a `RegisterRoutes(se, deps)` function and call it from `router.Init`.
 
