@@ -1,6 +1,6 @@
+// SCOPE:layer=infra,removal=plugin — REMOVE if you don't need cross-instance CRDT sync
 package crdtstore
 
-// SCOPE:plugin - REMOVE if you don't need cross-instance CRDT sync.
 //
 // CRDTStore Phase 2: JetStream op transport. Without this file, the
 // CRDTStore works in single-process mode (the doc lives in memory and

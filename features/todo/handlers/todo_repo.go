@@ -1,6 +1,4 @@
-// SCOPE:core - Repository helpers for the todo handler (thin wrappers
-// around the configured EntityStore so the HTTP layer doesn't need to
-// know which storage strategy is wired in).
+// SCOPE:layer=feature,removal=feature — Repository helpers for the todo handler (thin wrappers
 package handlers
 
 import (

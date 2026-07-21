@@ -1,3 +1,4 @@
+// SCOPE:layer=infra,removal=plugin — GoAI LLM client (used by Suggest)
 package llm
 
 import (

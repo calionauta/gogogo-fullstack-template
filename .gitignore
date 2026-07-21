@@ -1,6 +1,8 @@
 # Binary
 cali-go-stack
 tmp/
+check-scope
+gogogo-fullstack-template
 
 # Environment
 .env
@@ -63,3 +65,8 @@ gogogo-desktop
 
 # Investigation spikes (local only, never commit)
 spikes/
+
+# Python tooling artifacts (migrate-scope.py and check-scope checks the
+# tree, but the bytecode cache never belongs in the repo).
+__pycache__/
+*.pyc

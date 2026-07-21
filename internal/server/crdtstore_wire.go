@@ -1,4 +1,4 @@
-// SCOPE:plugin - REMOVE if you don't want CRDT cross-instance sync.
+// SCOPE:layer=infra,removal=plugin — CRDT store transport wiring (post-Init)
 //
 // Wires the CRDTStore JetStream transport when ENTITY_STORE=crdt AND
 // NATS is enabled. The transport publishes every local mutation to

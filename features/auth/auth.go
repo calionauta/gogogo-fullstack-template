@@ -1,4 +1,4 @@
-// SCOPE:core - DO NOT REMOVE - Login/logout with PocketBase + gogogo_auth cookie.
+// SCOPE:layer=feature,removal=core — Auth middleware (cookie + login/logout)
 // Package auth implements a single-user demo login on top of
 // PocketBase's built-in auth API.
 //

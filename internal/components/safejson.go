@@ -1,4 +1,4 @@
-// SCOPE:core - JSON marshalling helpers for Datastar component attributes.
+// SCOPE:layer=infra,removal=core — JSON marshalling helpers for Datastar component attributes
 package components
 
 import (

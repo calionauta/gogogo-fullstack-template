@@ -1,3 +1,4 @@
+// SCOPE:layer=infra,removal=plugin — DagNats durable workflow engine
 package dagnats
 
 // OnboardingWorkflowJSON is the durable onboarding workflow definition.

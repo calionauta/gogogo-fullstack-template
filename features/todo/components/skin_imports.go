@@ -1,3 +1,4 @@
+// SCOPE:layer=feature,removal=feature — Todo MVC example (reference implementation)
 // Package components registers all built-in UI skins at init time so
 // the skin dispatcher can resolve them at runtime.
 package components

@@ -29,7 +29,8 @@ Skills: `cali-coding-go-standards` (code quality), `cali-code-navigation` (cymba
 | `make css` / `make css-check` | Rebuild Tailwind/DaisyUI bundle; `css-check` compares against HEAD (used in `ci-local`) |
 | `make css-basecoat` | Rebuild the Basecoat skin bundle (`src/css/basecoat-input.css` → `web/resources/static/basecoat.min.css`) |
 | `make css-all` | Rebuild every skin's CSS bundle (DaisyUI + Basecoat). Morpheus ships vendorized, no rebuild needed |
-| `make ci-local` | **Single gate** (= CI): templ + datastar-lint + css-check + golangci-lint + race tests + build |
+| `make ci-local` | **Single gate** (= CI): templ + datastar-lint + css-check + **check-scope** + golangci-lint + race tests + build |
+| `make check-scope` | Assert every `internal/` and `features/` `.go` file carries `// SCOPE:layer=…,removal=…` in its leading doc group. Run after adding files in those trees. |
 | `make signoff` | `ci-local` + `gh signoff` stamp (advisory on push-to-master) |
 | `make setup` | Blocking pre-commit + pre-push hooks (pre-push adds `govulncheck`) |
 
@@ -49,15 +50,22 @@ Skills: `cali-coding-go-standards` (code quality), `cali-code-navigation` (cymba
 
 ## SCOPE annotations (read before editing)
 
-Every source file carries a `SCOPE` comment at the top showing its removal risk.
+Every non-test, non-generated `.go` file under `internal/` and `features/` carries a leading doc-comment line declaring its SCOPE on **two orthogonal axes**:
 
-| Annotation | Meaning | You would… |
-|------------|---------|------------|
-| `SCOPE:core` 🔴 | Binary does not work without it. | Customize, never remove. |
-| `SCOPE:plugin` 🟡 | Binary works but loses capability. Has removal instructions. | Swap or delete with wiring call. |
-| `SCOPE:feature` 🟢 | A demo/add-on. Has removal instructions and dependency notes. | Delete package + wiring call. |
+```
+// SCOPE:layer=<infra|feature>,removal=<core|plugin|feature> — <short description>
+```
 
-**Agent rule:** When the user asks to trim the project, never delete a `SCOPE:core` file — always ask first. Delete `SCOPE:feature` and `SCOPE:plugin` files freely, following their "Remove by" comments.
+| Axis | Values | Means |
+|------|--------|-------|
+| `layer` | `infra` · `feature` | Where it lives / what kind of code. `infra` for cross-cutting plumbing in `internal/`; `feature` for product-level code in `features/`. Some packages in `features/` (e.g. `features/auth`, `features/store`) carry `infra` semantics for individual files. |
+| `removal` | `core` · `plugin` · `feature` | What happens if you delete it. `core` = binary won't compile / won't boot. `plugin` = binary works but loses a capability. `feature` = pure demo; deleting the package + wiring call is the expected use. |
+
+The two-axis scheme eliminates the prior ambiguity where `SCOPE:core - REMOVE if not using NATS` and `SCOPE:core - DO NOT REMOVE - SSE Hub` shared the same label but meant different things. With the new axes, the first becomes `layer=infra,removal=plugin` (binary works without it) and the second stays `layer=infra,removal=core` (binary breaks without it).
+
+**Enforcement.** The `cmd/check-scope` Go program walks every `.go` file in `internal/` and `features/` and asserts the canonical SCOPE line is present in the leading doc-comment group. `make ci-local` runs it via the `check-scope` target. The pre-commit hook runs it conditionally when staged files match `^(internal|features)/.*\.go$`. Migrating an existing file uses `python3 scripts/migrate-scope.py` (idempotent).
+
+**Agent rule:** When the user asks to trim the project, never delete a `removal=core` file — always ask first. Delete `removal=feature` and `removal=plugin` files freely, after reading the inline description (it lists what to delete in `router/router.go` and `cmd/web/`).
 
 ## Testing discipline (learned the hard way)
 
@@ -184,6 +192,7 @@ gate (subset of `make ci-local` without build verification). Use
 | `make lint`        | keep     | Full-repo vet + golangci-lint (used by `make check`-equivalent flows; slow).         |
 | `make test`        | keep     | Race tests; the remote CI uses this directly.                                         |
 | `make check-sizes` | keep     | Binary size budget check.                                                              |
+| `make check-scope` | keep     | SCOPE annotation linter (`cmd/check-scope`). Runs as part of `ci-local`.             |
 | `make deadcode`    | keep     | Deadcode scan.                                                                        |
 | `make ci-local`    | **canonical gate** | The pre-push gate. Replaces `make check`.                              |
 | `make check`       | **removed** | Redundant subset of `ci-local`. Promote `ci-local`.                               |

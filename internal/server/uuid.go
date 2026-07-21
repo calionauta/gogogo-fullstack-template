@@ -1,4 +1,4 @@
-// SCOPE:core - UUID generator for per-process identifiers.
+// SCOPE:layer=infra,removal=core — UUID generator for per-process identifiers
 //
 // Extracted into its own file so the crdtstore transport wiring can
 // generate a PublisherID at startup, and tests can override the

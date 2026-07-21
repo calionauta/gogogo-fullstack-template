@@ -1,3 +1,4 @@
+// SCOPE:layer=feature,removal=feature — Todo MVC example (reference implementation)
 package handlers
 
 import (

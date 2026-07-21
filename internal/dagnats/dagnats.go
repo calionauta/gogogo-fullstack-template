@@ -1,4 +1,4 @@
-// SCOPE:core - REMOVE if not using durable workflows.
+// SCOPE:layer=infra,removal=plugin — DagNats durable workflow engine
 // To remove: delete internal/dagnats/, cmd/web/dagnats.go, router/onboarding_dagnats.go and dagnats_proxy_dagnats.go.
 // Package dagnats is an HTTP client for the DagNats workflow engine.
 // The server is booted in cmd/web/dagnats.go. DagNats is a DAG-based

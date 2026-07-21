@@ -1,3 +1,4 @@
+// SCOPE:layer=infra,removal=plugin — Loro CRDT + DocStore + sync workers + presence
 package collab
 
 import (
@@ -7,7 +8,6 @@ import (
 	natsio "github.com/nats-io/nats.go"
 )
 
-// SCOPE:core - REMOVE if not using NATS.
 // SyncWorker is the NATS subscriber side. REQUIRES NATS.
 // If you keep only WebSyncWorker (SSE-only), the whiteboard works without NATS.
 // SyncWorker subscribes to collaborative doc updates on the NATS subject

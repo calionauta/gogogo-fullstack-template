@@ -1,5 +1,4 @@
-// SCOPE:core - REMOVE if not using NATS.
-// InMemoryBroadcaster is the fallback when NATS is unavailable.
+// SCOPE:layer=infra,removal=plugin — NATS JetStream + Leaf Node + CRUD proxy
 // Single-instance. Part of internal/nats package.
 // If you keep TODO without NATS (in-memory only), this file is needed.
 package nats

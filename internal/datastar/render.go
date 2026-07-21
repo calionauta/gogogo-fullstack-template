@@ -1,4 +1,4 @@
-// SCOPE:core - DO NOT REMOVE - Datastar rendering helpers (RenderAndPatch, MergeSignals).
+// SCOPE:layer=infra,removal=core — Datastar rendering helpers (RenderAndPatch, MergeSignals)
 package datastar
 
 import (

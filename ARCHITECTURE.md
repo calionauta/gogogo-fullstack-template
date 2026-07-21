@@ -14,7 +14,9 @@
 
 ---
 
-> **SCOPE annotations in code.** Every source file carries a `SCOPE` comment at the top. This table uses the same taxonomy so the two are always in sync. The `SCOPE` annotations in source files are the authoritative reference; this table is a summary.
+> **SCOPE annotations in code.** Every non-test, non-generated `.go` file under `internal/` and `features/` carries a leading doc-comment line declaring its SCOPE on **two orthogonal axes**: `// SCOPE:layer=<infra|feature>,removal=<core|plugin|feature> — <description>`. The `layer` axis says where the code lives (cross-cutting infra vs product feature). The `removal` axis says what happens if you delete it (binary breaks, binary loses capability, or pure demo). This two-axis scheme eliminates the prior ambiguity where `SCOPE:core - REMOVE if not using NATS` and `SCOPE:core - DO NOT REMOVE - SSE Hub` shared the same label.
+
+> The `cmd/check-scope` Go program walks every `.go` file in `internal/` and `features/` and asserts the canonical SCOPE line is present in the leading doc-comment group. `make ci-local` runs it via the `check-scope` target. The pre-commit hook runs it conditionally when staged files match `^(internal|features)/.*\.go$`. Migrating an existing file uses `python3 scripts/migrate-scope.py` (idempotent). The `SCOPE` annotations in source files are the authoritative reference; this table is a summary.
 
 ## Layer taxonomy (SCOPE)
 
@@ -22,9 +24,9 @@ Every component belongs to one of three layers, matching the `SCOPE:` annotation
 
 | SCOPE | Meaning | You would… |
 |:------|:--------|:-----------|
-| **Core** 🔴 `SCOPE:core` | Binary does not work without it. | Customize, never remove. |
-| **Plugin** 🟡 `SCOPE:plugin` | Binary works but loses capability if removed. Clear removal instructions inline. | Swap for an equivalent, or delete + remove wiring call. |
-| **Feature** 🟢 `SCOPE:feature` | A demo/add-on. Depends on other packages (listed in comment). | Delete the package + dependent packages + remove wiring call. |
+| **Core** 🔴 `SCOPE:layer=…,removal=core` | Binary does not work without it. | Customize, never remove. |
+| **Plugin** 🟡 `SCOPE:layer=…,removal=plugin` | Binary works but loses capability if removed. Clear removal instructions inline. | Swap for an equivalent, or delete + remove wiring call. |
+| **Feature** 🟢 `SCOPE:layer=…,removal=feature` | A demo/add-on. Depends on other packages (listed in comment). | Delete the package + dependent packages + remove wiring call. |
 
 ---
 

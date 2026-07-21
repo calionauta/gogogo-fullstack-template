@@ -1,4 +1,4 @@
-// SCOPE:core - DO NOT REMOVE - Server bootstrap (PocketBase, queue, router).
+// SCOPE:layer=infra,removal=core — Server bootstrap (PocketBase, queue, router)
 // Package server wires the binary's startup sequence shared by every
 // frontend target (web, desktop, future mobile): PocketBase, the goqite
 // queue, the todo handlers, and the HTTP routes.

@@ -1,4 +1,4 @@
-// SCOPE:feature - REMOVE by deleting features/config/.
+// SCOPE:layer=feature,removal=feature — Auth-gated read-only /config view (masked secrets)
 //
 // SafeView builds the read-only data shape that the /config page
 // renders. Field-group boundaries in the schema mirror the

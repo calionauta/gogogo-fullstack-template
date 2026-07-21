@@ -117,6 +117,16 @@ check-sizes:
 	@[ -f .githooks/check-sizes.sh ] || bin/setup-hooks.sh >/dev/null 2>&1
 	@.githooks/check-sizes.sh
 
+# check-scope enforces that every non-test, non-generated .go file
+# under internal/ and features/ carries a leading doc-comment line
+# matching `// SCOPE:layer=<infra|feature>,removal=<core|plugin|feature>`.
+# Lives outside cmd/web/ on purpose: developer tool, not part of the
+# runtime binary. Run after adding/removing files in those trees.
+check-scope:
+	@echo "→ check-scope (SCOPE annotation linter)..."
+	@go run ./cmd/check-scope
+	@echo "✅ SCOPE annotations present"
+
 deadcode:
 	@which deadcode >/dev/null 2>&1 && deadcode -test ./... || echo "  (deadcode not installed, run: go install golang.org/x/tools/cmd/deadcode@latest)"
 
@@ -128,7 +138,7 @@ deadcode:
 # ci-local runs the same quality gate as CI but locally, so you can
 # catch issues before pushing. Runs lint, tests (-p 1 for DagNats
 # engine stability), and a single unified build — no more tag matrix.
-ci-local: templ datastar-lint css-check
+ci-local: templ datastar-lint css-check check-scope
 	@echo "→ lint (golangci-lint, same as CI)"
 	@if which golangci-lint >/dev/null 2>&1; then golangci-lint run ./...; else echo "  ❌ golangci-lint not installed (brew install golangci-lint)"; exit 1; fi
 	@echo "→ tests (unified, -p 1 for DagNats engine stability)"
@@ -207,6 +217,7 @@ help:
 	@echo "  coverage       Run tests with coverage report (HTML)"
 	@echo "  lint           Run go vet + golangci-lint (full)"
 	@echo "  check-sizes    Check file/function size limits"
+	@echo "  check-scope    Enforce SCOPE:layer=…,removal=… annotations"
 	@echo "  deadcode       Scan for dead code"
 
 	@echo "  css            Build app.min.css from src/css/input.css (Tailwind v4 + DaisyUI v5)"

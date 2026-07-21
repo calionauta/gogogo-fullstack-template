@@ -1,3 +1,38 @@
+## [0.25.0] - 2026-07-20
+
+### Changed
+
+- **SCOPE taxonomy migrated from single-axis to two-axis form.** The 67 source files that
+  carried a `// SCOPE:core|plugin|feature - <reason>` annotation now carry
+  `// SCOPE:layer=<infra|feature>,removal=<core|plugin|feature> — <description>`. The new scheme
+  separates two independent concerns:
+  - `layer` = where the code lives (infra in `internal/`, feature in `features/`, with
+    cross-cutting middleware like `features/auth` and `features/store` flagged at the file level).
+  - `removal` = what happens if you delete it (`core` = binary breaks, `plugin` = binary works
+    but loses capability, `feature` = pure demo).
+
+  This kills the prior ambiguity where `SCOPE:core - REMOVE if not using NATS` and
+  `SCOPE:core - DO NOT REMOVE - SSE Hub` shared the same label but meant different things.
+  Under the new axes the first is `layer=infra,removal=plugin` (binary works without NATS) and
+  the second is `layer=infra,removal=core` (binary breaks without the SSE Hub).
+
+  Coverage jumped from 40% to 100% on non-test, non-generated files under `internal/` and
+  `features/` (52 plugin/feature files were missing an annotation before).
+
+### Added
+
+- **`cmd/check-scope` SCOPE annotation linter.** New Go program using `go/parser` from the
+  standard library — zero new dependencies, AST-aware, runs as part of `make ci-local` and
+  the pre-commit hook. Wired as `make check-scope`. Tests in `cmd/check-scope/main_test.go`
+  pin the accept/reject contract (5 unit tests covering canonical form, legacy rejection,
+  templ banners, missing annotation, and the regex family).
+
+- **`scripts/migrate-scope.py` bulk migration script.** Idempotent Python helper that bulk-
+  transforms files to the new two-axis form. Useful for re-runs and for new repositories
+  cloned with the old convention still in place. Tag coverage is heuristic-driven by path
+  pattern; per-file overrides live in the `REMAPPING` table at the bottom of the script and
+  are explicit about the rationale for each `layer`/`removal` decision.
+
 ## [0.24.9] - 2026-07-20
 
 ### Fixed

@@ -1,5 +1,4 @@
-// SCOPE:core - EntityStore interface (the contract every storage
-// strategy implements).
+// SCOPE:layer=infra,removal=core — EntityStore interface (the contract every storage
 //
 // Package store defines the plugin interface that abstracts how
 // domain entities (todos, notes, future entities) are persisted.

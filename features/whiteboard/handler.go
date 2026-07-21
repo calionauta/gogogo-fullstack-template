@@ -1,4 +1,4 @@
-// SCOPE:feature - REMOVE if not using collaborative whiteboard.
+// SCOPE:layer=feature,removal=feature — Collaborative whiteboard (Loro CRDT canvas)
 // Depends on: internal/collab/ (CRDT), internal/nats/ (NATS sync).
 // Package whiteboard implements a minimal collaborative whiteboard:
 // an HTML5 canvas rendered with rough.js (hand-drawn style) and backed

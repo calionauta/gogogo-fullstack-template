@@ -1,4 +1,4 @@
-// SCOPE:feature - REMOVE if not using the Todo MVC example.
+// SCOPE:layer=feature,removal=feature — Todo MVC example (reference implementation)
 // Package handlers implements the HTTP and worker handlers for the todo
 // feature. The HTTP handlers are SSE-friendly: every mutation patches
 // signals or appends toast HTML to the client. The worker handler

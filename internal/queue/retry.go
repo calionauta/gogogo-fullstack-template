@@ -1,3 +1,4 @@
+// SCOPE:layer=infra,removal=core — Queue handlers + retry + workers
 package queue
 
 import (

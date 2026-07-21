@@ -54,6 +54,16 @@ if ! git diff --exit-code go.mod go.sum >/dev/null 2>&1; then
 fi
 echo "✅ go.mod/go.sum tidy"
 
+# SCOPE annotation linter (only when relevant files are staged).
+# Catches the failure mode that drift in inline documentation
+# creates: new files in internal/ or features/ added without
+# `// SCOPE:layer=…,removal=…` would otherwise pass the linter
+# (golangci-lint doesn't know about our taxonomy).
+if git diff --cached --name-only | grep -qE '^(internal|features)/.*\.go$'; then
+    echo "→ check-scope (SCOPE annotation linter)..."
+    go run ./cmd/check-scope || exit 2
+fi
+
 # Full lint (blocking — no --fast shortcuts)
 if which golangci-lint >/dev/null 2>&1; then
     golangci-lint run ./... --timeout 3m || exit 2

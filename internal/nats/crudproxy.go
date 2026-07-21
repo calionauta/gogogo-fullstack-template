@@ -1,5 +1,4 @@
-// SCOPE:core - REMOVE if not using NATS. Enables cross-instance
-// todo CRUD sync via JetStream (desktop edges publish to local NATS,
+// SCOPE:layer=infra,removal=plugin — Enables cross-instance
 // Leaf Node replicates, server consumer writes to server PocketBase).
 //
 // Architecture:

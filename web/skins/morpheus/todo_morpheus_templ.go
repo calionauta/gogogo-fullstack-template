@@ -261,7 +261,7 @@ func headerMorpheus(signals todo.Signals) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</span></p></div></div><div class=\"online-pill\" data-show=\"$connectedClients >= 0\" style=\"display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.375rem 0.75rem; border-radius: 9999px; font-size: 0.75rem;\"><span style=\"width: 0.5rem; height: 0.5rem; border-radius: 9999px; background: var(--neo-color-success, #16a34a); box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.4); animation: neo-pulse 2s infinite;\"></span> <span class=\"pill-online\" data-text=\"$connectedClients + ' online'\"></span> <span class=\"pill-offline\">offline</span> <span style=\"opacity: 0.6;\">·</span> <span data-text=\"$realtimeKind\"></span></div></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</span></p></div></div><div data-show=\"$connectedClients >= 0\" style=\"display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.375rem 0.75rem; border-radius: 9999px; background: var(--neo-color-muted, #f0efed); font-size: 0.75rem;\"><span style=\"width: 0.5rem; height: 0.5rem; border-radius: 9999px; background: var(--neo-color-success, #16a34a); box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.4); animation: neo-pulse 2s infinite;\"></span> <span data-text=\"$connectedClients + ' online'\"></span> <span style=\"opacity: 0.6;\">·</span> <span data-text=\"$realtimeKind\"></span></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -418,7 +418,7 @@ func realtimeCardMorpheus(signals todo.Signals) templ.Component {
 						}()
 					}
 					ctx = templ.InitializeContext(ctx)
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<span class=\"online-pill\" style=\"display:inline-flex;align-items:center;gap:0.25rem;\"><span class=\"pill-online\" data-text=\"$connectedClients + ' online'\"></span> <span class=\"pill-offline\">offline</span></span>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "<span data-text=\"$connectedClients + ' online'\"></span>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -601,7 +601,7 @@ func queueRetryPanelMorpheus(signals todo.Signals) templ.Component {
 		var templ_7745c5c3_Var18 string
 		templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.ResolveAttributeValue("{'neo-badge-success': $demoStep >= 2}")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 270, Col: 56}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 266, Col: 56}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var18)
 		if templ_7745c5c3_Err != nil {
@@ -614,7 +614,7 @@ func queueRetryPanelMorpheus(signals todo.Signals) templ.Component {
 		var templ_7745c5c3_Var19 string
 		templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.ResolveAttributeValue("{'neo-badge-primary': $demoStep === 2, 'neo-badge-success': $demoStep >= 3}")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 274, Col: 94}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 270, Col: 94}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var19)
 		if templ_7745c5c3_Err != nil {
@@ -627,7 +627,7 @@ func queueRetryPanelMorpheus(signals todo.Signals) templ.Component {
 		var templ_7745c5c3_Var20 string
 		templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.ResolveAttributeValue("{'neo-badge-success': $demoStep >= 3 && $techPhase !== 'error', 'neo-badge-danger': $techPhase === 'error'}")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 279, Col: 126}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 275, Col: 126}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var20)
 		if templ_7745c5c3_Err != nil {
@@ -760,7 +760,7 @@ func aiSuggestPanelMorpheus(signals todo.Signals) templ.Component {
 		var templ_7745c5c3_Var26 string
 		templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.ResolveAttributeValue("{'neo-badge-primary': $aiStep >= 1 && $aiPending, 'neo-badge-success': $aiStep >= 1 && !$aiPending && $aiPhase !== 'error', 'neo-badge-danger': $aiPhase === 'error'}")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 334, Col: 184}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 330, Col: 184}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var26)
 		if templ_7745c5c3_Err != nil {
@@ -773,7 +773,7 @@ func aiSuggestPanelMorpheus(signals todo.Signals) templ.Component {
 		var templ_7745c5c3_Var27 string
 		templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.ResolveAttributeValue("{'neo-badge-success': $aiStep >= 1 && !$aiPending && $aiPhase !== 'error', 'neo-badge-danger': $aiPhase === 'error'}")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 338, Col: 135}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 334, Col: 135}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var27)
 		if templ_7745c5c3_Err != nil {
@@ -786,7 +786,7 @@ func aiSuggestPanelMorpheus(signals todo.Signals) templ.Component {
 		var templ_7745c5c3_Var28 string
 		templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.ResolveAttributeValue("{'neo-badge-success': $aiStep >= 3 && !$aiPending && $aiPhase !== 'error', 'neo-badge-danger': $aiPhase === 'error'}")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 343, Col: 135}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 339, Col: 135}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var28)
 		if templ_7745c5c3_Err != nil {
@@ -920,7 +920,7 @@ func durableWorkflowPanelMorpheus(signals todo.Signals) templ.Component {
 		var templ_7745c5c3_Var34 string
 		templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.ResolveAttributeValue("{'neo-badge-primary': $techStep === 'workflow' && $onboardingActive && !$workflowCompleted && $onboardingStep === 1, 'neo-badge-success': $workflowCompleted}")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 400, Col: 176}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 396, Col: 176}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var34)
 		if templ_7745c5c3_Err != nil {
@@ -933,7 +933,7 @@ func durableWorkflowPanelMorpheus(signals todo.Signals) templ.Component {
 		var templ_7745c5c3_Var35 string
 		templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.ResolveAttributeValue("{'neo-badge-primary': $techStep === 'workflow' && $onboardingActive && !$workflowCompleted && $onboardingStep === 2, 'neo-badge-success': $workflowCompleted}")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 404, Col: 176}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 400, Col: 176}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var35)
 		if templ_7745c5c3_Err != nil {
@@ -946,7 +946,7 @@ func durableWorkflowPanelMorpheus(signals todo.Signals) templ.Component {
 		var templ_7745c5c3_Var36 string
 		templ_7745c5c3_Var36, templ_7745c5c3_Err = templ.ResolveAttributeValue("{'neo-badge-primary': $techStep === 'workflow' && $onboardingActive && !$workflowCompleted && $onboardingStep === 3, 'neo-badge-success': $workflowCompleted}")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 408, Col: 176}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 404, Col: 176}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var36)
 		if templ_7745c5c3_Err != nil {
@@ -959,7 +959,7 @@ func durableWorkflowPanelMorpheus(signals todo.Signals) templ.Component {
 		var templ_7745c5c3_Var37 string
 		templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.ResolveAttributeValue("{'neo-badge-primary': $techStep === 'workflow' && $onboardingActive && !$workflowCompleted && $onboardingStep === 4, 'neo-badge-success': $workflowCompleted}")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 412, Col: 176}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 408, Col: 176}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var37)
 		if templ_7745c5c3_Err != nil {
@@ -972,7 +972,7 @@ func durableWorkflowPanelMorpheus(signals todo.Signals) templ.Component {
 		var templ_7745c5c3_Var38 string
 		templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.ResolveAttributeValue("{'neo-badge-primary': $techStep === 'workflow' && $onboardingActive && !$workflowCompleted && $onboardingStep === 5, 'neo-badge-success': $workflowCompleted}")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 416, Col: 176}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 412, Col: 176}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var38)
 		if templ_7745c5c3_Err != nil {
@@ -985,7 +985,7 @@ func durableWorkflowPanelMorpheus(signals todo.Signals) templ.Component {
 		var templ_7745c5c3_Var39 string
 		templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.ResolveAttributeValue("{'neo-badge-primary': $techStep === 'workflow' && $onboardingActive && !$workflowCompleted && $onboardingStep === 6, 'neo-badge-success': $workflowCompleted}")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 420, Col: 176}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 416, Col: 176}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var39)
 		if templ_7745c5c3_Err != nil {
@@ -1323,7 +1323,7 @@ func todoItemMorpheus(item todo.Todo) templ.Component {
 		var templ_7745c5c3_Var52 string
 		templ_7745c5c3_Var52, templ_7745c5c3_Err = templ.ResolveAttributeValue("todo-" + item.ID)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 548, Col: 45}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 544, Col: 45}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var52)
 		if templ_7745c5c3_Err != nil {
@@ -1336,7 +1336,7 @@ func todoItemMorpheus(item todo.Todo) templ.Component {
 		var templ_7745c5c3_Var53 string
 		templ_7745c5c3_Var53, templ_7745c5c3_Err = templ.ResolveAttributeValue("@post('/api/todos/" + item.ID + "/toggle?skin=morpheus')")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 549, Col: 85}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 545, Col: 85}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var53)
 		if templ_7745c5c3_Err != nil {
@@ -1361,7 +1361,7 @@ func todoItemMorpheus(item todo.Todo) templ.Component {
 			var templ_7745c5c3_Var54 string
 			templ_7745c5c3_Var54, templ_7745c5c3_Err = templ.JoinStringErrs(item.Title)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 556, Col: 120}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 552, Col: 120}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var54))
 			if templ_7745c5c3_Err != nil {
@@ -1379,7 +1379,7 @@ func todoItemMorpheus(item todo.Todo) templ.Component {
 			var templ_7745c5c3_Var55 string
 			templ_7745c5c3_Var55, templ_7745c5c3_Err = templ.JoinStringErrs(item.Title)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 558, Col: 38}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 554, Col: 38}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var55))
 			if templ_7745c5c3_Err != nil {
@@ -1397,7 +1397,7 @@ func todoItemMorpheus(item todo.Todo) templ.Component {
 		var templ_7745c5c3_Var56 string
 		templ_7745c5c3_Var56, templ_7745c5c3_Err = templ.JoinStringErrs(timeAgo(item.CreatedAt))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 560, Col: 112}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 556, Col: 112}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var56))
 		if templ_7745c5c3_Err != nil {
@@ -1408,9 +1408,9 @@ func todoItemMorpheus(item todo.Todo) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var57 string
-		templ_7745c5c3_Var57, templ_7745c5c3_Err = templ.ResolveAttributeValue("$confirmingDeleteId = " + safeJSStringMorpheus(item.ID) + "; $confirmingDeleteTitle = " + safeJSStringMorpheus(item.Title) + "; document.getElementById('confirm-delete-modal').open = true")
+		templ_7745c5c3_Var57, templ_7745c5c3_Err = templ.ResolveAttributeValue("$confirmingDeleteId = " + safeJSStringMorpheus(item.ID) + "; $confirmingDeleteTitle = " + safeJSStringMorpheus(item.Title) + "")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 562, Col: 217}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 558, Col: 156}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var57)
 		if templ_7745c5c3_Err != nil {
@@ -1459,7 +1459,7 @@ func SuggestionsMorpheus(suggestions []string) templ.Component {
 			var templ_7745c5c3_Var59 string
 			templ_7745c5c3_Var59, templ_7745c5c3_Err = templ.ResolveAttributeValue("$newTitle = " + safeJSStringMorpheus(s))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 581, Col: 61}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 577, Col: 61}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var59)
 			if templ_7745c5c3_Err != nil {
@@ -1472,7 +1472,7 @@ func SuggestionsMorpheus(suggestions []string) templ.Component {
 			var templ_7745c5c3_Var60 string
 			templ_7745c5c3_Var60, templ_7745c5c3_Err = templ.JoinStringErrs(s)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 582, Col: 8}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 578, Col: 8}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var60))
 			if templ_7745c5c3_Err != nil {
@@ -1554,7 +1554,7 @@ func realtimeMorpheus() templ.Component {
 		var templ_7745c5c3_Var63 string
 		templ_7745c5c3_Var63, templ_7745c5c3_Err = templ.ResolveAttributeValue("@get('/api/todos/stream?clientID=' + encodeURIComponent(window.__gogogoClientID || '') + '&skin=morpheus', { permanent: true })")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 636, Col: 147}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/skins/morpheus/todo_morpheus.templ`, Line: 632, Col: 147}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var63)
 		if templ_7745c5c3_Err != nil {

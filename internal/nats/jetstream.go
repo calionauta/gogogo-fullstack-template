@@ -1,3 +1,4 @@
+// SCOPE:layer=infra,removal=plugin — NATS JetStream + Leaf Node + CRUD proxy
 package nats
 
 import (

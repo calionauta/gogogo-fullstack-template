@@ -1,4 +1,4 @@
-// SCOPE:plugin - REMOVE if you don't want CRDT realtime events.
+// SCOPE:layer=infra,removal=plugin — CRDT store transport wiring (post-Init)
 //
 // Wires the CRDTStore publisher so every saveSnapshot (local or via
 // ApplyRemoteOp from a peer instance) fans out a doc-version-bumped

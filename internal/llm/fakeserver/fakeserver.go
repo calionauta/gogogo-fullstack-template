@@ -1,3 +1,4 @@
+// SCOPE:layer=infra,removal=plugin — GoAI LLM client (used by Suggest)
 // Package fakeserver provides an httptest-compatible OpenAI Chat
 // Completions fake for end-to-end tests of the GoAI integration
 // without burning real tokens.

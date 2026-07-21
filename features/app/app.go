@@ -1,3 +1,4 @@
+// SCOPE:layer=feature,removal=core — AppContext (cross-cutting deps bundle)
 // Package app provides the cross-cutting "application core" pattern
 // for projects built on top of gogogo-fullstack-template. In a real project
 // cloned from this template, this is where you'd put:

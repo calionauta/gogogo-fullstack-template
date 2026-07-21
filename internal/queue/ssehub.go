@@ -1,3 +1,4 @@
+// SCOPE:layer=infra,removal=core — SSE Hub (in-memory fan-out, replay buffer, backpressure)
 package queue
 
 import (
@@ -8,7 +9,6 @@ import (
 	"github.com/calionauta/gogogo-fullstack-template/config"
 )
 
-// SCOPE:core - DO NOT REMOVE - SSE Hub (in-memory fan-out, replay buffer, backpressure).
 // Runtime defaults (DefaultReplayBufferSize, DefaultClientQueueSize,
 // DefaultSSEHeartbeatInterval) are now defined in config/config.go —
 // tune there to affect every consumer.

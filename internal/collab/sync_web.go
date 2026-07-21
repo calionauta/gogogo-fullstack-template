@@ -1,3 +1,4 @@
+// SCOPE:layer=infra,removal=plugin — collaboration (whiteboard depends on this)
 package collab
 
 import (
@@ -39,7 +40,6 @@ type WebShapesEvent struct {
 	Shapes []Shape `json:"shapes"`
 }
 
-// SCOPE:core - REMOVE if not using CRDT collaboration (whiteboard depends on this).
 // WebSyncWorker is the SSE-only transport (works WITHOUT NATS).
 // WebSyncWorker is the unified transport for collaborative docs. It uses
 // the SSE hub for in-process fan-out (same as the todo feature) AND

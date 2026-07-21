@@ -1,6 +1,6 @@
+// SCOPE:layer=infra,removal=plugin — Loro CRDT-backed EntityStore strategy for todos
 package crdtstore
 
-// SCOPE:plugin - Loro CRDT-backed EntityStore strategy for todos.
 //
 // Single source of truth = PocketBase. Every todo is eventually a
 // normal record in the `todos` collection (the SAME collection PBStore

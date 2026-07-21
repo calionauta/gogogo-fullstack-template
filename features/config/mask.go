@@ -1,7 +1,4 @@
-// SCOPE:feature - REMOVE by deleting features/config/ and the
-// corresponding route in router/router.go. The /config tab is a
-// read-only operator-facing view, intentionally kept separate from
-// the auth and todo features.
+// SCOPE:layer=feature,removal=feature — Auth-gated read-only /config view (masked secrets)
 //
 // Package config exposes a SAFE view of the running server
 // configuration: every secret-shaped field is masked before the

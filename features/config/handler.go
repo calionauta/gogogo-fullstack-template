@@ -1,6 +1,4 @@
-// SCOPE:feature - REMOVE by deleting this package + the call site
-// in router/router.go. The /config tab is opt-in: it shows what
-// the running binary has decided to do, but does NOT mutate state.
+// SCOPE:layer=feature,removal=feature — Auth-gated read-only /config view (masked secrets)
 //
 // Package wiring notes
 //

@@ -1,4 +1,4 @@
-// SCOPE:core - REMOVE if not using NATS.
+// SCOPE:layer=infra,removal=plugin — NATS JetStream + Leaf Node + CRUD proxy
 // Starts embedded NATS server or connects as Leaf Node.
 package nats
 

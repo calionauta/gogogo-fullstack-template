@@ -104,10 +104,9 @@ templ headerMorpheus(signals todo.Signals) {
 				</p>
 			</div>
 		</div>
-		<div class="online-pill" data-show="$connectedClients >= 0" style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.375rem 0.75rem; border-radius: 9999px; font-size: 0.75rem;">
+		<div data-show="$connectedClients >= 0" style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.375rem 0.75rem; border-radius: 9999px; background: var(--neo-color-muted, #f0efed); font-size: 0.75rem;">
 			<span style="width: 0.5rem; height: 0.5rem; border-radius: 9999px; background: var(--neo-color-success, #16a34a); box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.4); animation: neo-pulse 2s infinite;"></span>
-			<span class="pill-online" data-text="$connectedClients + ' online'"></span>
-			<span class="pill-offline">offline</span>
+			<span data-text="$connectedClients + ' online'"></span>
 			<span style="opacity: 0.6;">·</span>
 			<span data-text="$realtimeKind"></span>
 		</div>
@@ -166,10 +165,7 @@ templ realtimeCardMorpheus(signals todo.Signals) {
 					}
 					@neo.AlertContent() {
 						@neo.AlertTitle(4) {
-							<span class="online-pill" style="display:inline-flex;align-items:center;gap:0.25rem;">
-								<span class="pill-online" data-text="$connectedClients + ' online'"></span>
-								<span class="pill-offline">offline</span>
-							</span>
+							<span data-text="$connectedClients + ' online'"></span>
 						}
 						@neo.AlertDescription() {
 							Every CRUD mutation streams through PocketBase realtime. Open this page in two tabs to watch todos sync live.
@@ -559,7 +555,7 @@ templ todoItemMorpheus(item todo.Todo) {
 		}
 		<span style="font-size: 0.75rem; color: var(--neo-color-muted-foreground, #78716c);">{ timeAgo(item.CreatedAt) }</span>
 		<neo-button variant="danger" size="sm" data-neo-dialog-trigger="confirm-delete-modal"
-			data-on:click__prevent={ "$confirmingDeleteId = " + safeJSStringMorpheus(item.ID) + "; $confirmingDeleteTitle = " + safeJSStringMorpheus(item.Title) + "; document.getElementById('confirm-delete-modal').open = true" }>
+			data-on:click__prevent={ "$confirmingDeleteId = " + safeJSStringMorpheus(item.ID) + "; $confirmingDeleteTitle = " + safeJSStringMorpheus(item.Title) + "" }>
 			<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
 				<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
 			</svg>
