@@ -29,6 +29,9 @@
 - [Acknowledgements & inside jokes](#acknowledgements--inside-jokes)
 - [License, feedback](#license-feedback)
 
+> [!TIP]
+> 🚀 **Try it live → [Todo & Whiteboard demo app](#try-it-live)** — open the running demo without cloning or configuring anything.
+
 ---
 
 Every web project we start begins with the same conversation: pick a database, auth, router, reactive frontend, task queue… and the project stalls at the decisions, installations, and configurations — not the code.
@@ -53,7 +56,7 @@ Everything you need to build a modern web app, in a single binary:
 | **Database + Auth + API** | [PocketBase](https://pocketbase.io) (embedded, on `ncruces/go-sqlite3`) | Zero-config auth, REST, [admin UI at `/_/`](https://<your-domain>/_/), file storage — all in SQLite |
 | **Templating** | [Templ](https://templ.guide) | Type-safe Go components, generated at build time |
 | **Reactive UI** | [Datastar](https://data-star.dev) (SSE) | Server-rendered over SSE, single ~12 KiB client. CSS built once via Tailwind v4 CLI; no JS framework build step. |
-| **CSS / UI skin** | [DaisyUI v5](https://daisyui.com) (default) + TailwindCSS; pluggable skins: [BasecoatUI](https://basecoatui.com), Morpheus (web components). Switch at runtime via `UI_SKIN` or `?skin=` query | DaisyUI ~34 kB; Basecoat shadcn-style OKLCH tokens; Morpheus vendorized bundle. See [UI skins](#ui-skins-pluggable-daisyui--basecoat--morpheus). |
+| **CSS / UI skin** | [DaisyUI v5](https://daisyui.com) (default) + TailwindCSS; pluggable skins: [BasecoatUI](https://basecoatui.com), [Morpheus](https://github.com/romshark/morpheus) (web components). Switch at runtime via `UI_SKIN` or `?skin=` query | DaisyUI ~34 kB; Basecoat shadcn-style OKLCH tokens; Morpheus vendorized bundle. See [UI skins](#ui-skins-pluggable-daisyui--basecoat--morpheus). |
 | **Task queue** | [goqite](https://github.com/maragudk/goqite) + SSE Hub | Background jobs streamed to the browser, no Redis |
 | **Retries** | [avast/retry-go v4](https://github.com/avast/retry-go) | Exponential backoff with jitter, no boilerplate |
 | **Durable Workflows** | [DagNats](https://github.com/danmestas/dagnats) | Multi-step durable workflows as declarative JSON over NATS JetStream |
@@ -236,7 +239,7 @@ Every page in this template ships with a runtime-switchable UI skin. Three skins
 |------|-----------|----------|
 | **DaisyUI** (default) | The reference UI. Server-rendered DaisyUI v5 components over TailwindCSS, morph-friendly with Datastar | `app.min.css` |
 | **Basecoat** | [BasecoatUI](https://basecoatui.com) (a shadcn-style component lib) with shadcn-inspired OKLCH `@theme inline` color tokens, native Basecoat JS runtime (`basecoat.initAll`) debounced via `requestAnimationFrame` for Datastar DOM morphing | `basecoat.min.css` + `basecoat.min.js` |
-| **Morpheus** | Vendorized web-components bundle (SHA-pinned, `web/skins/morpheus/VENDOR_SHA`) that gives the todo demo a different visual treatment without DaisyUI | `morpheus/bundle.js` + theme CSS |
+| **[Morpheus](https://github.com/romshark/morpheus)** | Vendorized web-components bundle (SHA-pinned, `web/skins/morpheus/VENDOR_SHA`) that gives the todo demo a different visual treatment without DaisyUI | `morpheus/bundle.js` + theme CSS |
 
 > **⚠️ Basecoat and Morpheus are community-supported.** DaisyUI (the default) is the polished, battle-tested skin that gets the most development attention. Basecoat and Morpheus integrate correctly but may have rough edges in their current state — CSS alignment nuances, missing component states (disabled, focus, error), and less extensive Datastar morph testing. **Contributions are welcome:** if you'd like to fix a skin-specific issue, improve a component template for a non-DaisyUI skin, or add a missing state, open a PR or issue. Every skin is a self-contained directory under `web/skins/<name>/` — changes are scoped and safe.
 
@@ -296,9 +299,9 @@ A running deployment of this exact template is live. You can touch every feature
 
 | What | URL | What you can do |
 |------|-----|-----------------|
-| **Todo demo app** | `https://gogogo.calionauta.com/` | Log in with the seeded demo account (`demo@demo.app` / `demo`). |
-| **Live PocketBase admin dashboard** | `https://gogogo.calionauta.com/_/` | Open the embedded PocketBase UI to browse the `todos` + `users` collections, run the REST/JS SDK playground, and inspect logs. The demo's `users` collection is **locked** — visitors can log in as the demo user but cannot create or delete accounts through the API or this dashboard (only the superuser can). |
-| **Durable workflow engine (DagNats)** | `https://gogogo.calionauta.com:8090` | The DagNats HTTP API where the `WelcomeOnboarding` workflow runs (declarative JSON over NATS JetStream). Inspect runs/steps or trigger them via the API; the Todo demo drives it automatically on first login. |
+| **Todo & Whiteboard demo app** | [https://gogogo.calionauta.com/](https://gogogo.calionauta.com/) | Log in with the seeded demo account (`demo@demo.app` / `demo`). |
+| **Live PocketBase admin dashboard** | [https://gogogo.calionauta.com/_/](https://gogogo.calionauta.com/_/) | Open the embedded PocketBase UI to browse the `todos` + `users` collections, run the REST/JS SDK playground, and inspect logs. The demo's `users` collection is **locked** — visitors can log in as the demo user but cannot create or delete accounts through the API or this dashboard (only the superuser can). |
+| **Durable workflow engine (DagNats)** | [https://gogogo.calionauta.com/dagnats/](https://gogogo.calionauta.com/dagnats/) | The DagNats HTTP API where the `WelcomeOnboarding` workflow runs (declarative JSON over NATS JetStream). Inspect runs/steps or trigger them via the API; the Todo demo drives it automatically on first login. |
 
 > The demo runs the unified build (everything compiled in). DagNats + NATS share a **single embedded JetStream** on `:4222` — DagNats boots it and the whiteboard SyncWorker attaches to it, so there is only one NATS process in the binary. To stand up your own, see [Deploy](#deploy).
 

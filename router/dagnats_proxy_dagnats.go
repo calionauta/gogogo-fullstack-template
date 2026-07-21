@@ -41,17 +41,17 @@ func mountDagNatsDashboard(se *core.ServeEvent, upstream string) {
 		log.Printf("dagnats proxy: bad upstream %q: %v", upstream, err)
 		return
 	}
-	proxy := httputil.NewSingleHostReverseProxy(target)
-	proxy.Rewrite = func(r *httputil.ProxyRequest) {
-		r.SetURL(target)
-		// Strip the /dagnats prefix so upstream sees e.g. /console/.
-		r.Out.URL.Path = strings.TrimPrefix(r.Out.URL.Path, "/dagnats")
-		if r.Out.URL.Path == "" {
-			r.Out.URL.Path = "/"
-		}
+	proxy := &httputil.ReverseProxy{
+		Rewrite: func(r *httputil.ProxyRequest) {
+			r.SetURL(target)
+			// Strip the /dagnats prefix so upstream sees e.g. /console/.
+			r.Out.URL.Path = strings.TrimPrefix(r.Out.URL.Path, "/dagnats")
+			if r.Out.URL.Path == "" {
+				r.Out.URL.Path = "/"
+			}
+		},
+		ModifyResponse: rewriteDagNatsPaths,
 	}
-	// Rewrite absolute paths in responses back to the /dagnats subpath.
-	proxy.ModifyResponse = rewriteDagNatsPaths
 
 	se.Router.GET("/dagnats", func(c *core.RequestEvent) error {
 		proxy.ServeHTTP(c.Response, c.Request)
