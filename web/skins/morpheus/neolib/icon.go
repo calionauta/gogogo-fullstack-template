@@ -9,8 +9,8 @@ import (
 
 var (
 	iconFSMu sync.RWMutex
-	iconFS   fs.FS = os.DirFS("internal/site/static/icons")
-	iconBase       = "/static/icons"
+	iconFS   = os.DirFS("internal/site/static/icons")
+	iconBase = "/static/icons"
 )
 
 func SetIconFS(f fs.FS) {

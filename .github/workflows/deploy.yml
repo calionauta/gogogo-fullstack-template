@@ -15,7 +15,7 @@
 # Secrets are NEVER stored long-term on the server: every deploy
 # re-renders the secrets file from GitHub Actions secrets, which
 # are the single source of truth. The previous binary is kept as
-# `gogogo-fullstack-template.previous` so an operator can roll back instantly.
+# `<APP_NAME>.previous` so an operator can roll back instantly.
 #
 # Required GitHub Actions secrets (Settings > Secrets > Actions):
 #   Tailscale (OIDC workload identity federation — no static secret):
@@ -42,6 +42,9 @@ on:
   push:
     branches: [master]
   workflow_dispatch:
+
+env:
+  APP_NAME: ${{ github.event.repository.name }}
 
 # Never run two deploys in parallel: the binary swap + container
 # restart is racy. The cancel-in-progress=false keeps the first
@@ -101,7 +104,7 @@ jobs:
         # files (go treats an empty root as a hard error); cmd/desktop is a
         # Wails build needing GTK/WebKit dev libs only on the desktop runners.
         run: |
-          PKGS=$(go list ./... | grep -vE "cmd/desktop$|^github.com/calionauta/gogogo-fullstack-template$")
+          PKGS=$(go list ./... | grep -vE "cmd/desktop$|^$(go list -m)$")
           go test -race -count=1 $PKGS
 
       - name: Build prod binary
@@ -124,13 +127,13 @@ jobs:
             CC=aarch64-linux-gnu-gcc \
             go build \
             -trimpath -ldflags="-s -w -extldflags=-static -X main.Version=${VERSION} -X main.CommitHash=${COMMIT} -X main.BuildTime=${BUILDTIME}" \
-            -o bin/gogogo-fullstack-template.new ./cmd/web/
+            -o bin/${{ env.APP_NAME }}.new ./cmd/web/
 
       - name: Stash binary
         uses: actions/upload-artifact@v4
         with:
-          name: gogogo-fullstack-template-linux-amd64
-          path: bin/gogogo-fullstack-template.new
+          name: ${{ env.APP_NAME }}-linux-amd64
+          path: bin/${{ env.APP_NAME }}.new
 
   # ─────────────────────────────────────────────
   # 2. Deploy via Tailscale SSH
@@ -179,7 +182,7 @@ jobs:
       - name: Download built binary
         uses: actions/download-artifact@v4
         with:
-          name: gogogo-fullstack-template-linux-amd64
+          name: ${{ env.APP_NAME }}-linux-amd64
           path: dist/
 
   # Write the secrets file with mode 600 BEFORE any container
@@ -223,7 +226,7 @@ jobs:
             User $DEPLOY_USER
           EOF
           chmod 0600 ~/.ssh/config
-          APP_NAME="gogogo-fullstack-template"
+          APP_NAME="${{ env.APP_NAME }}"
           SECRETS_DIR="/home/deploy/${APP_NAME}/secrets"
           ssh $DEPLOY_HOST "set -euo pipefail
             # Free disk space before writing anything
@@ -242,14 +245,14 @@ jobs:
             echo '✓ secrets file written (mode 600)'
           "
 
-      # SCP the new binary to /home/deploy/gogogo-fullstack-template/bin/ as .new so
+      # SCP the new binary to /home/deploy/<APP_NAME>/bin/ as .new so
       # the on-server script can atomically swap it.
       - name: Copy binary to server
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
         run: |
           set -euo pipefail
-          scp -P 2222 dist/gogogo-fullstack-template.new $DEPLOY_HOST:/home/deploy/gogogo-fullstack-template/bin/gogogo-fullstack-template.new
+          scp -P 2222 dist/${{ env.APP_NAME }}.new $DEPLOY_HOST:/home/deploy/${{ env.APP_NAME }}/bin/${{ env.APP_NAME }}.new
 
       # SCP the compose file (overwriting the previous one).
       - name: Copy compose file
@@ -257,7 +260,7 @@ jobs:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
         run: |
           set -euo pipefail
-          scp -P 2222 deploy/docker-compose.prod.yml $DEPLOY_HOST:/home/deploy/gogogo-fullstack-template/compose/docker-compose.prod.yml
+          scp -P 2222 deploy/docker-compose.prod.yml $DEPLOY_HOST:/home/deploy/${{ env.APP_NAME }}/compose/docker-compose.prod.yml
 
       # Ensure the directory layout exists, pull the latest source so
       # the on-server script and the scripts dir are current, then run
@@ -269,21 +272,21 @@ jobs:
         run: |
           set -euo pipefail
           ssh $DEPLOY_HOST "set -euo pipefail
-            APP_NAME=\"gogogo-fullstack-template\"
+            APP_NAME=\"${{ env.APP_NAME }}\"
             APP_DIR=\"/home/deploy/\${APP_NAME}\"
             for d in bin compose env scripts secrets data/pb_data; do
              mkdir -p \"\${APP_DIR}/\${d}\"
            done
 
-            if [ ! -d \"/home/deploy/gogogo-fullstack-template/repo\" ]; then
-              git clone \"https://github.com/${{ github.repository }}.git\" \"/home/deploy/gogogo-fullstack-template/repo\"
+            if [ ! -d \"/home/deploy/\${APP_NAME}/repo\" ]; then
+              git clone \"https://github.com/${{ github.repository }}.git\" \"/home/deploy/\${APP_NAME}/repo\"
             else
-              git -C \"/home/deploy/gogogo-fullstack-template/repo\" fetch origin
-              git -C \"/home/deploy/gogogo-fullstack-template/repo\" reset --hard origin/master
+              git -C \"/home/deploy/\${APP_NAME}/repo\" fetch origin
+              git -C \"/home/deploy/\${APP_NAME}/repo\" reset --hard origin/master
             fi
 
-            cp \"/home/deploy/gogogo-fullstack-template/repo/.env\" \"\${APP_DIR}/env/.env\" 2>/dev/null || true
-            cp \"/home/deploy/gogogo-fullstack-template/repo/scripts/deploy-prod.sh\" \"\${APP_DIR}/scripts/deploy-prod.sh\"
+            cp \"/home/deploy/\${APP_NAME}/repo/.env\" \"\${APP_DIR}/env/.env\" 2>/dev/null || true
+            cp \"/home/deploy/\${APP_NAME}/repo/scripts/deploy-prod.sh\" \"\${APP_DIR}/scripts/deploy-prod.sh\"
             chmod 0700 \"\${APP_DIR}/scripts/deploy-prod.sh\"
 
             bash \"\${APP_DIR}/scripts/deploy-prod.sh\"
