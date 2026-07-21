@@ -154,7 +154,9 @@ func (h *TodoHandler) handleListFragment(c *core.RequestEvent) error {
 // rendering so the morph-patched rows match the surrounding chrome.
 // Without it a morpheus client receives DaisyUI rows after every
 // mutation (CAL-14).
-func (h *TodoHandler) patchTodoListWithSelfOrigin(sse *sdk.ServerSentEventGenerator, todos []todo.Todo, skinName string) error {
+func (h *TodoHandler) patchTodoListWithSelfOrigin(
+	sse *sdk.ServerSentEventGenerator, todos []todo.Todo, skinName string,
+) error {
 	if err := dshelpers.MergeSignals(sse, map[string]any{
 		"lastItemSource": "self",
 		signalItemCount:  len(todos),
