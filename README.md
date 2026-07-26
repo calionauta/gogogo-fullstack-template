@@ -74,7 +74,7 @@ Everything you need to build a modern web app, in a single binary:
 
 ## Stack in layers, not silos
 
-Most templates force you to pick one async strategy — usually a queue, sometimes a workflow runtime, rarely both. Real apps need **a queue for background jobs**, **a workflow runtime for durable multi-step processes**, **a collaboration layer for conflict-free state merging**, and **a real-time layer for cross-client state** — each solving a different problem. We ship all five in one unified build.
+Most templates force you to pick one async strategy — usually a queue, sometimes a workflow runtime, rarely both. As your app grows, you'll likely encounter problems that **each** of these solves: **a queue for background jobs**, **a workflow runtime for durable multi-step processes**, **a collaboration layer for conflict-free state merging**, and **a real-time layer for cross-client state**. This template ships all five in one unified build — use what you need, the rest sits dormant until you don't.
 
 We solve this with **six complementary layers**:
 
