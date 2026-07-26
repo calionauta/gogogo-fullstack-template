@@ -663,7 +663,7 @@ All are configurable in one place (env var in `config/config.go`, runtime consta
 
 ## Acknowledgements & inside jokes
 
-This template was inspired by [northstar](https://github.com/zangster300/northstar) by Nicholas Zanghi — a Go + NATS + Datastar + Templ + DaisyUI application starter.
+This template was inspired by [northstar](https://github.com/zangster300/northstar) by Zangster — a Go + NATS + Datastar + Templ + DaisyUI application starter.
 
 ## License, feedback
 
