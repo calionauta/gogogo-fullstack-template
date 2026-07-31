@@ -46,6 +46,19 @@ func SoundAssets() templ.Component {
 // watches for clicks on [data-sound-toggle] and reflects the effective
 // state (user preference AND OS reduced-motion). Mirrors the theme toggle
 // styling (app-theme-toggle) for a consistent navbar.
+//
+// LOCALITY OF BEHAVIOR (why no data-on:click here): the sound plugin must
+// work on every page that renders the navbar, including the whiteboard
+// board, which deliberately loads NO Datastar (its canvas wiring is plain
+// JS — verified in features/whiteboard/components.templ). Datastar's
+// data-on:* is inert on that page, so a data-on:click binding would
+// silently kill the toggle there (the theme toggle already has this quirk).
+// Instead the button declares its contract via data-sound-toggle and the
+// plugin's own module wires it with a delegated, idempotent click — the
+// same pattern theme.js uses for the theme toggle, and the closest
+// declarative approach that works on all pages. Sound-specific declarative
+// attributes (data-cuelume-*) on the nav tabs are handled by cuelume's own
+// bind(), which is Datastar-independent for the same reason.
 func SoundToggle() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
