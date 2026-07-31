@@ -72,24 +72,26 @@ function apply() {
   syncToggleUI();
 }
 
-// Keep the navbar button in sync with the effective state (user pref AND
-// OS reduced-motion). Exactly one icon visible; aria-pressed reflects the
-// audible state so screen readers announce whether sound is on.
+// Keep the navbar button in sync. The button reflects the USER preference
+// (what the toggle controls), so it always responds to clicks — even when
+// prefers-reduced-motion keeps playback muted. The title explains the
+// override so a muted-but-on state is never silent confusion. aria-pressed
+// follows the user preference, not the audible state.
 function syncToggleUI() {
   var btn = document.querySelector("[data-sound-toggle]");
   if (!btn) return;
-  var on = effective();
-  btn.setAttribute("aria-pressed", String(on));
+  var prefOn = state.userPref === "on";
+  btn.setAttribute("aria-pressed", String(prefOn));
   var icons = btn.querySelectorAll(".sound-toggle-icon");
   icons.forEach(function (el) {
     var isOffIcon = el.classList.contains("icon-sound-off");
-    el.style.display = (on !== isOffIcon) ? "" : "none";
+    el.style.display = (prefOn !== isOffIcon) ? "" : "none";
   });
   btn.setAttribute(
     "title",
-    state.reducedMotion && state.userPref === "on"
-      ? "Sound off — your device prefers reduced motion"
-      : on ? "Mute sounds" : "Unmute sounds"
+    state.reducedMotion && prefOn
+      ? "Sound on — muted by your device's reduced-motion setting"
+      : prefOn ? "Mute sounds" : "Unmute sounds"
   );
 }
 
@@ -103,13 +105,27 @@ function onToggleClick() {
   apply();
 }
 
+// Resolve a selector along the composed event path. A click/pointer event
+// fired on an icon inside a shadow root (e.g. <iconify-icon>) has a target
+// whose .closest() never crosses the shadow boundary, which would make
+// delegated handlers miss the host button. Walking composedPath() covers
+// the light-DOM ancestor (the button) regardless of where the event landed.
+function closestInComposedPath(e, sel) {
+  var path = e.composedPath ? e.composedPath() : e.path || [e.target];
+  for (var i = 0; i < path.length; i++) {
+    var n = path[i];
+    if (n && n.nodeType === 1 && n.closest) {
+      var hit = n.closest(sel);
+      if (hit) return hit;
+    }
+  }
+  return null;
+}
+
 // Delegated toggle so it works regardless of when the navbar renders
 // (Datastar morphs, re-renders). Same pattern as theme.js.
 document.addEventListener("click", function (e) {
-  var t =
-    e.target && e.target.closest
-      ? e.target.closest("[data-sound-toggle]")
-      : null;
+  var t = closestInComposedPath(e, "[data-sound-toggle]");
   if (!t) return;
   e.preventDefault();
   onToggleClick();
@@ -132,12 +148,10 @@ apply();
 // selector mirrors cuelume's own defaults so "each action has a sound"
 // holds without tagging every button. play() no-ops when muted.
 function pressFromEvent(e) {
-  var t =
-    e.target && e.target.closest
-      ? e.target.closest(
-          'button, [role="button"], [role="tab"], [class*="btn"], input[type="checkbox"], input[type="submit"]'
-        )
-      : null;
+  var t = closestInComposedPath(
+    e,
+    'button, [role="button"], [role="tab"], [class*="btn"], input[type="checkbox"], input[type="submit"]'
+  );
   if (!t) return;
   if (t.hasAttribute("data-cuelume-press")) return;
   play("press");

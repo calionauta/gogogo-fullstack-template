@@ -23,13 +23,13 @@ templ Navbar(userEmail string, active string, buildLabel string, buildCommit str
 			// title= that exposes commit + build time on hover.
 			<span class="app-nav-badge" title={ buildCommit + " · built " + buildLabel }>{ buildLabel }</span>
 			<div class="app-nav-links">
-				<a href="/todo" data-cuelume-hover="tick" class={ templ.Classes("app-nav-link", map[string]bool{
+				<a href="/todo" data-cuelume-hover="tick" data-cuelume-press="tick" class={ templ.Classes("app-nav-link", map[string]bool{
 					"is-active": active == "todo",
 				}) }>Todo</a>
-				<a href="/whiteboard" data-cuelume-hover="tick" class={ templ.Classes("app-nav-link", map[string]bool{
+				<a href="/whiteboard" data-cuelume-hover="tick" data-cuelume-press="tick" class={ templ.Classes("app-nav-link", map[string]bool{
 					"is-active": active == "whiteboard",
 				}) }>Whiteboard</a>
-				<a href="/config" data-cuelume-hover="tick" class={ templ.Classes("app-nav-link", map[string]bool{
+				<a href="/config" data-cuelume-hover="tick" data-cuelume-press="tick" class={ templ.Classes("app-nav-link", map[string]bool{
 					"is-active": active == "config",
 				}) }>Config</a>
 			</div>

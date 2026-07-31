@@ -264,7 +264,7 @@ Every interactive action ships with audio feedback out of the box — a curated 
 **It's a self-contained plugin (`features/sounds/`), not baked into the app.** The plugin owns its whole surface: the script loader (`@sounds.SoundAssets()` in each page's `<head>`), the navbar mute toggle (`@sounds.SoundToggle()`), and the client glue (`web/resources/static/cuelume.js`) which ships the sound accessibility contract out of the box:
 
 1. **`prefers-reduced-motion` respected by default** — OS-level reduced motion auto-mutes playback and reacts to runtime preference changes (no in-app override; it's an accessibility setting).
-2. **Global mute with a real control** — the navbar `🔊` button toggles sound on/off, persists the choice in `localStorage` (`gogogo_sound`), is keyboard-accessible (`aria-pressed` on a real `<button>`), and survives Datastar DOM morphs (delegated click, same pattern as `theme.js`).
+2. **Global mute with a real control** — the navbar `🔊` button toggles sound on/off, persists the choice in `localStorage` (`gogogo_sound`), is keyboard-accessible (`aria-pressed` on a real `<button>`), and survives Datastar DOM morphs (delegated click, same pattern as `theme.js`). The button always reflects and responds to the user's own choice — if reduced-motion keeps playback muted anyway, the button still flips and its tooltip explains the system override, so it never looks dead.
 3. **Subtle default volume** — cuelume's mixer runs hotter than libraries tuned for a 30% default; `DEFAULT_VOLUME` (0.4) keeps every cue audible without being intrusive. Tune it in `cuelume.js`.
 4. **Sounds are additive only** — every cue pairs with existing visual feedback (toasts, button states, spinners) and never replaces it.
 
@@ -275,7 +275,7 @@ Every interactive action ships with audio feedback out of the box — a curated 
 - **Success / error chimes** — a `MutationObserver` on `#toast-container` plays the `success` sound when an `alert-success` toast appears and the `error` sound on an `alert-error` toast. No server changes needed: the existing SSE toast path (create, clear, workflow completion, retry/Suggest failures) feeds the sounds. `info`/`warning` toasts stay silent by design.
 - **`window.Cuelume`** — a tiny public API (`play`, `setEnabled`, `setVolume`, `isEnabled`) for future settings surfaces.
 
-**Sounds in play.** Fourteen named cues (`chime`, `sparkle`, `press`, `toggle`, `success`, `error`, …) map onto the app's feedback: every button press → `press`; delete affordances (trash icon, confirm-delete, clear-completed) → `droplet`, a descending glide that evokes removal; nav tabs (Todo / Whiteboard / Config) → `tick` on hover; completed actions → `success`; recoverable failures → `error`.
+**Sounds in play.** Fourteen named cues (`chime`, `sparkle`, `press`, `toggle`, `success`, `error`, …) map onto the app's feedback: every button press → `press`; delete affordances (trash icon, confirm-delete, clear-completed) → `droplet`, a descending glide that evokes removal; nav tabs (Todo / Whiteboard / Config) → `tick` on hover (desktop) and on press (mouse + touch); completed actions → `success`; recoverable failures → `error`.
 
 **Customize.** Since cuelume is client-side only, your app owns the settings — call the library's API from any module:
 
