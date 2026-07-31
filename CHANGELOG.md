@@ -1,3 +1,39 @@
+## [0.26.0] - 2026-07-31
+
+### Added
+
+- **UI sounds via cuelume — vendored, zero dependencies.** Shipped as a self-contained
+  plugin (`features/sounds/`): press feedback on every button, `success`/`error`/`warning`
+  cues on toasts, `droplet` on delete, `tick`/`toggle` on tab hover vs click, and a
+  dedicated chime when re-enabling sound (muting is silent). Sound accessibility is part of
+  the plugin: `prefers-reduced-motion` respected by default, a persistent navbar mute
+  toggle (`localStorage`, `gogogo_sound`), and a subtle default volume.
+- **Per-filter item counters.** The header badge and footer count now reflect the current
+  filter (all / active / completed) in realtime; mutations carry the active filter so the
+  re-rendered list and its count stay scoped to the tab the user is on.
+- **Real creation timestamps (CAL-19).** The `todos` collection now declares
+  `created`/`updated` as PocketBase `AutodateField`s — the previous plain `DateField`s were
+  never auto-stamped, so every record carried a `0001-01-01` creation time and the per-row
+  relative-age label was meaningless. The seed migrates existing collections; new records
+  get real timestamps.
+
+### Fixed
+
+- **Static assets never serve stale after a deploy.** `resources.AssetHandler` replaces
+  `http.FileServer` with `Cache-Control: public, max-age=0, must-revalidate` + a
+  content-hash ETag, so clients/CDNs revalidate and a changed asset always 304s correctly
+  (Cloudflare was caching old CSS/JS for up to 4h).
+- **Sound toggle stays responsive under reduced-motion.** The button reflects the user's
+  own preference even when the OS mutes playback, so it never looks dead.
+- **DagNats reverse proxy.** Conflicting `Director`/`Rewrite` on `httputil.ReverseProxy`.
+- **CI lint.** goconst/lll violations and the skipped smoke-test quoting.
+
+### Changed
+
+- AGENTS.md: static-asset cache contract, orphan-`web`-process troubleshooting, sounds
+  removal entry in the SCOPE table.
+- README: "UI sounds (cuelume)" plugin + accessibility documentation.
+
 ## [0.25.0] - 2026-07-20
 
 ### Changed
