@@ -272,7 +272,7 @@ Every interactive action ships with audio feedback out of the box — a curated 
 
 - **`bind()`** — enables declarative `data-cuelume-*` attributes (`data-cuelume-press`, `-release`, `-hover`, `-toggle`) anywhere, so per-element sounds work without touching the glue.
 - **Global press sound** — a delegated `pointerdown` listener plays the `press` knock on every button, `role="button"`/`role="tab"`, `.btn` link, and checkbox. Works on mouse, touch, and pen (pointer events); covers Datastar-morphed DOM.
-- **Toast-type chimes** — a `MutationObserver` on `#toast-container` plays a cue matching the toast type: `success` on an `alert-success` toast, `error` on an `alert-error` toast, and `loading` on an `alert-warning` toast (retry attempts — cuelume has no dedicated warning cue; the rising shimmer reads as "still working"). No server changes needed: the existing SSE toast path (create, clear, workflow completion, retry/Suggest failures) feeds the sounds. `info` toasts stay silent by design.
+- **Toast-type chimes** — a `MutationObserver` on `#toast-container` plays a cue matching the toast type: `success` on an `alert-success` toast, `error` on an `alert-error` toast, `loading` on an `alert-warning` toast (retry attempts — cuelume has no dedicated warning cue; the rising shimmer reads as "still working"), and `page` on an `alert-info` toast (e.g. "Deleted"). No server changes needed: the existing SSE toast path (create, delete, clear, workflow completion, retry/Suggest failures) feeds the sounds.
 - **`window.Cuelume`** — a tiny public API (`play`, `setEnabled`, `setVolume`, `isEnabled`) for future settings surfaces.
 
 **Customize.** Since cuelume is client-side only, your app owns the settings — call the library's API from any module:

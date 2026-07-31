@@ -49,11 +49,12 @@ var ENABLE_SOUND = "chime";
 // Toast-type sounds. Kept as named constants so every action of a given type
 // (button, toast, or anything else) reuses the SAME cue — a consistent sonic
 // vocabulary: success → success, failure → error, warning → loading (a brief
-// unresolved rising shimmer, cuelume has no dedicated "warning" cue; the
-// mechanical "toggle" is reserved for tab clicks). Tune per type here.
+// unresolved rising shimmer, cuelume has no dedicated "warning" cue), and
+// info → page (a neutral papery flick). Tune per type here.
 var SUCCESS_SOUND = "success";
 var ERROR_SOUND = "error";
 var WARNING_SOUND = "loading";
+var INFO_SOUND = "page";
 
 bind();
 setVolume(DEFAULT_VOLUME);
@@ -194,9 +195,11 @@ function toastAdded(mutations) {
           ? node
           : node.querySelector && node.querySelector(".toast-msg");
       if (!toast) continue;
+      // Every toast type has a cue: success / error / warning / info.
       if (toast.querySelector(".alert-success")) play(SUCCESS_SOUND);
       else if (toast.querySelector(".alert-error")) play(ERROR_SOUND);
       else if (toast.querySelector(".alert-warning")) play(WARNING_SOUND);
+      else play(INFO_SOUND); // alert-info (and any default toast)
     }
   }
 }
