@@ -42,6 +42,10 @@ import { bind, play, setEnabled, setVolume } from "./cuelume/index.js";
 
 var STORAGE_KEY = "gogogo_sound";
 var DEFAULT_VOLUME = 0.4;
+// Played when the user RE-ENABLES sound from the navbar toggle: a distinct,
+// pleasant confirmation that the sound system is live. Muting plays nothing
+// on purpose. Tune the cue here (cuelume's "chime" is a soft ascending bell).
+var ENABLE_SOUND = "chime";
 
 bind();
 setVolume(DEFAULT_VOLUME);
@@ -103,6 +107,13 @@ function onToggleClick() {
     /* private mode / quota — preference applies for this session */
   }
   apply();
+  // Re-enabling sound gets a distinct, pleasant confirmation that playback
+  // is live again; muting is deliberately silent (turning sound OFF should
+  // make no noise). Only play when sound is truly audible — reduced-motion
+  // keeps it muted even if the user flips the preference to on.
+  if (effective()) {
+    play(ENABLE_SOUND);
+  }
 }
 
 // Resolve a selector along the composed event path. A click/pointer event
@@ -153,6 +164,9 @@ function pressFromEvent(e) {
     'button, [role="button"], [role="tab"], [class*="btn"], input[type="checkbox"], input[type="submit"]'
   );
   if (!t) return;
+  // The sound toggle is exempt from the generic press: muting must be
+  // silent, and enabling is confirmed by its own dedicated cue (ENABLE_SOUND).
+  if (t.hasAttribute("data-sound-toggle")) return;
   if (t.hasAttribute("data-cuelume-press")) return;
   play("press");
 }

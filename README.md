@@ -275,7 +275,7 @@ Every interactive action ships with audio feedback out of the box — a curated 
 - **Success / error chimes** — a `MutationObserver` on `#toast-container` plays the `success` sound when an `alert-success` toast appears and the `error` sound on an `alert-error` toast. No server changes needed: the existing SSE toast path (create, clear, workflow completion, retry/Suggest failures) feeds the sounds. `info`/`warning` toasts stay silent by design.
 - **`window.Cuelume`** — a tiny public API (`play`, `setEnabled`, `setVolume`, `isEnabled`) for future settings surfaces.
 
-**Sounds in play.** Fourteen named cues (`chime`, `sparkle`, `press`, `toggle`, `success`, `error`, …) map onto the app's feedback: every button press → `press`; delete affordances (trash icon, confirm-delete, clear-completed) → `droplet`, a descending glide that evokes removal; nav tabs (Todo / Whiteboard / Config) → `tick` on hover (desktop) and on press (mouse + touch); completed actions → `success`; recoverable failures → `error`.
+**Sounds in play.** Fourteen named cues (`chime`, `sparkle`, `press`, `toggle`, `success`, `error`, …) map onto the app's feedback: every button press → `press`; delete affordances (trash icon, confirm-delete, clear-completed) → `droplet`, a descending glide that evokes removal; nav tabs (Todo / Whiteboard / Config) → `tick` on hover (desktop) and on press (mouse + touch); re-enabling sound from the navbar toggle → `chime` (muting is deliberately silent); completed actions → `success`; recoverable failures → `error`.
 
 **Customize.** Since cuelume is client-side only, your app owns the settings — call the library's API from any module:
 
