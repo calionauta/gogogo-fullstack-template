@@ -28,6 +28,7 @@ templ Layout(title string, signals todo.Signals, userEmail string, buildLabel st
 			<title>{ title }</title>
 			@skins.ActiveAssets(skinName)
 			@auth.ThemeHead()
+			<script defer type="module" src="/static/cuelume.js"></script>
 			@components.OfflineSyncScript(offlineSync)
 			<style>
 				/* Stacking container: fixed bottom-right, toasts stack upward. */
