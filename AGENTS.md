@@ -246,6 +246,7 @@ features/
   config/                🟢 FEATURE  Auth-gated read-only /config view (masked secrets)
   todo/                  🟢 FEATURE  Todo MVC example (keep as reference, remove when done)
   whiteboard/            🟢 FEATURE  Collaborative canvas (remove if not needed)
+  sounds/                🟡 PLUGIN  UI sound feedback (cuelume, vendored MIT): navbar mute toggle + a11y glue (reduced-motion, persistent pref). Remove via the checklist in its SCOPE doc.
 web/
   resources/             🔴 CORE  Embedded static assets (app.min.css, basecoat.min.css, sw.js, theme.js)
   skins/                 🟡 PLUGIN  Pluggable UI skin registry (daisyui + basecoat + morpheus). Active via `UI_SKIN` / `?skin=`.
@@ -361,6 +362,7 @@ When you remove a feature or plugin component, tests come along naturally:
 | **LLM** (plugin) | `internal/llm/` | `internal/llm/*_test.go`, `features/todo/suggest_test.go` ⚠️ |
 | **EntityStore** (plugin) | `features/store/pbstore/` | `features/store/pbstore/*_test.go` (future). Drop `todoH.SetStore(pbstore.New(app, "todos"))` from `router.Init`; the handler's lazy fallback (`h.st()` in `todo_repo.go`) will rebuild a PBStore on first use. Remove `features/store/pbstore/` to use a different strategy (e.g. the future CRDTStore). |
 | **Idempotency** (plugin) | `db/idempotency_hook.go` + `db/idempotency_seed.go` | `db/idempotency_hook_test.go` ✅. Remove both files, drop `RegisterIdempotencyHook(app)` and `enableTodosIdempotency(col)` from `db/seed.go`, and remove the hidden `name="idem_key"` input from `createForm`. |
+| **Sounds** (plugin) | `features/sounds/`, `web/resources/static/cuelume.js`, `web/resources/static/cuelume/` | none — pure client-side, no test deps. Drop `@sounds.SoundAssets()` from the page layouts (todo, landing, config, auth LoginPage, whiteboard) and `@sounds.SoundToggle()` from the navbar (`features/auth/views.templ`). Full checklist in the `features/sounds/sounds.go` SCOPE doc. |
 
 **Rule of thumb:** `go test ./...` after deleting a package. If a compilation error mentions the deleted package in a test file, delete that test file too. Cross-package tests (like `features/todo/onboarding_e2e_test.go` depending on `internal/dagnats`) will fail to compile — that's your checklist.
 

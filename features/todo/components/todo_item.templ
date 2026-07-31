@@ -41,6 +41,7 @@ templ TodoItem(item todo.Todo) {
 			type="button"
 			class="btn btn-ghost btn-xs text-error transition-transform hover:scale-110 active:scale-95"
 			title="Delete todo"
+			data-cuelume-press="droplet"
 			data-on:click__prevent={ "$confirmingDeleteId = " + safeJSString(item.ID) + "; $confirmingDeleteTitle = " + safeJSString(item.Title) + "; document.getElementById('confirm-delete-modal').showModal()" }
 		 data-variant="ghost">
 			<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">

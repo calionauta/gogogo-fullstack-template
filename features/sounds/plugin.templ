@@ -1,0 +1,28 @@
+package sounds
+
+// SoundAssets emits the module script that loads the cuelume glue. It is
+// the single place pages reference the sound plugin — replace the bare
+// <script src="/static/cuelume.js"> with @sounds.SoundAssets() so the
+// plugin owns its own asset loading and can be removed in one spot.
+templ SoundAssets() {
+	<script defer type="module" src="/static/cuelume.js"></script>
+}
+
+// SoundToggle renders the navbar mute button. Its state (aria-pressed and
+// the visible icon) is driven by web/resources/static/cuelume.js, which
+// watches for clicks on [data-sound-toggle] and reflects the effective
+// state (user preference AND OS reduced-motion). Mirrors the theme toggle
+// styling (app-theme-toggle) for a consistent navbar.
+templ SoundToggle() {
+	<button
+		type="button"
+		class="app-sound-toggle"
+		data-sound-toggle
+		aria-label="Toggle sound"
+		aria-pressed="true"
+		title="Mute sounds"
+	>
+		<iconify-icon icon="material-symbols:volume-up" class="text-lg sound-toggle-icon icon-sound-on"></iconify-icon>
+		<iconify-icon icon="material-symbols:volume-off" class="text-lg sound-toggle-icon icon-sound-off"></iconify-icon>
+	</button>
+}

@@ -8,6 +8,7 @@ package config
 
 import (
 	"github.com/calionauta/gogogo-fullstack-template/features/auth"
+	"github.com/calionauta/gogogo-fullstack-template/features/sounds"
 	"github.com/calionauta/gogogo-fullstack-template/internal/components"
 )
 
@@ -31,7 +32,7 @@ templ Page(data PageData, userEmail string, buildLabel string, buildCommit strin
 			<link rel="stylesheet" href="/static/app.css"/>
 			@auth.ThemeHead()
 			<script defer type="module" src="/static/theme.js"></script>
-			<script defer type="module" src="/static/cuelume.js"></script>
+			@sounds.SoundAssets()
 			<script src="/static/iconify-icon.min.js"></script>
 			<style>
 				/* Tighten the table on small screens; the read-only

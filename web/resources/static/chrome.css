@@ -175,6 +175,26 @@
 html.dark .app-theme-toggle .icon-dark-mode { display: inline-flex; }
 html.dark .app-theme-toggle .icon-light-mode { display: none; }
 
+/* sound toggle (features/sounds plugin) — driven by /static/cuelume.js */
+.app-sound-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35rem;
+  border-radius: 0.5rem;
+  border: none;
+  background: transparent;
+  color: #334155;
+  cursor: pointer;
+}
+.app-sound-toggle:hover { background: #f1f5f9; }
+.app-sound-toggle .sound-toggle-icon { font-size: 1.125rem; }
+/* Pre-JS default: sound is on (volume-up visible). cuelume.js overrides
+   via inline style + aria-pressed after load. */
+.app-sound-toggle .icon-sound-off { display: none; }
+.app-sound-toggle[aria-pressed="false"] .icon-sound-on { display: none; }
+.app-sound-toggle[aria-pressed="false"] .icon-sound-off { display: inline-flex; }
+
 /* transport banner */
 .app-banner {
   position: fixed;

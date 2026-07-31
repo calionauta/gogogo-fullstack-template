@@ -87,12 +87,13 @@ templ TodoList(signals todo.Signals) {
 							if signals.ItemCount > 0 {
 								<div class="flex justify-between items-center mt-4 pt-3 border-t border-base-200">
 									<span class="text-xs text-base-content/50" data-text="$itemCount + ' items'"></span>
-									<button
-										class="btn btn-ghost btn-xs text-error transition-all hover:scale-105 active:scale-95"
-										data-on:click="while (document.querySelector('.todo-item')) { @post('/api/todos/completed/delete?clientID=' + encodeURIComponent($clientID || '')); break; }"
-									 data-variant="ghost">
-										Clear completed
-									</button>
+								<button
+									class="btn btn-ghost btn-xs text-error transition-all hover:scale-105 active:scale-95"
+									data-cuelume-press="droplet"
+									data-on:click="while (document.querySelector('.todo-item')) { @post('/api/todos/completed/delete?clientID=' + encodeURIComponent($clientID || '')); break; }"
+								 data-variant="ghost">
+									Clear completed
+								</button>
 								</div>
 							}
 
@@ -547,6 +548,7 @@ templ deleteConfirmModal() {
 				<button
 					type="button"
 					class="btn btn-error btn-sm transition-all"
+					data-cuelume-press="droplet"
 					data-attr:disabled="$deleting"
 					data-on:click="$deleting = true; document.getElementById('confirm-delete-modal').close(); @post('/api/todos/' + $confirmingDeleteId + '/delete?clientID=' + encodeURIComponent($clientID || ''))"
 				 data-variant="destructive">

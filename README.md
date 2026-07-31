@@ -57,7 +57,7 @@ Everything you need to build a modern web app, in a single binary:
 | **Database + Auth + API** | [PocketBase](https://pocketbase.io) (embedded, on `ncruces/go-sqlite3`) | Zero-config auth, REST, [admin UI at `/_/`](https://<your-domain>/_/), file storage — all in SQLite |
 | **Templating** | [Templ](https://templ.guide) | Type-safe Go components, generated at build time |
 | **Reactive UI** | [Datastar](https://data-star.dev) (SSE) | Server-rendered over SSE, single ~12 KiB client. CSS built once via Tailwind v4 CLI; no JS framework build step. |
-| **UI sounds** | [cuelume](https://github.com/Danilaa1/cuelume) (vendored, MIT) | Curated interaction sounds synthesized live with the Web Audio API — no audio files, no runtime dependencies. Press sound on every button, `success`/`error` chimes on toasts. Vendored under `web/resources/static/cuelume/`, **not** a package dependency. See [UI sounds](#ui-sounds-cuelume). |
+| **UI sounds** | [cuelume](https://github.com/Danilaa1/cuelume) (vendored, MIT) | Curated interaction sounds synthesized live with the Web Audio API — no audio files, no runtime dependencies. Press sound on every button, `success`/`error` chimes on toasts, plus a persistent navbar mute toggle. Ships as a self-contained plugin (`features/sounds/`) respecting `prefers-reduced-motion`. See [UI sounds](#ui-sounds-cuelume). |
 | **CSS / UI skin** | [DaisyUI v5](https://daisyui.com) (default) + TailwindCSS; pluggable skins: [BasecoatUI](https://basecoatui.com), [Morpheus](https://github.com/romshark/morpheus) (web components). Switch at runtime via `UI_SKIN` or `?skin=` query | DaisyUI ~34 kB; Basecoat shadcn-style OKLCH tokens; Morpheus vendorized bundle. See [UI skins](#ui-skins-pluggable-daisyui--basecoat--morpheus). |
 | **Task queue** | [goqite](https://github.com/maragudk/goqite) + SSE Hub | Background jobs streamed to the browser, no Redis |
 | **Retries** | [avast/retry-go v4](https://github.com/avast/retry-go) | Exponential backoff with jitter, no boilerplate |
@@ -204,7 +204,7 @@ We ship a working Todo App:
 - Reactive frontend with Datastar + the active skin (DaisyUI by default; BasecoatUI / Morpheus switchable via `UI_SKIN` or `?skin=` — see [UI skins](#ui-skins-pluggable-daisyui--basecoat--morpheus))
 - **Database actions stream through PocketBase realtime.** Todo `create`/`toggle`/`delete` fire PocketBase record events; each subscribed client re-fetches the fragment and morphs `#todo-list`. Delivery is per-user scoped by the collection's `owner` rule (`@request.auth.id != '' && owner = @request.auth.id`), so a client only receives events for its own records. The SSE Hub is reserved for ephemeral signals (success/retry toasts, live clients count, AI suggest) and the originating client's own synchronous patch.
 - Stacked toast notifications (auto-dismiss, manual close, progress bar)
-- **UI sounds via [cuelume](https://github.com/Danilaa1/cuelume)** (vendored, not a dependency). Every pointer press on a button/checkbox plays a soft `press` knock; success toasts ("Added", "Cleared N completed", workflow done, suggestions ready) play a `success` chime and error toasts (retry/Suggest failures) play an `error` tone — all synthesized live with the Web Audio API, zero audio files. See [UI sounds](#ui-sounds-cuelume).
+- **UI sounds via [cuelume](https://github.com/Danilaa1/cuelume)** (vendored, not a dependency). Every pointer press on a button/checkbox plays a soft `press` knock; success toasts ("Added", "Cleared N completed", workflow done, suggestions ready) play a `success` chime and error toasts (retry/Suggest failures) play an `error` tone — all synthesized live with the Web Audio API, zero audio files. A self-contained plugin (`features/sounds/`) with a persistent navbar mute toggle and `prefers-reduced-motion` respect. See [UI sounds](#ui-sounds-cuelume).
 - Async jobs: `handleCreate` enqueues a `todo_created` job; a worker picks it up and streams a success toast to the right browser tab via the SSE Hub (`clientID` routing)
 - Retries with exponential backoff and jitter (`internal/queue/retry.go`, retry-go v4) — SSE-aware: a retry emits a `lastRetry` signal so the UI can show "retrying…"
 - `WelcomeOnboarding` DagNats workflow (always compiled) that creates 3 example todos via durable steps — kill the server mid-run, restart, watch it resume at the last incomplete step. The workflow is declarative JSON (`internal/dagnats/workflow.go`), so renaming Go handlers never orphans an in-flight run.
@@ -259,29 +259,36 @@ Every page in this template ships with a runtime-switchable UI skin. Three skins
 
 ## UI sounds (cuelume)
 
-Every interactive action ships with audio feedback out of the box — a curated sound palette ([cuelume](https://github.com/Danilaa1/cuelume), MIT), **vendored into the repo rather than installed as a dependency**. No `package.json` entry, no `go.mod` entry, no network fetch at build or runtime.
+Every interactive action ships with audio feedback out of the box — a curated sound palette ([cuelume](https://github.com/Danilaa1/cuelume), MIT), **vendored into the repo rather than installed as a dependency**. No `package.json` entry, no `go.mod` entry, no network fetch at build or runtime. Sounds are synthesized live with the Web Audio API — there are no audio files.
 
-**How it's wired.** The library (4 self-contained ESM modules, ~14 KB) lives at `web/resources/static/cuelume/` with its MIT license file alongside, embedded in the binary via `//go:embed static/*`. The glue at `web/resources/static/cuelume.js` does three things:
+**It's a self-contained plugin (`features/sounds/`), not baked into the app.** The plugin owns its whole surface: the script loader (`@sounds.SoundAssets()` in each page's `<head>`), the navbar mute toggle (`@sounds.SoundToggle()`), and the client glue (`web/resources/static/cuelume.js`) which ships the sound accessibility contract out of the box:
 
-1. **`bind()`** — enables any declarative `data-cuelume-*` attribute in your markup (`data-cuelume-press`, `-release`, `-hover`, `-toggle`), so per-element sounds work without touching the glue.
-2. **Global press sound** — a delegated `pointerdown` listener plays the `press` knock on every button, `role="button"`/`role="tab"`, `.btn` link, and checkbox. Because it's delegated on `document`, it also covers elements Datastar morphs in later.
-3. **Success / error chimes** — a `MutationObserver` on `#toast-container` plays the `success` sound when an `alert-success` toast appears and the `error` sound on an `alert-error` toast. No server changes needed: the existing SSE toast path (create, clear, workflow completion, retry/Suggest failures) is what feeds the sounds.
+1. **`prefers-reduced-motion` respected by default** — OS-level reduced motion auto-mutes playback and reacts to runtime preference changes (no in-app override; it's an accessibility setting).
+2. **Global mute with a real control** — the navbar `🔊` button toggles sound on/off, persists the choice in `localStorage` (`gogogo_sound`), is keyboard-accessible (`aria-pressed` on a real `<button>`), and survives Datastar DOM morphs (delegated click, same pattern as `theme.js`).
+3. **Subtle default volume** — cuelume's mixer runs hotter than libraries tuned for a 30% default; `DEFAULT_VOLUME` (0.4) keeps every cue audible without being intrusive. Tune it in `cuelume.js`.
+4. **Sounds are additive only** — every cue pairs with existing visual feedback (toasts, button states, spinners) and never replaces it.
 
-**Sounds in play.** The palette is synthesized live with the Web Audio API — there are no audio files and no runtime dependencies. Fourteen named sounds (`chime`, `sparkle`, `press`, `toggle`, `success`, `error`, …) map onto the app's feedback: every button press → `press`, completed actions → `success`, recoverable failures → `error`. `info`/`warning` toasts stay silent by design.
+**Behavior wiring:**
+
+- **`bind()`** — enables declarative `data-cuelume-*` attributes (`data-cuelume-press`, `-release`, `-hover`, `-toggle`) anywhere, so per-element sounds work without touching the glue.
+- **Global press sound** — a delegated `pointerdown` listener plays the `press` knock on every button, `role="button"`/`role="tab"`, `.btn` link, and checkbox. Works on mouse, touch, and pen (pointer events); covers Datastar-morphed DOM.
+- **Success / error chimes** — a `MutationObserver` on `#toast-container` plays the `success` sound when an `alert-success` toast appears and the `error` sound on an `alert-error` toast. No server changes needed: the existing SSE toast path (create, clear, workflow completion, retry/Suggest failures) feeds the sounds. `info`/`warning` toasts stay silent by design.
+- **`window.Cuelume`** — a tiny public API (`play`, `setEnabled`, `setVolume`, `isEnabled`) for future settings surfaces.
+
+**Sounds in play.** Fourteen named cues (`chime`, `sparkle`, `press`, `toggle`, `success`, `error`, …) map onto the app's feedback: every button press → `press`; delete affordances (trash icon, confirm-delete, clear-completed) → `droplet`, a descending glide that evokes removal; nav tabs (Todo / Whiteboard / Config) → `tick` on hover; completed actions → `success`; recoverable failures → `error`.
 
 **Customize.** Since cuelume is client-side only, your app owns the settings — call the library's API from any module:
 
 ```js
-import { play, setVolume, setEnabled } from "/static/cuelume/index.js";
+import { play, setVolume } from "/static/cuelume/index.js";
 
-play("sparkle");              // play any of the 14 sounds imperatively
-setVolume(0.4);               // global volume, clamped to 0–1
-setEnabled(false);            // mute future playback (your own settings UI)
+play("sparkle");   // play any of the 14 sounds imperatively
+setVolume(0.6);    // global volume, clamped to 0–1 (default 0.4)
 ```
 
 To add a per-element sound, drop a `data-cuelume-*` attribute on the element — `bind()` picks it up automatically, including elements added by Datastar later.
 
-**Update / remove.** To bump the vendored copy, re-download `cuelume`'s `dist/` into `web/resources/static/cuelume/` (keep the `LICENSE`). To remove sounds entirely, delete `web/resources/static/cuelume.js`, the `cuelume/` directory, and the `<script defer type="module" src="/static/cuelume.js">` tag from the page layouts.
+**Update / remove.** To bump the vendored copy, re-download `cuelume`'s `dist/` into `web/resources/static/cuelume/` (keep the `LICENSE`). To remove the plugin entirely: delete `features/sounds/`, drop `@sounds.SoundAssets()` from the page layouts and `@sounds.SoundToggle()` from the navbar, then delete `web/resources/static/cuelume.js` + `web/resources/static/cuelume/`. The full checklist lives in the `SCOPE:layer=feature,removal=plugin` doc comment in `features/sounds/sounds.go`.
 
 
 ## Admin & Dashboard

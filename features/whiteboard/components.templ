@@ -11,6 +11,7 @@ package whiteboard
 
 import (
 	"github.com/calionauta/gogogo-fullstack-template/features/auth"
+	"github.com/calionauta/gogogo-fullstack-template/features/sounds"
 	"github.com/calionauta/gogogo-fullstack-template/internal/components"
 )
 
@@ -35,7 +36,7 @@ templ BoardListWithRealtime(email string, boards []BoardMeta, buildLabel string,
 				<link rel="stylesheet" href="/static/app.css"/>
 			@auth.ThemeHead()
 			<script defer type="module" src="/static/theme.js"></script>
-			<script defer type="module" src="/static/cuelume.js"></script>
+			@sounds.SoundAssets()
 			<script src="/static/iconify-icon.min.js"></script>
 			<script defer type="module" src="/static/datastar.js"></script>
 			@components.OfflineSyncScript(offlineSync)
@@ -120,7 +121,7 @@ templ Board(email string, docID string, buildLabel string, buildCommit string, o
 				<link rel="stylesheet" href="/static/app.css"/>
 			@auth.ThemeHead()
 			<script defer type="module" src="/static/theme.js"></script>
-			<script defer type="module" src="/static/cuelume.js"></script>
+			@sounds.SoundAssets()
 			<script src="/static/iconify-icon.min.js"></script>
 			<script src="/static/rough.min.js"></script>
 		</head>

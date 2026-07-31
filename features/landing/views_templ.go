@@ -32,6 +32,7 @@ import templruntime "github.com/a-h/templ/runtime"
 
 import (
 	"github.com/calionauta/gogogo-fullstack-template/features/auth"
+	"github.com/calionauta/gogogo-fullstack-template/features/sounds"
 	"github.com/calionauta/gogogo-fullstack-template/internal/components"
 )
 
@@ -68,7 +69,15 @@ func Index(userEmail string, buildLabel string, buildCommit string) templ.Compon
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<script defer type=\"module\" src=\"/static/theme.js\"></script><script defer type=\"module\" src=\"/static/cuelume.js\"></script><script src=\"/static/iconify-icon.min.js\"></script><style>\n\t\t\t\t/* Hero layout: narrow column on desktop, full width on\n\t\t\t\t   mobile. The visual hierarchy is logo → about → CTA,\n\t\t\t\t   matching the README ordering. */\n\t\t\t\t.landing-hero {\n\t\t\t\t\tmin-height: calc(100vh - 4rem);\n\t\t\t\t\tdisplay: flex;\n\t\t\t\t\tflex-direction: column;\n\t\t\t\t\talign-items: center;\n\t\t\t\t\tjustify-content: center;\n\t\t\t\t\tpadding: 2rem 1rem;\n\t\t\t\t}\n\t\t\t\t.landing-card {\n\t\t\t\t\tmax-width: 44rem;\n\t\t\t\t\twidth: 100%;\n\t\t\t\t}\n\t\t\t\t.landing-logo {\n\t\t\t\t\tmax-width: 28rem;\n\t\t\t\t\twidth: 100%;\n\t\t\t\t\theight: auto;\n\t\t\t\t\tmargin-left: auto;\n\t\t\t\t\tmargin-right: auto;\n\t\t\t\t\tdisplay: block;\n\t\t\t\t}\n\t\t\t\t.landing-about {\n\t\t\t\t\tcolor: var(--color-base-content);\n\t\t\t\t\tline-height: 1.7;\n\t\t\t\t\tfont-size: 0.95rem;\n\t\t\t\t}\n\t\t\t</style></head><body class=\"bg-base-100 min-h-screen\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<script defer type=\"module\" src=\"/static/theme.js\"></script>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = sounds.SoundAssets().Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<script src=\"/static/iconify-icon.min.js\"></script><style>\n\t\t\t\t/* Hero layout: narrow column on desktop, full width on\n\t\t\t\t   mobile. The visual hierarchy is logo → about → CTA,\n\t\t\t\t   matching the README ordering. */\n\t\t\t\t.landing-hero {\n\t\t\t\t\tmin-height: calc(100vh - 4rem);\n\t\t\t\t\tdisplay: flex;\n\t\t\t\t\tflex-direction: column;\n\t\t\t\t\talign-items: center;\n\t\t\t\t\tjustify-content: center;\n\t\t\t\t\tpadding: 2rem 1rem;\n\t\t\t\t}\n\t\t\t\t.landing-card {\n\t\t\t\t\tmax-width: 44rem;\n\t\t\t\t\twidth: 100%;\n\t\t\t\t}\n\t\t\t\t.landing-logo {\n\t\t\t\t\tmax-width: 28rem;\n\t\t\t\t\twidth: 100%;\n\t\t\t\t\theight: auto;\n\t\t\t\t\tmargin-left: auto;\n\t\t\t\t\tmargin-right: auto;\n\t\t\t\t\tdisplay: block;\n\t\t\t\t}\n\t\t\t\t.landing-about {\n\t\t\t\t\tcolor: var(--color-base-content);\n\t\t\t\t\tline-height: 1.7;\n\t\t\t\t\tfont-size: 0.95rem;\n\t\t\t\t}\n\t\t\t</style></head><body class=\"bg-base-100 min-h-screen\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -76,17 +85,17 @@ func Index(userEmail string, buildLabel string, buildCommit string) templ.Compon
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<main class=\"landing-hero\"><div class=\"landing-card\"><header class=\"text-center mb-6\"><img class=\"landing-logo\" src=\"/static/logo.png\" alt=\"gogogo-fullstack-template\"></header><section class=\"landing-about mb-8\"><p>Go full-stack template. Single binary, no dependencies. Database &amp; Auth. Reactive UI. Background jobs. Offline-first. Real-time multi-user. Durable workflows. Desktop &amp; Android capable.</p></section><div class=\"text-center\"><a href=\"/todo\" class=\"btn btn-primary btn-lg\" data-variant=\"primary\">Access demo site</a> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<main class=\"landing-hero\"><div class=\"landing-card\"><header class=\"text-center mb-6\"><img class=\"landing-logo\" src=\"/static/logo.png\" alt=\"gogogo-fullstack-template\"></header><section class=\"landing-about mb-8\"><p>Go full-stack template. Single binary, no dependencies. Database &amp; Auth. Reactive UI. Background jobs. Offline-first. Real-time multi-user. Durable workflows. Desktop &amp; Android capable.</p></section><div class=\"text-center\"><a href=\"/todo\" class=\"btn btn-primary btn-lg\" data-variant=\"primary\">Access demo site</a> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if userEmail == "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<p class=\"text-sm text-base-content/60 mt-3\">You'll be asked to sign in with the demo credentials.</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<p class=\"text-sm text-base-content/60 mt-3\">You'll be asked to sign in with the demo credentials.</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</div></div></main>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</div></div></main>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -94,7 +103,7 @@ func Index(userEmail string, buildLabel string, buildCommit string) templ.Compon
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -8,6 +8,8 @@ package auth
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
+import "github.com/calionauta/gogogo-fullstack-template/features/sounds"
+
 // Navbar is the top bar rendered on every authenticated page.
 // Shows the app name on the left, a user dropdown on the right with
 // the logged-in email and a logout button. Login link when no user.
@@ -45,7 +47,7 @@ func Navbar(userEmail string, active string, buildLabel string, buildCommit stri
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.ResolveAttributeValue(buildCommit + " · built " + buildLabel)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/auth/views.templ`, Line: 22, Col: 78}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/auth/views.templ`, Line: 24, Col: 78}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var2)
 		if templ_7745c5c3_Err != nil {
@@ -58,7 +60,7 @@ func Navbar(userEmail string, active string, buildLabel string, buildCommit stri
 		var templ_7745c5c3_Var3 string
 		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(buildLabel)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/auth/views.templ`, Line: 22, Col: 93}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/auth/views.templ`, Line: 24, Col: 93}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 		if templ_7745c5c3_Err != nil {
@@ -75,7 +77,7 @@ func Navbar(userEmail string, active string, buildLabel string, buildCommit stri
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<a href=\"/todo\" class=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<a href=\"/todo\" data-cuelume-hover=\"tick\" class=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -99,7 +101,7 @@ func Navbar(userEmail string, active string, buildLabel string, buildCommit stri
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<a href=\"/whiteboard\" class=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<a href=\"/whiteboard\" data-cuelume-hover=\"tick\" class=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -123,7 +125,7 @@ func Navbar(userEmail string, active string, buildLabel string, buildCommit stri
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<a href=\"/config\" class=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<a href=\"/config\" data-cuelume-hover=\"tick\" class=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -136,7 +138,11 @@ func Navbar(userEmail string, active string, buildLabel string, buildCommit stri
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\">Config</a></div></div><div class=\"app-nav-end\"><button type=\"button\" class=\"app-theme-toggle\" aria-label=\"Alternar tema\" title=\"Alternar tema claro/escuro\" data-on:click=\"var t = (typeof $theme !== 'undefined' ? ($theme === 'dark' ? 'light' : 'dark') : 'light'); $theme = t; localStorage.setItem('themeMode', t)\" data-variant=\"ghost\"><iconify-icon icon=\"material-symbols:dark-mode\" class=\"text-lg theme-toggle-icon icon-dark-mode\"></iconify-icon> <iconify-icon icon=\"material-symbols:light-mode\" class=\"text-lg theme-toggle-icon icon-light-mode\"></iconify-icon></button> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\">Config</a></div></div><div class=\"app-nav-end\"><button type=\"button\" class=\"app-theme-toggle\" aria-label=\"Alternar tema\" title=\"Alternar tema claro/escuro\" data-on:click=\"var t = (typeof $theme !== 'undefined' ? ($theme === 'dark' ? 'light' : 'dark') : 'light'); $theme = t; localStorage.setItem('themeMode', t)\" data-variant=\"ghost\"><iconify-icon icon=\"material-symbols:dark-mode\" class=\"text-lg theme-toggle-icon icon-dark-mode\"></iconify-icon> <iconify-icon icon=\"material-symbols:light-mode\" class=\"text-lg theme-toggle-icon icon-light-mode\"></iconify-icon></button>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = sounds.SoundToggle().Render(ctx, templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -153,7 +159,7 @@ func Navbar(userEmail string, active string, buildLabel string, buildCommit stri
 			var templ_7745c5c3_Var10 string
 			templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(userEmail)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/auth/views.templ`, Line: 60, Col: 46}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/auth/views.templ`, Line: 63, Col: 46}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 			if templ_7745c5c3_Err != nil {
@@ -166,7 +172,7 @@ func Navbar(userEmail string, active string, buildLabel string, buildCommit stri
 			var templ_7745c5c3_Var11 string
 			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(userEmail)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/auth/views.templ`, Line: 67, Col: 60}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/auth/views.templ`, Line: 70, Col: 60}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 			if templ_7745c5c3_Err != nil {
@@ -217,43 +223,51 @@ func LoginPage(next string, errMsg string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<script src=\"/static/iconify-icon.min.js\"></script><script defer type=\"module\" src=\"/static/datastar.js\"></script><script defer type=\"module\" src=\"/static/cuelume.js\"></script></head><body class=\"bg-base-200 min-h-screen flex items-center justify-center p-4\"><div class=\"card w-full max-w-md bg-base-100 shadow-xl\"><div class=\"card-body\"><h1 class=\"text-2xl font-bold text-center mb-2\">gogogo-fullstack-template</h1><p class=\"text-center text-base-content/60 mb-6\">Sign in to manage your todos</p>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<script src=\"/static/iconify-icon.min.js\"></script><script defer type=\"module\" src=\"/static/datastar.js\"></script>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = sounds.SoundAssets().Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</head><body class=\"bg-base-200 min-h-screen flex items-center justify-center p-4\"><div class=\"card w-full max-w-md bg-base-100 shadow-xl\"><div class=\"card-body\"><h1 class=\"text-2xl font-bold text-center mb-2\">gogogo-fullstack-template</h1><p class=\"text-center text-base-content/60 mb-6\">Sign in to manage your todos</p>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if errMsg != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<div role=\"alert\" class=\"alert alert-error mb-4\"><span>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "<div role=\"alert\" class=\"alert alert-error mb-4\"><span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var13 string
 			templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(errMsg)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/auth/views.templ`, Line: 129, Col: 21}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/auth/views.templ`, Line: 132, Col: 21}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "</span></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "</span></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<form method=\"POST\" action=\"/login\" class=\"space-y-4\"><input type=\"hidden\" name=\"next\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "<form method=\"POST\" action=\"/login\" class=\"space-y-4\"><input type=\"hidden\" name=\"next\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var14 string
 		templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.ResolveAttributeValue(next)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/auth/views.templ`, Line: 134, Col: 51}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/auth/views.templ`, Line: 137, Col: 51}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var14)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "\"> <label class=\"form-control w-full\"><div class=\"label\"><span class=\"label-text\">Email</span></div><input type=\"email\" name=\"email\" value=\"demo@demo.app\" class=\"input w-full\" required autocomplete=\"email\"></label> <label class=\"form-control w-full\"><div class=\"label\"><span class=\"label-text\">Password</span></div><input type=\"password\" name=\"password\" value=\"demo1234456\" class=\"input w-full\" required autocomplete=\"current-password\"></label> <button type=\"submit\" class=\"btn btn-primary w-full\" data-variant=\"primary\">Sign in</button><div class=\"text-xs text-center text-base-content/40 mt-4\">Demo credentials prefilled. Click <strong>Sign in</strong> to enter.</div></form></div></div></body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "\"> <label class=\"form-control w-full\"><div class=\"label\"><span class=\"label-text\">Email</span></div><input type=\"email\" name=\"email\" value=\"demo@demo.app\" class=\"input w-full\" required autocomplete=\"email\"></label> <label class=\"form-control w-full\"><div class=\"label\"><span class=\"label-text\">Password</span></div><input type=\"password\" name=\"password\" value=\"demo1234456\" class=\"input w-full\" required autocomplete=\"current-password\"></label> <button type=\"submit\" class=\"btn btn-primary w-full\" data-variant=\"primary\">Sign in</button><div class=\"text-xs text-center text-base-content/40 mt-4\">Demo credentials prefilled. Click <strong>Sign in</strong> to enter.</div></form></div></div></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

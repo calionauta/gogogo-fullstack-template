@@ -1,5 +1,7 @@
 package auth
 
+import "github.com/calionauta/gogogo-fullstack-template/features/sounds"
+
 // Navbar is the top bar rendered on every authenticated page.
 // Shows the app name on the left, a user dropdown on the right with
 // the logged-in email and a logout button. Login link when no user.
@@ -21,13 +23,13 @@ templ Navbar(userEmail string, active string, buildLabel string, buildCommit str
 			// title= that exposes commit + build time on hover.
 			<span class="app-nav-badge" title={ buildCommit + " · built " + buildLabel }>{ buildLabel }</span>
 			<div class="app-nav-links">
-				<a href="/todo" class={ templ.Classes("app-nav-link", map[string]bool{
+				<a href="/todo" data-cuelume-hover="tick" class={ templ.Classes("app-nav-link", map[string]bool{
 					"is-active": active == "todo",
 				}) }>Todo</a>
-				<a href="/whiteboard" class={ templ.Classes("app-nav-link", map[string]bool{
+				<a href="/whiteboard" data-cuelume-hover="tick" class={ templ.Classes("app-nav-link", map[string]bool{
 					"is-active": active == "whiteboard",
 				}) }>Whiteboard</a>
-				<a href="/config" class={ templ.Classes("app-nav-link", map[string]bool{
+				<a href="/config" data-cuelume-hover="tick" class={ templ.Classes("app-nav-link", map[string]bool{
 					"is-active": active == "config",
 				}) }>Config</a>
 			</div>
@@ -43,6 +45,7 @@ templ Navbar(userEmail string, active string, buildLabel string, buildCommit str
 				<iconify-icon icon="material-symbols:dark-mode" class="text-lg theme-toggle-icon icon-dark-mode"></iconify-icon>
 				<iconify-icon icon="material-symbols:light-mode" class="text-lg theme-toggle-icon icon-light-mode"></iconify-icon>
 			</button>
+			@sounds.SoundToggle()
 			if userEmail == "" {
 				<a
 					href="/login"
@@ -114,7 +117,7 @@ templ LoginPage(next string, errMsg string) {
 			@ThemeHead()
 			<script src="/static/iconify-icon.min.js"></script>
 			<script defer type="module" src="/static/datastar.js"></script>
-			<script defer type="module" src="/static/cuelume.js"></script>
+			@sounds.SoundAssets()
 		</head>
 		<body class="bg-base-200 min-h-screen flex items-center justify-center p-4">
 			<div class="card w-full max-w-md bg-base-100 shadow-xl">

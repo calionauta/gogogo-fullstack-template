@@ -139,14 +139,14 @@ func TodoItem(item todo.Todo) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</span> <button type=\"button\" class=\"btn btn-ghost btn-xs text-error transition-transform hover:scale-110 active:scale-95\" title=\"Delete todo\" data-on:click__prevent=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</span> <button type=\"button\" class=\"btn btn-ghost btn-xs text-error transition-transform hover:scale-110 active:scale-95\" title=\"Delete todo\" data-cuelume-press=\"droplet\" data-on:click__prevent=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var7 string
 		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.ResolveAttributeValue("$confirmingDeleteId = " + safeJSString(item.ID) + "; $confirmingDeleteTitle = " + safeJSString(item.Title) + "; document.getElementById('confirm-delete-modal').showModal()")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_item.templ`, Line: 44, Col: 201}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_item.templ`, Line: 45, Col: 201}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var7)
 		if templ_7745c5c3_Err != nil {
