@@ -5,7 +5,6 @@ import (
 	"io/fs"
 	"log"
 	"log/slog"
-	"net/http"
 	"strings"
 	"sync"
 
@@ -78,6 +77,10 @@ func Init(
 		// types, and no auth is required (the dashboard auth is per-route,
 		// not a global guard — proven by /api/todos serving unauthed).
 		staticFS := resources.StaticFS()
+		staticAssets := resources.AssetHandler(staticFS, "/static")
+		// Service Worker is served from the ROOT URL (/sw.js) but is the
+		// same embedded file; AssetHandler with prefix "/" resolves it.
+		swAssets := resources.AssetHandler(staticFS, "/")
 		if err := fs.WalkDir(staticFS, ".", func(path string, d fs.DirEntry, err error) error {
 			if err != nil {
 				return err
@@ -87,8 +90,7 @@ func Init(
 			}
 			route := "/static/" + path
 			se.Router.GET(route, func(c *core.RequestEvent) error {
-				hs := http.StripPrefix("/static/", http.FileServer(http.FS(staticFS)))
-				hs.ServeHTTP(c.Response, c.Request)
+				staticAssets.ServeHTTP(c.Response, c.Request)
 				return nil
 			})
 			return nil
@@ -106,8 +108,7 @@ func Init(
 		// the script is later moved under /static/.
 		se.Router.GET("/sw.js", func(c *core.RequestEvent) error {
 			c.Response.Header().Set("Service-Worker-Allowed", "/")
-			hs := http.FileServer(http.FS(staticFS))
-			hs.ServeHTTP(c.Response, c.Request)
+			swAssets.ServeHTTP(c.Response, c.Request)
 			return nil
 		})
 

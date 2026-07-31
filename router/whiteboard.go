@@ -4,7 +4,6 @@ package router
 import (
 	"io/fs"
 	"log"
-	"net/http"
 
 	"github.com/pocketbase/pocketbase/core"
 
@@ -13,6 +12,7 @@ import (
 	"github.com/calionauta/gogogo-fullstack-template/internal/collab"
 	"github.com/calionauta/gogogo-fullstack-template/internal/nats"
 	"github.com/calionauta/gogogo-fullstack-template/internal/queue"
+	"github.com/calionauta/gogogo-fullstack-template/web/resources"
 )
 
 // registerWhiteboard wires the collaborative whiteboard with a dedicated
@@ -39,6 +39,7 @@ func registerWhiteboard(se *core.ServeEvent, _ *queue.Queue, hub *queue.SSEHub, 
 	// feature is self-contained: when the package is removed, its static
 	// assets go with it. Same exact-route pattern as core static assets.
 	staticFS := whiteboard.StaticFS()
+	staticAssets := resources.AssetHandler(staticFS, "/static")
 	if err := fs.WalkDir(staticFS, ".", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -48,8 +49,7 @@ func registerWhiteboard(se *core.ServeEvent, _ *queue.Queue, hub *queue.SSEHub, 
 		}
 		route := "/static/" + path
 		se.Router.GET(route, func(c *core.RequestEvent) error {
-			hs := http.StripPrefix("/static/", http.FileServer(http.FS(staticFS)))
-			hs.ServeHTTP(c.Response, c.Request)
+			staticAssets.ServeHTTP(c.Response, c.Request)
 			return nil
 		})
 		return nil
