@@ -1,3 +1,9 @@
+## [0.26.1] - 2026-07-31
+
+### Fixed
+
+- **Every toast type now plays its cue.** The toast observer only mapped success/error/warning, so info toasts ("Deleted", "Nothing to clear", workflow progress) were silent. Info toasts now play `page` (a neutral papery flick), completing the type→sound map: success → `success`, error → `error`, warning → `loading`, info → `page`. Verified with AudioContext instrumentation in headless Chromium (create + delete both synthesize sound).
+
 ## [0.26.0] - 2026-07-31
 
 ### Added
