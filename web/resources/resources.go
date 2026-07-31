@@ -99,6 +99,8 @@ func AssetHandler(fsys fs.FS, urlPrefix string) http.Handler {
 		if r.Method == http.MethodHead {
 			return
 		}
-		w.Write(a.data)
+		// A client that goes away mid-write is normal HTTP; there is nothing
+		// actionable to do with the error at this layer.
+		_, _ = w.Write(a.data)
 	})
 }
