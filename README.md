@@ -272,10 +272,8 @@ Every interactive action ships with audio feedback out of the box — a curated 
 
 - **`bind()`** — enables declarative `data-cuelume-*` attributes (`data-cuelume-press`, `-release`, `-hover`, `-toggle`) anywhere, so per-element sounds work without touching the glue.
 - **Global press sound** — a delegated `pointerdown` listener plays the `press` knock on every button, `role="button"`/`role="tab"`, `.btn` link, and checkbox. Works on mouse, touch, and pen (pointer events); covers Datastar-morphed DOM.
-- **Success / error chimes** — a `MutationObserver` on `#toast-container` plays the `success` sound when an `alert-success` toast appears and the `error` sound on an `alert-error` toast. No server changes needed: the existing SSE toast path (create, clear, workflow completion, retry/Suggest failures) feeds the sounds. `info`/`warning` toasts stay silent by design.
+- **Toast-type chimes** — a `MutationObserver` on `#toast-container` plays a cue matching the toast type: `success` on an `alert-success` toast, `error` on an `alert-error` toast, and `loading` on an `alert-warning` toast (retry attempts — cuelume has no dedicated warning cue; the rising shimmer reads as "still working"). No server changes needed: the existing SSE toast path (create, clear, workflow completion, retry/Suggest failures) feeds the sounds. `info` toasts stay silent by design.
 - **`window.Cuelume`** — a tiny public API (`play`, `setEnabled`, `setVolume`, `isEnabled`) for future settings surfaces.
-
-**Sounds in play.** Fourteen named cues (`chime`, `sparkle`, `press`, `toggle`, `success`, `error`, …) map onto the app's feedback: every button press → `press`; delete affordances (trash icon, confirm-delete, clear-completed) → `droplet`, a descending glide that evokes removal; nav tabs (Todo / Whiteboard / Config) → `tick` on hover (desktop) and on press (mouse + touch); re-enabling sound from the navbar toggle → `chime` (muting is deliberately silent); completed actions → `success`; recoverable failures → `error`.
 
 **Customize.** Since cuelume is client-side only, your app owns the settings — call the library's API from any module:
 

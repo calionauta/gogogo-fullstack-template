@@ -78,6 +78,7 @@ Lessons from v0.18.0 (offline-add + CI flake) — see CHANGELOG.md.
 - **Confirm live deployment by byte-diffing an embedded asset.** `diff <(curl https://<host>/static/<asset>) <(repo <asset>)` is the cheapest proof the running binary matches the latest commit. Use for any "is the fix actually live?" question.
 - **`git stash drop` is destructive** — it removes the ref without applying. Use `git stash pop` (apply + remove) or, before any stash drop, snapshot working changes to a `wip-*` branch.
 - **Heredoc commit/tag messages**: prefer `git commit -F - <<'EOF' ... EOF` (quoted EOF = literal body) or `git tag -F /tmp/msg`. Avoid `git commit -m "$(cat <<'EOF' ... EOF)"` — bash quoting through the outer `"` + `$()` can fail parse on apostrophes/backticks in the body.
+- **Orphan `web` processes break tests.** If DagNats onboarding tests fail with `failed to register onboarding workflow`, an old `go run`/`web` binary is likely still holding `:18099`/`:4224` — kill it: `pkill -x web` or `lsof -ti :18099 | xargs kill`.
 
 ## Feedback loop (4 tiers, cheapest first)
 

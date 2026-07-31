@@ -88,9 +88,18 @@ func ensureTodosCollection(app core.App, offlineSyncEnabled bool) error {
 		col.Fields.Add(
 			&core.TextField{Name: "title", Required: true},
 			&core.BoolField{Name: "completed"},
-			&core.DateField{Name: "created"},
-			&core.DateField{Name: "updated"},
 		)
+	}
+
+	// Fix CAL-19: created/updated must be PocketBase AutodateFields so PB
+	// stamps them on create/update. A previous seed declared them as plain
+	// DateFields, which are never auto-stamped — every record then carried a
+	// zero (0001-01-01) created time, and the list query (which sorts by
+	// -created) broke once the shadowed columns were dropped. Replace them
+	// on existing collections; a fresh collection gets them from the same
+	// helper.
+	if ensureTodoTimestampFields(col) {
+		slog.Info("seed: restored created/updated as AutodateFields on todos (system timestamps re-enabled)")
 	}
 
 	// Idempotent: only add the owner relation if it is missing (covers
@@ -141,6 +150,28 @@ func ensureTodosCollection(app core.App, offlineSyncEnabled bool) error {
 		return fmt.Errorf("seed: save todos collection: %w", err)
 	}
 	return nil
+}
+
+// ensureTodoTimestampFields makes sure the collection's created/updated are
+// AutodateFields (auto-stamped by PocketBase on create/update), replacing
+// plain DateFields if a previous seed declared them that way. Returns true
+// if the schema changed. See the CAL-19 note in ensureTodosCollection.
+func ensureTodoTimestampFields(col *core.Collection) bool {
+	changed := false
+	ensure := func(name string, onCreate, onUpdate bool) {
+		existing := col.Fields.GetByName(name)
+		if _, ok := existing.(*core.AutodateField); ok {
+			return
+		}
+		if existing != nil {
+			col.Fields.RemoveByName(name)
+		}
+		col.Fields.Add(&core.AutodateField{Name: name, OnCreate: onCreate, OnUpdate: onUpdate})
+		changed = true
+	}
+	ensure("created", true, false)
+	ensure("updated", true, true)
+	return changed
 }
 
 // ensureWhiteboardsCollection creates the "whiteboards" collection that

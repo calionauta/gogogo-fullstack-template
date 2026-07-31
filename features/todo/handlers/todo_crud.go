@@ -31,24 +31,18 @@ func (h *TodoHandler) handleList(c *core.RequestEvent) error {
 	} else if c.Auth == nil {
 		return c.Redirect(http.StatusSeeOther, "/login")
 	}
-	filter := c.Request.URL.Query().Get("filter")
-	if filter == "" {
-		filter = "all"
-	}
+	filter := filterOf(c)
 	todos, err := h.listTodos(c, filter)
 	if err != nil {
 		slog.Error("todo: list failed", "filter", filter, "error", err)
 		return c.String(statusInternal, "error listing todos")
 	}
 
-	// Total count for the header badge — must reflect ALL owned items,
-	// not just the filtered list, so the count badge stays correct
-	// regardless of the active filter tab (fix CAL-18).
-	totalCount, countErr := h.countOwnedTodos(c)
-	if countErr != nil {
-		slog.Warn("todo: count on list failed, falling back to filtered count", "error", countErr)
-		totalCount = len(todos)
-	}
+	// Item count reflects the CURRENT filter — the header badge and the
+	// footer counter show how many todos the user is actually looking at
+	// (all / active / completed), and every re-render keeps them in sync.
+	// Mutations carry the same ?filter= the client is on, so the count
+	// stays correct per filter even in realtime.
 
 	// Merge the filter + itemCount signals so the tabs flip and the
 	// header/footer count update; then patch the #todo-list region with
@@ -63,13 +57,13 @@ func (h *TodoHandler) handleList(c *core.RequestEvent) error {
 	// breaking the morpheus skin (CAL-14).
 	skinName := h.resolveSkin(c)
 	signals := todo.Signals{
-		Todos: todos, Filter: filter, ItemCount: totalCount,
+		Todos: todos, Filter: filter, ItemCount: len(todos),
 		LLMEnabled: h.llmEnabled(),
 	}
 	sse := sdk.NewSSE(c.Response, c.Request)
 	if err := dshelpers.MergeSignals(sse, todo.Signals{
 		Filter:     filter,
-		ItemCount:  totalCount,
+		ItemCount:  len(todos),
 		Loading:    false,
 		LLMEnabled: h.llmEnabled(),
 	}); err != nil {
@@ -94,28 +88,17 @@ func (h *TodoHandler) handleListFragment(c *core.RequestEvent) error {
 	} else if c.Auth == nil {
 		return c.Redirect(http.StatusSeeOther, "/login")
 	}
-	filter := c.Request.URL.Query().Get("filter")
-	if filter == "" {
-		filter = "all"
-	}
+	filter := filterOf(c)
 	todos, err := h.listTodos(c, filter)
 	if err != nil {
 		slog.Error("todo: fragment list failed", "filter", filter, "error", err)
 		return c.String(statusInternal, "error listing todos")
 	}
-	// Total count for the badge — must reflect ALL owned items, not
-	// just the filtered list, so the count stays correct after every
-	// PB realtime refetch (fix CAL-18).
-	totalCount, countErr := h.countOwnedTodos(c)
-	if countErr != nil {
-		slog.Warn("todo: count on fragment failed, falling back to filtered count", "error", countErr)
-		totalCount = len(todos)
-	}
 	skinName := h.resolveSkin(c)
 	signals := todo.Signals{
 		Todos:      todos,
 		Filter:     filter,
-		ItemCount:  totalCount,
+		ItemCount:  len(todos),
 		LLMEnabled: h.llmEnabled(),
 	}
 	var buf bytes.Buffer
@@ -124,11 +107,11 @@ func (h *TodoHandler) handleListFragment(c *core.RequestEvent) error {
 		return c.String(statusInternal, "error rendering list")
 	}
 	c.Response.Header().Set("Content-Type", "text/html; charset=utf-8")
-	// Merge the correct item count signal so the client's badge/footer
-	// updates even though this is an HTML fragment (not SSE). Without this
-	// the $itemCount signal would stay stale after PB realtime refetches,
-	// leaving the header badge and footer count out of sync (fix CAL-18).
-	c.Response.Header().Set("datastar-signals", fmt.Sprintf(`{"itemCount":%d}`, totalCount))
+	// Merge the filtered item count signal so the client's badge/footer
+	// updates even though this is an HTML fragment (not SSE). The client
+	// re-fetches this fragment with its current ?filter=, so the count
+	// stays correct per filter after every PB realtime refetch.
+	c.Response.Header().Set("datastar-signals", fmt.Sprintf(`{"itemCount":%d}`, len(todos)))
 	// Datastar morph hints: when a client re-fetches this fragment (after a
 	// PocketBase realtime record change), the outer morph targets #todo-list
 	// and replaces the whole region — so deletes disappear and creates/updates
@@ -225,7 +208,7 @@ func (h *TodoHandler) handleCreate(c *core.RequestEvent) error {
 		return c.String(http.StatusOK, "replayed")
 	}
 
-	todos, err := h.listTodos(c, "all")
+	todos, err := h.listTodos(c, filterOf(c))
 	if err != nil {
 		slog.Error("todo: list after create failed", "error", err)
 		return c.String(statusInternal, "error listing todos")
@@ -285,7 +268,7 @@ func (h *TodoHandler) handleToggle(c *core.RequestEvent) error {
 		return c.String(http.StatusOK, "replayed")
 	}
 
-	todos, err := h.listTodos(c, "all")
+	todos, err := h.listTodos(c, filterOf(c))
 	if err != nil {
 		slog.Error("todo: list after toggle failed", "error", err)
 		return c.String(statusInternal, "error listing todos")
@@ -349,7 +332,7 @@ func (h *TodoHandler) handleDelete(c *core.RequestEvent) error {
 		return c.String(http.StatusOK, "replayed")
 	}
 
-	todos, err := h.listTodos(c, "all")
+	todos, err := h.listTodos(c, filterOf(c))
 	if err != nil {
 		slog.Error("todo: list after delete failed", "error", err)
 		return c.String(statusInternal, "error listing todos")
@@ -392,7 +375,7 @@ func (h *TodoHandler) handleClearCompleted(c *core.RequestEvent) error {
 		return c.String(http.StatusOK, "replayed")
 	}
 
-	todos, err := h.listTodos(c, "all")
+	todos, err := h.listTodos(c, filterOf(c))
 	if err != nil {
 		slog.Error("todo: list after clear failed", "error", err)
 		return c.String(statusInternal, "error listing todos")
@@ -429,4 +412,15 @@ func ownerOf(c *core.RequestEvent) string {
 		return ""
 	}
 	return c.Auth.Id
+}
+
+// filterOf returns the list filter requested by the client (all / active /
+// completed), defaulting to "all". Mutations send their ?filter= so the
+// re-rendered list and its item count stay scoped to the tab the user is on.
+func filterOf(c *core.RequestEvent) string {
+	f := c.Request.URL.Query().Get("filter")
+	if f == "" {
+		return "all"
+	}
+	return f
 }

@@ -90,7 +90,7 @@ templ TodoList(signals todo.Signals) {
 								<button
 									class="btn btn-ghost btn-xs text-error transition-all hover:scale-105 active:scale-95"
 									data-cuelume-press="droplet"
-									data-on:click="while (document.querySelector('.todo-item')) { @post('/api/todos/completed/delete?clientID=' + encodeURIComponent($clientID || '')); break; }"
+									data-on:click="while (document.querySelector('.todo-item')) { @post('/api/todos/completed/delete?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all')); break; }"
 								 data-variant="ghost">
 									Clear completed
 								</button>
@@ -146,6 +146,8 @@ templ TodoList(signals todo.Signals) {
 						<div class="tabs tabs-box w-full mt-0 mb-2" role="tablist">
 							<button
 								class="tab tab-sm flex-1 transition-all"
+								data-cuelume-hover="tick"
+								data-cuelume-press="toggle"
 								data-on:click="$sidebarTab = 'queue'"
 								data-class={ "{'tab-active': $sidebarTab === 'queue'}" }
 							>
@@ -154,6 +156,8 @@ templ TodoList(signals todo.Signals) {
 							if signals.LLMEnabled || signals.SimulatedLLM {
 								<button
 									class="tab tab-sm flex-1 transition-all"
+									data-cuelume-hover="tick"
+									data-cuelume-press="toggle"
 									data-on:click="$sidebarTab = 'ai'"
 									data-class={ "{'tab-active': $sidebarTab === 'ai'}" }
 								>
@@ -163,6 +167,8 @@ templ TodoList(signals todo.Signals) {
 							if signals.DagNatsEnabled {
 								<button
 									class="tab tab-sm flex-1 transition-all"
+									data-cuelume-hover="tick"
+									data-cuelume-press="toggle"
 									data-on:click="$sidebarTab = 'workflow'"
 									data-class={ "{'tab-active': $sidebarTab === 'workflow'}" }
 								>
@@ -402,7 +408,7 @@ templ TodoList(signals todo.Signals) {
 templ createForm(signals todo.Signals) {
 	<form
 		class="join w-full mb-4"
-		data-on:submit__prevent="if (!$loading) { $loading = true; @post('/api/todos?clientID=' + encodeURIComponent($clientID || '') + '&idem_key=' + encodeURIComponent(crypto.randomUUID()), {contentType: 'form'}); }"
+		data-on:submit__prevent="if (!$loading) { $loading = true; @post('/api/todos?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all') + '&idem_key=' + encodeURIComponent(crypto.randomUUID()), {contentType: 'form'}); }"
 	>
 		<input
 			type="text"
@@ -448,6 +454,8 @@ templ filterTab(label, value, endpoint string) {
 		href="#"
 		role="tab"
 		class="tab tab-sm sm:tab-md transition-all"
+		data-cuelume-hover="tick"
+		data-cuelume-press="toggle"
 		data-class={ "{ 'tab-active': $filter === '" + value + "' }" }
 		data-on:click__prevent={ "$loading = true; @get('" + endpoint + "')" }
 	>
@@ -550,7 +558,7 @@ templ deleteConfirmModal() {
 					class="btn btn-error btn-sm transition-all"
 					data-cuelume-press="droplet"
 					data-attr:disabled="$deleting"
-					data-on:click="$deleting = true; document.getElementById('confirm-delete-modal').close(); @post('/api/todos/' + $confirmingDeleteId + '/delete?clientID=' + encodeURIComponent($clientID || ''))"
+					data-on:click="$deleting = true; document.getElementById('confirm-delete-modal').close(); @post('/api/todos/' + $confirmingDeleteId + '/delete?clientID=' + encodeURIComponent($clientID || '') + '&filter=' + encodeURIComponent($filter || 'all'))"
 				 data-variant="destructive">
 					<span class="inline-flex items-center gap-2">
 						<span>Delete</span>

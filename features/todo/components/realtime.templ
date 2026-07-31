@@ -103,7 +103,7 @@ templ PbRealtimeRecords() {
 		id="pb-realtime-resync"
 		type="button"
 		class="hidden"
-		data-on:click={ "@get('/api/todos/fragment')" }
+		data-on:click={ "@get('/api/todos/fragment?filter=' + encodeURIComponent($filter || 'all'))" }
 		aria-hidden="true"
 	></button>
 	<script type="module">

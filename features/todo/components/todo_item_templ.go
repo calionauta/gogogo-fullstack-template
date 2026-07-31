@@ -77,9 +77,9 @@ func TodoItem(item todo.Todo) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var3 string
-		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue("@post('/api/todos/" + item.ID + "/toggle')")
+		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.ResolveAttributeValue("@post('/api/todos/" + item.ID + "/toggle?filter=' + encodeURIComponent($filter || 'all'))")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_item.templ`, Line: 32, Col: 72}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_item.templ`, Line: 32, Col: 119}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var3)
 		if templ_7745c5c3_Err != nil {
@@ -115,7 +115,7 @@ func TodoItem(item todo.Todo) templ.Component {
 			var templ_7745c5c3_Var5 string
 			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(item.Title)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_item.templ`, Line: 37, Col: 36}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_item.templ`, Line: 37, Col: 35}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 			if templ_7745c5c3_Err != nil {
@@ -160,19 +160,37 @@ func TodoItem(item todo.Todo) templ.Component {
 	})
 }
 
+// timeAgo renders a compact, meaningful relative age ("now", "5m ago",
+// "3h ago", "2d ago", "1mo ago") so each row gets a distinct, instantly
+// readable creation time. The old fallback (dd/mm) collapsed everything
+// to a year-less date that meant nothing when created was missing. A zero
+// CreatedAt renders empty rather than a nonsense "54y ago" from
+// time.Since(zero) — and created is populated correctly once the seed no
+// longer shadows PocketBase's system field (db/seed.go).
 func timeAgo(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
 	d := time.Since(t)
 	switch {
 	case d < time.Minute:
-		return "agora"
+		return "now"
 	case d < time.Hour:
 		m := int(d.Minutes())
 		if m == 1 {
-			return "1 min"
+			return "1m ago"
 		}
-		return fmt.Sprintf("%d min", m)
+		return fmt.Sprintf("%dm ago", m)
+	case d < 24*time.Hour:
+		return fmt.Sprintf("%dh ago", int(d.Hours()))
+	case d < 7*24*time.Hour:
+		return fmt.Sprintf("%dd ago", int(d.Hours()/24))
+	case d < 30*24*time.Hour:
+		return fmt.Sprintf("%dw ago", int(d.Hours()/(7*24)))
+	case d < 365*24*time.Hour:
+		return fmt.Sprintf("%dmo ago", int(d.Hours()/(30*24)))
 	default:
-		return t.Format("02/01")
+		return fmt.Sprintf("%dy ago", int(d.Hours()/(365*24)))
 	}
 }
 

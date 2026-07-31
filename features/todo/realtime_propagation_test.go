@@ -247,14 +247,16 @@ func TestRealtimeResyncWiringRendered(t *testing.T) {
 	// attribute value ( ' -> &#39; ), so the rendered form is
 	// @get(&#39;/api/todos/fragment&#39;). The browser unescapes it when reading
 	// the attribute, so Datastar still sees @get('/api/todos/fragment').
-	// Accept either rendering.
-	plain := "@get('/api/todos/fragment')"
-	escaped := "@get(&#39;/api/todos/fragment&#39;)"
+	// Accept either rendering. The resync carries the client's current
+	// ?filter= so the re-fetched list and its item count stay scoped to
+	// the tab the user is on (all / active / completed).
+	plain := "@get('/api/todos/fragment?filter=' + encodeURIComponent($filter || 'all'))"
+	escaped := "@get(&#39;/api/todos/fragment?filter=&#39; + encodeURIComponent($filter || &#39;all&#39;))"
 	if !strings.Contains(html, plain) && !strings.Contains(html, escaped) {
 		if i := strings.Index(html, "pb-realtime-resync"); i >= 0 {
 			t.Logf("button context: %q", html[i-60:i+220])
 		}
-		t.Fatalf("page missing @get resync wiring for /api/todos/fragment (checked %q and %q)", plain, escaped)
+		t.Fatalf("page missing @get resync wiring for /api/todos/fragment?filter= (checked %q and %q)", plain, escaped)
 	}
 	if strings.Contains(html, "actions.get('/api/todos/fragment')") {
 		t.Fatalf("regression: page still uses crashing actions.get('/api/todos/fragment') instead of the @get button")
