@@ -204,13 +204,13 @@ func TodoList(signals todo.Signals) templ.Component {
 		var templ_7745c5c3_Var9 string
 		templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.ResolveAttributeValue("{'step-success': $demoStep >= 3, 'step-primary text-base-content': $demoStep === 2}")
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 211, Col: 107}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 211, Col: 106}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var9)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "\">Retry on simulated failure (retry-go)<span class=\"inline text-xs text-base-content/60 ml-1 normal-case\" data-show=\"$lastRetryStatus === 'attempt'\" data-text=\"'Retrying — attempt ' + ($lastRetryAttempt || 1) + ' (retry-go)'\"></span></li><li class=\"step transition-all duration-500\" data-class=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "\"><span class=\"flex flex-col\">Retry on simulated failure (retry-go)<span class=\"text-xs text-base-content/60 normal-case\" data-show=\"$lastRetryStatus === 'attempt'\" data-text=\"'Retrying — attempt ' + ($lastRetryAttempt || 1) + ' (retry-go)'\"></span></span></li><li class=\"step transition-all duration-500\" data-class=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -248,13 +248,13 @@ func TodoList(signals todo.Signals) templ.Component {
 			var templ_7745c5c3_Var12 string
 			templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.ResolveAttributeValue("{'step-primary text-base-content': $aiStep >= 1 && $aiPending, 'step-success': $aiStep >= 1 && !$aiPending && $aiPhase !== 'error', 'step-error': $aiPhase === 'error'}")
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 278, Col: 192}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `features/todo/components/todo_list.templ`, Line: 278, Col: 191}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var12)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "\">Retry on transient error (retry-go)<span class=\"inline text-xs text-base-content/60 ml-1 normal-case\" data-show=\"$lastRetryStatus === 'attempt'\" data-text=\"'Retrying — attempt ' + ($lastRetryAttempt || 1) + ' (retry-go)'\"></span></li><li class=\"step transition-all duration-500\" data-class=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "\"><span class=\"flex flex-col\">Retry on transient error (retry-go)<span class=\"text-xs text-base-content/60 normal-case\" data-show=\"$lastRetryStatus === 'attempt'\" data-text=\"'Retrying — attempt ' + ($lastRetryAttempt || 1) + ' (retry-go)'\"></span></span></li><li class=\"step transition-all duration-500\" data-class=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
