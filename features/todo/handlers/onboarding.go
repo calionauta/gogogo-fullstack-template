@@ -132,7 +132,13 @@ func (h *OnboardingHandler) handleStart(c *core.RequestEvent) error {
 	// detects the greet step and publishes it naturally. Publishing
 	// from BOTH places creates a duplicate toast.
 	go func() {
-		runID, err := h.client.StartRun(context.Background(), "onboarding", map[string]any{"user": user})
+		// The run input carries the owner AND the example todo titles.
+		// The titles travel in the input (not step config) because
+		// DagNats v0.0.5 never delivers step config/metadata to workers —
+		// the input/output chain is the durable channel, and the root
+		// step threads it forward to the create-todo steps.
+		runID, err := h.client.StartRun(context.Background(), "onboarding",
+			map[string]any{"user": user, "todos": dagnats.ExampleTodoTexts})
 		if err != nil {
 			slog.Error("onboarding: start failed", "user", user, "error", err)
 			if h.broadcaster != nil {

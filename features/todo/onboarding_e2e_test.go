@@ -2,6 +2,8 @@ package todo_test
 
 import (
 	"context"
+	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
@@ -106,16 +108,44 @@ func buildFixtureDagNats(t *testing.T) (
 	})
 	shim := server.EmbeddedWorker(srv)
 	shim.Handle("onboarding-greet", func(ctx worker.TaskContext) error {
-		return ctx.Complete([]byte(`"welcomed"`))
+		// Forward the run input (root step) so the create-todo steps
+		// receive {"user":..., "todos":[...]} — mirrors production.
+		return ctx.Complete(ctx.Input())
 	})
 	shim.Handle("onboarding-await-first-todo", func(ctx worker.TaskContext) error {
 		if _, waitErr := ctx.WaitForSignal("first-todo", 50*time.Minute); waitErr != nil {
 			return ctx.Fail(waitErr)
 		}
-		return ctx.Complete([]byte(`"resumed"`))
+		// Forward the owner payload through to the create-todo steps.
+		return ctx.Complete(ctx.Input())
 	})
 	shim.Handle("onboarding-create-todo", func(ctx worker.TaskContext) error {
-		return ctx.Complete([]byte(`"created"`))
+		// Mirror the production worker (cmd/web/dagnats.go): the run
+		// input is {"user":..., "todos":[...]}, threaded forward by the
+		// root step; each create-todo step pops one title, creates that
+		// todo scoped to the owner, and completes with the remainder.
+		var input struct {
+			User  string   `json:"user"`
+			Todos []string `json:"todos"`
+		}
+		if len(ctx.Input()) > 0 {
+			_ = json.Unmarshal(ctx.Input(), &input)
+		}
+		text := ""
+		if len(input.Todos) > 0 {
+			text, input.Todos = input.Todos[0], input.Todos[1:]
+		}
+		if text == "" {
+			text = "Onboarding task"
+		}
+		if createErr := h.CreateTodoForOnboarding(text, input.User); createErr != nil {
+			return ctx.Fail(createErr)
+		}
+		out, marshalErr := json.Marshal(input)
+		if marshalErr != nil {
+			return ctx.Fail(marshalErr)
+		}
+		return ctx.Complete(out)
 	})
 	shim.Handle("onboarding-finalize", func(ctx worker.TaskContext) error {
 		return ctx.Complete([]byte(`"done"`))
@@ -262,5 +292,29 @@ func TestOnboarding_E2ERunsToCompletion(t *testing.T) {
 	})
 	if !strings.Contains(full2, "workflow-completed") && !strings.Contains(full2, `"onboardingStep":6`) {
 		t.Fatalf("durable workflow did not complete — tail:\n%s", tailString(full2, 1500))
+	}
+
+	// 5) The 3 example todos must be visible in the user's list, scoped
+	//    to the demo user (the owner that started the run). The worker
+	//    created them server-side, so re-fetch the list fragment and
+	//    assert each example title shows up (bug 2 regression: they were
+	//    previously created owner-less and never surfaced).
+	fragReq, reqErr := http.NewRequestWithContext(ctx, http.MethodGet, base+"/api/todos/fragment", nil)
+	if reqErr != nil {
+		t.Fatalf("new fragment request: %v", reqErr)
+	}
+	frag, err := httpClient.Do(fragReq)
+	if err != nil {
+		t.Fatalf("fetch todo fragment: %v", err)
+	}
+	fragBody, _ := io.ReadAll(frag.Body)
+	_ = frag.Body.Close()
+	if frag.StatusCode != http.StatusOK {
+		t.Fatalf("fragment status=%d body=%s", frag.StatusCode, fragBody)
+	}
+	for _, title := range dagnats.ExampleTodoTexts {
+		if !strings.Contains(string(fragBody), title) {
+			t.Fatalf("example todo %q missing from user list after workflow — body:\n%s", title, fragBody)
+		}
 	}
 }
