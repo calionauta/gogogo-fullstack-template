@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"time"
 
@@ -52,7 +53,12 @@ func startDagNats(cfg *config.Config, _ *pocketbase.PocketBase, todoH *handlers.
 		const greetDelay = 1500 * time.Millisecond
 		time.Sleep(greetDelay) // visible pace
 		log.Printf("dagnats: onboarding greet")
-		return ctx.Complete([]byte(`"welcomed"`))
+		// Thread the run input ({"user": ..., "todos": [...]}) through as
+		// this step's output so the downstream create-todo steps can read
+		// the owner + remaining titles from their own Input. Greet is the
+		// DAG root, so its Input is exactly the run-level input StartRun
+		// received.
+		return ctx.Complete(ctx.Input())
 	})
 	// onboarding-await-first-todo blocks (in-process, on the engine's
 	// signal KV) until the app signals "first-todo" — i.e. the user
@@ -68,25 +74,51 @@ func startDagNats(cfg *config.Config, _ *pocketbase.PocketBase, todoH *handlers.
 			return ctx.Fail(err)
 		}
 		log.Printf("dagnats: first todo signal received for run %s", ctx.RunID())
-		return ctx.Complete([]byte(`"resumed"`))
+		// Pass the owner payload through to the create-todo steps.
+		return ctx.Complete(ctx.Input())
 	})
 	shim.Handle("onboarding-create-todo", func(ctx worker.TaskContext) error {
+		// The run input is {"user": ..., "todos": [...]}; greet (root)
+		// forwards it, and every downstream step's Input is its single
+		// dependency's output, so each create-todo step receives the same
+		// shape with whatever todos remain. This is the ONLY data channel
+		// DagNats v0.0.5 delivers to workers — step config/metadata
+		// (TaskPayload.Config/Metadata) are never populated by the engine's
+		// live publish path, so titles cannot ride step config on this
+		// version.
+		var input struct {
+			User  string   `json:"user"`
+			Todos []string `json:"todos"`
+		}
+		if len(ctx.Input()) > 0 {
+			_ = json.Unmarshal(ctx.Input(), &input)
+		}
 		text := ""
-		if md := ctx.Metadata(); md != nil {
-			text = md["text"]
+		if len(input.Todos) > 0 {
+			text, input.Todos = input.Todos[0], input.Todos[1:]
 		}
 		if text == "" {
 			text = "Onboarding task"
 		}
-		if err := todoH.CreateTodoForOnboarding(text, ""); err != nil {
+		// Scoping the example todos to the owner that started the run is
+		// what makes them visible in the user's list (the list query
+		// filters by owner). Previously owner was hardcoded to "" so the
+		// todos were created owner-less and never surfaced.
+		if err := todoH.CreateTodoForOnboarding(text, input.User); err != nil {
 			log.Printf("dagnats: create todo failed: %v", err)
 			return ctx.Fail(err)
 		}
-		return ctx.Complete([]byte(`"created"`))
+		// Thread the remaining titles (and owner) forward so the next
+		// create-todo step picks up the next example todo.
+		out, err := json.Marshal(input)
+		if err != nil {
+			return ctx.Fail(err)
+		}
+		return ctx.Complete(out)
 	})
 	shim.Handle("onboarding-finalize", func(ctx worker.TaskContext) error {
 		log.Printf("dagnats: onboarding finalized")
-		return ctx.Complete([]byte(`"done"`))
+		return ctx.Complete(ctx.Input())
 	})
 
 	// Register the onboarding workflow definition idempotently so it is

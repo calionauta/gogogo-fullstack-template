@@ -393,27 +393,27 @@ templ durableWorkflowPanelMorpheus(signals todo.Signals) {
 	<div style="display: flex; flex-direction: column; gap: 0.25rem; margin-bottom: 0.75rem;">
 		<div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.7rem;">
 			<neo-badge variant="neutral"
-				data-class={ "{'neo-badge-primary': $techStep === 'workflow' && $onboardingActive && !$workflowCompleted && $onboardingStep === 1, 'neo-badge-success': $workflowCompleted}" }>1. Greeting</neo-badge>
+				data-class={ "{'neo-badge-primary': $techStep === 'workflow' && $onboardingActive && !$workflowCompleted && $onboardingStep === 1, 'neo-badge-success': $workflowCompleted || ($onboardingActive && !$workflowCompleted && $onboardingStep > 1)}" }>1. Greeting</neo-badge>
 		</div>
 		<div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.7rem;">
 			<neo-badge variant="neutral"
-				data-class={ "{'neo-badge-primary': $techStep === 'workflow' && $onboardingActive && !$workflowCompleted && $onboardingStep === 2, 'neo-badge-success': $workflowCompleted}" }>2. Wait for first todo</neo-badge>
+				data-class={ "{'neo-badge-primary': $techStep === 'workflow' && $onboardingActive && !$workflowCompleted && $onboardingStep === 2, 'neo-badge-success': $workflowCompleted || ($onboardingActive && !$workflowCompleted && $onboardingStep > 2)}" }>2. Wait for first todo</neo-badge>
 		</div>
 		<div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.7rem;">
 			<neo-badge variant="neutral"
-				data-class={ "{'neo-badge-primary': $techStep === 'workflow' && $onboardingActive && !$workflowCompleted && $onboardingStep === 3, 'neo-badge-success': $workflowCompleted}" }>3. Create 1/3</neo-badge>
+				data-class={ "{'neo-badge-primary': $techStep === 'workflow' && $onboardingActive && !$workflowCompleted && $onboardingStep === 3, 'neo-badge-success': $workflowCompleted || ($onboardingActive && !$workflowCompleted && $onboardingStep > 3)}" }>3. Create 1/3</neo-badge>
 		</div>
 		<div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.7rem;">
 			<neo-badge variant="neutral"
-				data-class={ "{'neo-badge-primary': $techStep === 'workflow' && $onboardingActive && !$workflowCompleted && $onboardingStep === 4, 'neo-badge-success': $workflowCompleted}" }>4. Create 2/3</neo-badge>
+				data-class={ "{'neo-badge-primary': $techStep === 'workflow' && $onboardingActive && !$workflowCompleted && $onboardingStep === 4, 'neo-badge-success': $workflowCompleted || ($onboardingActive && !$workflowCompleted && $onboardingStep > 4)}" }>4. Create 2/3</neo-badge>
 		</div>
 		<div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.7rem;">
 			<neo-badge variant="neutral"
-				data-class={ "{'neo-badge-primary': $techStep === 'workflow' && $onboardingActive && !$workflowCompleted && $onboardingStep === 5, 'neo-badge-success': $workflowCompleted}" }>5. Create 3/3</neo-badge>
+				data-class={ "{'neo-badge-primary': $techStep === 'workflow' && $onboardingActive && !$workflowCompleted && $onboardingStep === 5, 'neo-badge-success': $workflowCompleted || ($onboardingActive && !$workflowCompleted && $onboardingStep > 5)}" }>5. Create 3/3</neo-badge>
 		</div>
 		<div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.7rem;">
 			<neo-badge variant="neutral"
-				data-class={ "{'neo-badge-primary': $techStep === 'workflow' && $onboardingActive && !$workflowCompleted && $onboardingStep === 6, 'neo-badge-success': $workflowCompleted}" }>6. Finalize</neo-badge>
+				data-class={ "{'neo-badge-primary': $techStep === 'workflow' && $onboardingActive && !$workflowCompleted && $onboardingStep === 6, 'neo-badge-success': $workflowCompleted || ($onboardingActive && !$workflowCompleted && $onboardingStep > 6)}" }>6. Finalize</neo-badge>
 		</div>
 	</div>
 

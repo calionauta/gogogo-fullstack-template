@@ -249,6 +249,14 @@ func (h *TodoHandler) streamTodo(c *core.RequestEvent, sse *sdk.ServerSentEventG
 		if err := h.applyOnboarding(sse, 0, 0, onbStatusCompleted, "Workflow completed", true); err != nil {
 			return err
 		}
+		// The example todos were created server-side by the DagNats
+		// worker (via the store, not the HTTP API), so they never passed
+		// through the PocketBase realtime request pipeline — without an
+		// explicit refresh here the user wouldn't see them until they
+		// reloaded. Re-render the list so the 3 example todos appear.
+		if err := h.refreshTodoListPatch(sse, c); err != nil {
+			return err
+		}
 		return emitToast(sse, "Workflow completed — 3 example todos created", retryStatusSuccess)
 	}
 
@@ -282,24 +290,33 @@ func (h *TodoHandler) streamTodo(c *core.RequestEvent, sse *sdk.ServerSentEventG
 		return sse.PatchElements("", sdk.WithModeRemove(), sdk.WithSelector("#todo-"+evt.ID))
 	default:
 		// For "created" and "toggled" events re-render the entire list.
-		// This is safe because listTodos scopes by c.Auth, which is
-		// loaded from the cookie on every SSE connection (see
-		// handleSSEStream). The skin is read from the same SSE
-		// connection's URL — every client opening an SSE stream is
-		// expected to forward their current `?skin=` query param so the
-		// broadcast HTML matches the chrome they're rendering
-		// (morpheus.TodoListRegion for morpheus clients, basecoat for
-		// basecoat, components for DaisyUI). The morpheus and basecoat
-		// page templates already do this; without it the broadcast
-		// would replace the client's rows with mismatched HTML on
-		// every remote mutation (CAL-14).
-		todos, err := h.listTodos(c, "all")
-		if err != nil {
-			return fmt.Errorf("list todos for broadcast: %w", err)
-		}
-		return dshelpers.RenderAndPatch(sse, h.renderTodoList(todos, h.resolveSkin(c)),
-			sdk.WithSelector("#todo-list"))
+		return h.refreshTodoListPatch(sse, c)
 	}
+}
+
+// refreshTodoListPatch re-renders the full #todo-list region for the
+// authenticated user and patches it into the SSE stream. Used by the
+// "created"/"toggled" broadcast handler and the "workflow-completed"
+// path (whose example todos are written server-side by the DagNats
+// worker and never flow through the PB realtime request pipeline).
+func (h *TodoHandler) refreshTodoListPatch(sse *sdk.ServerSentEventGenerator, c *core.RequestEvent) error {
+	// This is safe because listTodos scopes by c.Auth, which is
+	// loaded from the cookie on every SSE connection (see
+	// handleSSEStream). The skin is read from the same SSE
+	// connection's URL — every client opening an SSE stream is
+	// expected to forward their current `?skin=` query param so the
+	// broadcast HTML matches the chrome they're rendering
+	// (morpheus.TodoListRegion for morpheus clients, basecoat for
+	// basecoat, components for DaisyUI). The morpheus and basecoat
+	// page templates already do this; without it the broadcast
+	// would replace the client's rows with mismatched HTML on
+	// every remote mutation (CAL-14).
+	todos, err := h.listTodos(c, "all")
+	if err != nil {
+		return fmt.Errorf("list todos for broadcast: %w", err)
+	}
+	return dshelpers.RenderAndPatch(sse, h.renderTodoList(todos, h.resolveSkin(c)),
+		sdk.WithSelector("#todo-list"))
 }
 
 // streamDocVersionBumped handles the cross-store "doc version
