@@ -1,3 +1,11 @@
+## [0.26.2] - 2026-08-03
+
+### Fixed
+
+- **Onboarding example todos actually create (CAL-32).** The "creating example todo 1/3" steps never created anything. Root cause: DagNats v0.0.5 never delivers per-step config/metadata to workers — the engine's live dispatch path (`TaskPublisher.doPublish`) builds the `TaskPayload` without `Config`/`Metadata`, so a worker never sees a step's `config` block. The workflow therefore fell back to a generic "Onboarding task" and, worse, created it owner-less (owner hardcoded `""`), so no todo ever appeared in the user's list. Fix: titles now ride the DAG input/output chain instead — `StartRun` receives `{"user": <owner>, "todos": [...]}`, the root `greet` step forwards the input, and each create-todo step pops one title, creates it scoped to the owner, and threads the remainder forward. Durable (outputs persist with the run) and reachable from any worker; the three example titles live in `dagnats.ExampleTodoTexts`. The workflow-completed SSE handler also re-renders the todo list, so server-created example todos appear without a reload, and the e2e test now asserts the three example todos are visible in the user's list after completion.
+- **Onboarding step 1 no longer loses its "done" marker.** A step now renders `step-success` once it is completed (`$onboardingStep > N`) while the workflow is still active — previously the marker only appeared when the whole workflow finished.
+- **Step status shows under the step name, not the number (CAL-31).** The daisyUI steps grid (40px number column + 1fr label column) was auto-placing the retry status span (e.g. "Retrying — attempt 2") as a separate grid child, dropping it below the step number and breaking the connector lines. Wrapping the step name + status in a single `flex flex-col` span keeps both in the label cell, status under the name. Applied across the daisyUI, Basecoat, and Morpheus skins.
+
 ## [0.26.1] - 2026-07-31
 
 ### Fixed
