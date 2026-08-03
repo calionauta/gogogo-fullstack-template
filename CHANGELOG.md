@@ -1,3 +1,10 @@
+## [0.26.3] - 2026-08-03
+
+### Fixed
+
+- **Offline add works in every UI skin (CAL-34).** The `gogogo:queued` event listener in the Morpheus and Basecoat skins used a double underscore (`data-on:gogogo__queued__window`) instead of the Datastar event-namespace colon (`data-on:gogogo:queued__window`) that the Service Worker bridge in `internal/components/offline_banner.templ` dispatches. The typo meant the listener never fired after an offline mutation, so `$loading` stayed `true` and `$newTitle` was never cleared — the Add button froze in its loading state and blocked every follow-up submit. Only the DaisyUI skin used the correct separator, so the bug was invisible to the offline-add smoke test (which only exercised DaisyUI) and to anyone using the default skin. Fixed in `web/skins/morpheus/todo_morpheus.templ` and `web/skins/basecoat/todo_basecoat.templ`; the smoke test now sweeps all three skins and asserts the listener attribute, so the next typo lands in CI before it lands in production. The Morpheus Add button was also missing `type="submit"`, so the form never dispatched a native submit event in headless Chromium (clicking worked in a real browser via the web component's own click handler, but the harness needed the explicit `type`); added.
+- **Smoke test sweeps every skin, not just the default.** `scripts/smoke.mjs` `verifyOfflineTodoQueue` now takes a `skin` argument and the harness loops over DaisyUI / Basecoat / Morpheus. The CAL-34 contract (offline add resets UI, queues to IndexedDB, replays on reconnect) is asserted per skin; the daisyui-only delete-replay check stays daisyui because Basecoat/Morpheus' confirm-dialog open wiring is skin-specific and out of scope for this fix.
+
 ## [0.26.2] - 2026-08-03
 
 ### Fixed

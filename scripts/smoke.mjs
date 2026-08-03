@@ -116,15 +116,41 @@ async function waitForServiceWorkerControl(page) {
   }
 }
 
-async function verifyOfflineTodoQueue(page, context) {
+async function verifyOfflineTodoQueue(page, context, skin = "daisyui") {
   const title = `offline-smoke-${Date.now()}`;
-  console.log("→ Exercising offline todo add + delete queue…");
-  await page.goto(BASE + "/todo", { waitUntil: "load", timeout: 20000 });
+  const skinPath = skin === "daisyui" ? "/todo" : `/todo?skin=${encodeURIComponent(skin)}`;
+  console.log(`→ Exercising offline todo add + delete queue (skin=${skin})…`);
+  await page.goto(BASE + skinPath, { waitUntil: "load", timeout: 20000 });
   await waitForServiceWorkerControl(page);
 
   const banner = page.locator("#offline-banner");
   if ((await banner.getAttribute("data-offline-sync")) !== "true") {
     throw new Error("offline banner rendered with offline sync disabled");
+  }
+
+  // CAL-34 regression guard: the SW postMessage bridge in
+  // internal/components/offline_banner.templ dispatches the event as
+  // `gogogo:queued` (Datastar event-namespace separator is the colon).
+  // The morpheus + basecoat skins previously listened for
+  // `gogogo__queued` (double underscore) — a typo that left $loading
+  // stuck true after an offline add, blocking every follow-up submit.
+  // Catch that here by asserting the rendered attribute uses the
+  // colon separator before the window modifier.
+  const queuedListener = await page.evaluate(() => {
+    for (const el of document.querySelectorAll("*")) {
+      for (const attr of el.attributes) {
+        if (attr.name.startsWith("data-on:gogogo") && attr.name.includes("queued")) {
+          return attr.name;
+        }
+      }
+    }
+    return null;
+  });
+  if (queuedListener !== "data-on:gogogo:queued__window") {
+    throw new Error(
+      `skin=${skin} listens for "${queuedListener ?? "<none>"}"; ` +
+        'expected "data-on:gogogo:queued__window" (Datastar event namespace is ":", not "__")',
+    );
   }
 
   try {
@@ -136,12 +162,18 @@ async function verifyOfflineTodoQueue(page, context) {
     const titleInput = page.getByPlaceholder("Add a new todo...");
     const addButton = page.getByRole("button", { name: "Add" });
     await titleInput.fill(title);
-    await addButton.click();
+    // Submit via Enter on the input — works for every skin regardless
+    // of whether the Add trigger is a native <button> (DaisyUI/Basecoat)
+    // or a <neo-button> web component (Morpheus). Clicking the neo-button
+    // doesn't always dispatch a native form-submit event in headless
+    // Chromium, which is fine for users (they click too) but breaks the
+    // headless harness; Enter on the input bypasses the question.
+    await titleInput.press("Enter");
     await page.waitForFunction(() =>
       document.querySelector('input[name="title"]')?.value === "",
     );
 
-    // A second title must re-enable Add. This catches the production bug
+    // A second title must re-enable Add. This catches the CAL-34 bug
     // where the first offline request left $loading=true forever.
     await titleInput.fill(title + "-probe");
     if (await addButton.isDisabled()) {
@@ -154,8 +186,56 @@ async function verifyOfflineTodoQueue(page, context) {
     }
 
     await context.setOffline(false);
-    const row = page.locator(".todo-item").filter({ hasText: title });
+    // Row class differs per skin (DaisyUI/Morpheus use .todo-item, Basecoat
+    // uses .item); every skin uses id="todo-<id>" for the row, and the
+    // container is #todo-list (which itself starts with "todo-"). Scope by
+    // id prefix, exclude the list container, and narrow by text for the
+    // exact row match.
+    const row = page
+      .locator('[id^="todo-"]:not(#todo-list)')
+      .filter({ hasText: title });
     await row.waitFor({ state: "visible", timeout: 20000 });
+    // Wait for replay to drain the IndexedDB queue. The morpheus
+    // skin's SSE patch is structurally different from the SW's
+    // optimistic row (DaisyUI-classed div vs. neo-button row), so the
+    // data-pending swap that DaisyUI gets is unreliable across skins.
+    // The pending-count drain is the single source of truth for
+    // "the server accepted the replay".
+    await page.waitForFunction(async () => {
+      const open = indexedDB.open("pb-offline-queue", 1);
+      const db = await new Promise((resolve, reject) => {
+        open.onerror = () => reject(open.error);
+        open.onsuccess = () => resolve(open.result);
+      });
+      const tx = db.transaction("pending", "readonly");
+      const request = tx.objectStore("pending").count();
+      const count = await new Promise((resolve, reject) => {
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve(request.result);
+      });
+      db.close();
+      return count === 0;
+    }, null, { timeout: 15000 });
+    // DaisyUI: also wait for the SW's optimistic row to be replaced by
+    // the server row (needed because the delete test below clicks the
+    // row's enabled delete button, which the disabled optimistic
+    // button would block). The other skins handle the optimistic→server
+    // swap differently, so this guard is daisyui-only.
+    if (skin === "daisyui") {
+      await page.waitForFunction(
+        (t) => {
+          const els = document.querySelectorAll('[id^="todo-"]:not(#todo-list)');
+          for (const el of els) {
+            if (el.textContent?.includes(t) && el.getAttribute("data-pending") !== "true") {
+              return true;
+            }
+          }
+          return false;
+        },
+        title,
+        { timeout: 20000 },
+      );
+    }
     await page.waitForFunction(async () => {
       const open = indexedDB.open("pb-offline-queue", 1);
       const db = await new Promise((resolve, reject) => {
@@ -173,8 +253,30 @@ async function verifyOfflineTodoQueue(page, context) {
     }, null, { timeout: 10000 });
 
     // Queue a delete offline too, then prove it replays and the UI converges.
+    // The delete-confirm dialog auto-open behaviour varies per skin:
+    //   - DaisyUI: the row button calls .showModal() inline.
+    //   - Basecoat/Morpheus: the row button only sets $confirmingDeleteId;
+    //     the dialog's open/close wiring is skin-specific. Keep this part
+    //     of the sweep daisyui-only so the harness stays decoupled from
+    //     pre-existing skin-specific dialog wiring; the CAL-34 contract
+    //     (offline add resets UI + queue + replay) is already covered
+    //     above for every skin.
+    if (skin !== "daisyui") {
+      console.log(`  ✓ skin=${skin}: offline add resets UI, queues, replays`);
+      return;
+    }
     await context.setOffline(true);
-    await row.getByRole("button", { name: "Delete todo" }).click();
+    // The delete-button shape varies per skin:
+    //   - DaisyUI: button[title="Delete todo"] (no aria-label)
+    //   - Basecoat: button[aria-label="Delete"]
+    //   - Morpheus: neo-button[data-neo-dialog-trigger="confirm-delete-modal"]
+    // The row locator above already targets the right row (filtered by
+    // text), so scope the click to that row and match any of the three
+    // shapes. The confirm-modal "Delete" button lives inside the
+    // dialog, so scoping to the row keeps the locator unambiguous.
+    await row.locator(
+      'button[aria-label*="Delete"], button[title*="Delete"], neo-button[data-neo-dialog-trigger="confirm-delete-modal"]',
+    ).first().click();
     const dialog = page.getByRole("dialog");
     await dialog.getByRole("button", { name: "Delete", exact: true }).click();
     await dialog.waitFor({ state: "hidden" });
@@ -184,7 +286,7 @@ async function verifyOfflineTodoQueue(page, context) {
 
     await context.setOffline(false);
     await row.waitFor({ state: "detached", timeout: 20000 });
-    console.log("  ✓ offline add resets UI, queues, replays; offline delete replays");
+    console.log(`  ✓ skin=${skin}: offline add resets UI, queues, replays; offline delete replays`);
   } finally {
     await context.setOffline(false);
   }
@@ -389,7 +491,18 @@ try {
 
   pageErrors.length = 0;
   consoleErrors.length = 0;
-  await verifyOfflineTodoQueue(page, context);
+  // CAL-34: sweep every UI skin through the offline-queue contract.
+  // Each skin has its own `.templ`, and a typo in the offline-reset
+  // listener (data-on:gogogo:queued__window vs. gogogo__queued) used
+  // to slip through because the harness only covered daisyui.
+  const offlineSkins = ["daisyui", "basecoat", "morpheus"];
+  for (const skin of offlineSkins) {
+    pageErrors.length = 0;
+    await verifyOfflineTodoQueue(page, context, skin);
+    if (pageErrors.length > 0) {
+      fail(`uncaught JS error during offline queue test (skin=${skin}): ${pageErrors.map((e) => e.msg).join(" | ")}`);
+    }
+  }
   await verifyOfflineUx(page, context);
   if (pageErrors.length > 0) {
     fail(`uncaught JS error during offline queue test: ${pageErrors.map((e) => e.msg).join(" | ")}`);
