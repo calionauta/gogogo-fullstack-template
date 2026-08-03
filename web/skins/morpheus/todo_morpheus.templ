@@ -43,7 +43,7 @@ templ TodoPage(title string, signals todo.Signals, userEmail string, buildLabel 
 
 			<div style="max-width: 80rem; margin: 2rem auto 0; padding: 0 1rem;">
 				<div data-signals={ marshalSignals(signals) }
-				data-on:gogogo__queued__window="$loading = false; $newTitle = ''; $deleting = false; $confirmingDeleteId = ''; $confirmingDeleteTitle = ''; $aiStep = 0">
+				data-on:gogogo:queued__window="$loading = false; $newTitle = ''; $deleting = false; $confirmingDeleteId = ''; $confirmingDeleteTitle = ''; $aiStep = 0">
 
 					@headerMorpheus(signals)
 
@@ -483,7 +483,7 @@ templ createFormMorpheus(signals todo.Signals) {
 				style="width: 100%; box-sizing: border-box; padding: 0.5rem 0.75rem; font-size: 0.875rem; border: 1px solid var(--page-border, #d6d3d1); border-radius: 0.375rem; background: var(--page-bg, #ffffff); color: var(--page-fg, #1c1917); font-family: inherit; outline: none;"
 			/>
 		</div>
-		<neo-button variant="primary"
+		<neo-button variant="primary" type="submit"
 			data-attr:disabled="$loading || !$newTitle.trim()">
 			<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 0.25rem;">
 				<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>

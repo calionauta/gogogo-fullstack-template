@@ -41,7 +41,7 @@ templ TodoPage(title string, signals todo.Signals, userEmail string, buildLabel 
 // Mirrors the DaisyUI reference's layout so switching between skins
 // doesn't make components appear/disappear.
 templ TodoList(signals todo.Signals) {
-	<div class="space-y-6" data-signals={ marshalSignals(signals) } data-on:gogogo__queued__window="$loading = false; $newTitle = ''; $deleting = false; $confirmingDeleteId = ''; $confirmingDeleteTitle = ''; $aiStep = 0">
+	<div class="space-y-6" data-signals={ marshalSignals(signals) } data-on:gogogo:queued__window="$loading = false; $newTitle = ''; $deleting = false; $confirmingDeleteId = ''; $confirmingDeleteTitle = ''; $aiStep = 0">
 
 		@header(signals)
 
