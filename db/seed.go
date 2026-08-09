@@ -147,18 +147,32 @@ func ensureTodosCollection(app core.App, offlineSyncEnabled bool) error {
 		return fmt.Errorf("seed: save todos collection: %w", err)
 	}
 
-	// Backfill unique idem_key on legacy rows AFTER the collection/table is
-	// persisted (PocketBase creates the physical table on first Save).
-	// Must run before the UNIQUE (idem_key, owner) index is applied, or
-	// pre-existing rows sharing an owner collide on the empty default.
+	// Offline-sync dedupe machinery (backfill + unique index) is extracted
+	// into ensureTodosDedupeIndex to keep this function's cyclomatic
+	// complexity under the gocyclo threshold (12).
 	if offlineSyncEnabled {
-		if err := BackfillIdemKey(app, col.Name); err != nil {
-			return fmt.Errorf("seed: backfill idem_key: %w", err)
+		if err := ensureTodosDedupeIndex(app, col); err != nil {
+			return err
 		}
-		AddIdemKeyUniqueIndex(col)
-		if err := app.Save(col); err != nil {
-			return fmt.Errorf("seed: save todos collection (with unique index): %w", err)
-		}
+	}
+	return nil
+}
+
+// ensureTodosDedupeIndex backfills the idem_key field on legacy todo rows
+// and applies the (idem_key, owner) unique index that pairs with
+// RegisterIdempotencyHook to dedupe SW queue replays. Extracted from
+// ensureTodosCollection to keep its cyclomatic complexity ≤ gocyclo threshold.
+//
+// The backfill must run AFTER the collection/table is persisted (PB creates
+// the physical table on first Save) and BEFORE the UNIQUE index is applied;
+// otherwise pre-existing rows sharing an owner collide on the empty default.
+func ensureTodosDedupeIndex(app core.App, col *core.Collection) error {
+	if err := BackfillIdemKey(app, col.Name); err != nil {
+		return fmt.Errorf("seed: backfill idem_key: %w", err)
+	}
+	AddIdemKeyUniqueIndex(col)
+	if err := app.Save(col); err != nil {
+		return fmt.Errorf("seed: save todos collection (with unique index): %w", err)
 	}
 	return nil
 }
