@@ -123,6 +123,12 @@ func ensureTodosCollection(app core.App, offlineSyncEnabled bool) error {
 	// and only matters when offline-sync replays queued requests.
 	AddIdemKeyField(col)
 	if offlineSyncEnabled {
+		// Backfill unique idem_key on legacy rows first, or the UNIQUE
+		// (idem_key, owner) index fails to apply on pre-existing data
+		// (all rows sharing an owner get the same empty default).
+		if err := BackfillIdemKey(app, col.Name); err != nil {
+			return fmt.Errorf("seed: backfill idem_key: %w", err)
+		}
 		AddIdemKeyUniqueIndex(col)
 	}
 
