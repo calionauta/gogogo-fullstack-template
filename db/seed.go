@@ -122,15 +122,6 @@ func ensureTodosCollection(app core.App, offlineSyncEnabled bool) error {
 	// The (idem_key, owner) unique index is the hook's dedupe target
 	// and only matters when offline-sync replays queued requests.
 	AddIdemKeyField(col)
-	if offlineSyncEnabled {
-		// Backfill unique idem_key on legacy rows first, or the UNIQUE
-		// (idem_key, owner) index fails to apply on pre-existing data
-		// (all rows sharing an owner get the same empty default).
-		if err := BackfillIdemKey(app, col.Name); err != nil {
-			return fmt.Errorf("seed: backfill idem_key: %w", err)
-		}
-		AddIdemKeyUniqueIndex(col)
-	}
 
 	// Realtime + REST access: a user may only view THEIR OWN todos.
 	// PocketBase realtime delivers a record event to a subscriber only if
@@ -154,6 +145,20 @@ func ensureTodosCollection(app core.App, offlineSyncEnabled bool) error {
 
 	if err := app.Save(col); err != nil {
 		return fmt.Errorf("seed: save todos collection: %w", err)
+	}
+
+	// Backfill unique idem_key on legacy rows AFTER the collection/table is
+	// persisted (PocketBase creates the physical table on first Save).
+	// Must run before the UNIQUE (idem_key, owner) index is applied, or
+	// pre-existing rows sharing an owner collide on the empty default.
+	if offlineSyncEnabled {
+		if err := BackfillIdemKey(app, col.Name); err != nil {
+			return fmt.Errorf("seed: backfill idem_key: %w", err)
+		}
+		AddIdemKeyUniqueIndex(col)
+		if err := app.Save(col); err != nil {
+			return fmt.Errorf("seed: save todos collection (with unique index): %w", err)
+		}
 	}
 	return nil
 }
