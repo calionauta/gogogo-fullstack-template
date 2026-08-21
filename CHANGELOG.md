@@ -1,3 +1,19 @@
+## [0.26.4] - 2026-08-21
+
+### Changed
+
+- **Bumped all dependencies to their latest releases.** DagNats `v0.0.5` → `v0.0.13`, PocketBase `v0.39.6` → `v0.39.11`, `nats.go` `v1.52.0` → `v1.53.1`, `nats-server` `v2.14.3` → `v2.14.5`, `ncruces/go-sqlite3` `v0.35.1` → `v0.35.3`, `goai` `v0.7.6` → `v0.9.6`, Wails v3 `alpha2.117` → `beta.12`, and `modernc.org/sqlite` `v1.53.0` → `v1.57.0`, plus their transitive graph. `go.opentelemetry.io/otel` is pinned at `v1.44.0` because DagNats `v0.0.13`'s `natsexporter` still relies on `log.KeyValue`, which was removed in otel `v1.45.0`; `go get -u` would otherwise flow to `v1.45` and break the build until DagNats catches up.
+
+### Fixed
+
+- **Seed no longer races the UNIQUE `(idem_key, owner)` index on legacy rows.** Todos created before the `idem_key` field existed all shared the same empty default; adding the unique index then failed with a constraint error that left the seed retrying and burning CPU. The seed now backfills a unique `idem_key` on legacy rows (after the physical table exists, before creating the index) so existing collections migrate cleanly (CAL-DB fixes).
+- **Security advisories patched.** Toolchain `go1.26.5` → `go1.26.6` (stdlib CVEs in `net/http`, `crypto/tls`, `html/template`, `encoding/*`), plus otel `v1.44.0`, `golang.org/x/image` `v0.45.0`, and `grpc` `v1.82.1`; `basecoat.min.css` regenerated to match the new sources.
+- **DagNats subpath proxy no longer uses the incompatible default Director.** The reverse proxy is built without the default `Director`, non-default todo skin names are centralized, and template docs/terminology around live demos and community skins are clarified (GOGO-003).
+
+### Other
+
+- **CI and hooks housekeeping.** CI Go version now matches the `go.mod` toolchain directive, `check-scope` runs in CI, and lefthook is documented as the hook engine; quality gates were migrated from agent-level hooks to lefthook. Deploy now reads secrets from `~/.secrets/` per the server-side secrets convention.
+
 ## [0.26.3] - 2026-08-03
 
 ### Fixed
