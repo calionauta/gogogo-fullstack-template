@@ -6,7 +6,18 @@ if ! command -v sem >/dev/null 2>&1; then exit 0; fi
 git diff --cached --quiet && exit 0
 echo "→ AGENTS.md staleness check..."
 SEM_OUTPUT=$(sem diff --staged --format json 2>/dev/null || echo '{"summary":{"total":0}}')
-TOTAL=$(echo "$SEM_OUTPUT" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('summary',{}).get('total',0))" 2>/dev/null || echo 0)
+# Only Go/templ entities indicate AGENTS.md drift; chunk noise from
+# generated assets (go.sum, minified css) is filtered out.
+TOTAL=$(echo "$SEM_OUTPUT" | python3 -c "
+import sys,json
+try: d=json.load(sys.stdin)
+except Exception: print(0); raise SystemExit
+n=0
+for c in d.get('changes',[]):
+    p=c.get('filePath','')
+    if p.endswith(('.go','.templ')) and not p.endswith(('_templ.go','.test.go')):
+        n+=1
+print(n)" 2>/dev/null || echo 0)
 TOTAL="${TOTAL:-0}"
 if [ "$TOTAL" -gt 0 ]; then
   echo "⚠️  AGENTS.md staleness: $TOTAL entities changed — review"
