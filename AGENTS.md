@@ -32,7 +32,7 @@ Skills: `cali-coding-go-standards` (code quality), `cali-code-navigation` (cymba
 | `make ci-local` | **Single gate** (= CI): templ + datastar-lint + css-check + **check-scope** + golangci-lint + race tests + build |
 | `make check-scope` | Assert every `internal/` and `features/` `.go` file carries `// SCOPE:layer=…,removal=…` in its leading doc group. Run after adding files in those trees. |
 | `make signoff` | `ci-local` + `gh signoff` stamp (advisory on push-to-master) |
-| `make setup` | Blocking pre-commit + pre-push hooks (pre-push adds `govulncheck`) |
+| `make setup` | Activate git hooks via lefthook (sets `core.hooksPath=.githooks`, regenerates wrappers; pre-push adds `govulncheck`) |
 
 > **`make check` was removed.** It was a subset of `make ci-local` (no
 > build verification, smaller lint set). The single source of truth
@@ -63,7 +63,19 @@ Every non-test, non-generated `.go` file under `internal/` and `features/` carri
 
 The two-axis scheme eliminates the prior ambiguity where `SCOPE:core - REMOVE if not using NATS` and `SCOPE:core - DO NOT REMOVE - SSE Hub` shared the same label but meant different things. With the new axes, the first becomes `layer=infra,removal=plugin` (binary works without it) and the second stays `layer=infra,removal=core` (binary breaks without it).
 
-**Enforcement.** The `cmd/check-scope` Go program walks every `.go` file in `internal/` and `features/` and asserts the canonical SCOPE line is present in the leading doc-comment group. `make ci-local` runs it via the `check-scope` target. The pre-commit hook runs it conditionally when staged files match `^(internal|features)/.*\.go$`. Migrating an existing file uses `python3 scripts/migrate-scope.py` (idempotent).
+**Enforcement.** The `cmd/check-scope` Go program walks every `.go` file in `internal/` and `features/` and asserts the canonical SCOPE line is present in the leading doc-comment group. `make ci-local` runs it via the `check-scope` target, and the lefthook pre-commit runs it whenever staged files match `{internal,features}/**/*.go`. Migrating an existing file uses `python3 scripts/migrate-scope.py` (idempotent).
+
+## Hooks — lefthook (`.lefthook.yml`)
+
+All blocking quality gates live at **git level**, managed by [lefthook](https://github.com/evilmartians/lefthook). Activate with `make setup`; wrappers are committed in `.githooks/` (graceful no-op when the binary is missing). Helper scripts live in `bin/check-*.sh`.
+
+| Hook | Jobs | When |
+|------|------|------|
+| `pre-commit` (parallel) | file-sizes · fmt-gofumpt · mod-tidy (`-diff`, race-safe) · scope-lint · datastar-lint · css-check · golangci-lint · agents-md-staleness | every commit; glob-filtered jobs skip when nothing relevant is staged |
+| `pre-push` | ci-local (= full T4 gate incl. race tests + build + smoke) · govulncheck · deadcode | every push |
+| `post-merge` | regen-assets (templ + css-all when templ/go/css changed) | after pulls/merges |
+
+Agent-level hooks (pi.dev `hooks.yaml`) keep ONLY what git hooks cannot do: post-build info hints and the no-CI signoff fallback. Never re-add commit/push gates there for this repo — they would run twice.
 
 **Agent rule:** When the user asks to trim the project, never delete a `removal=core` file — always ask first. Delete `removal=feature` and `removal=plugin` files freely, after reading the inline description (it lists what to delete in `router/router.go` and `cmd/web/`).
 
@@ -198,7 +210,7 @@ gate (subset of `make ci-local` without build verification). Use
 | `make ci-local`    | **canonical gate** | The pre-push gate. Replaces `make check`.                              |
 | `make check`       | **removed** | Redundant subset of `ci-local`. Promote `ci-local`.                               |
 | `make signoff`     | **promoted** | `ci-local` + `gh signoff` advisory stamp. Default pre-push gate; catches ~95%% of issues locally in <3min. |
-| `make setup`       | keep     | Git hooks install.                                                                     |
+| `make setup`       | keep     | Lefthook activation (`core.hooksPath` + wrapper regen).                                 |
 | `make desktop`     | keep     | Wails v3 desktop shell.                                                              |
 | `make dev`         | keep     | Air live reload.                                                                       |
 

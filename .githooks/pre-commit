@@ -1,74 +1,69 @@
-#!/bin/bash
-set -euo pipefail
+#!/bin/sh
 
-PROJECT_DIR="$(git rev-parse --show-toplevel)"
-cd "$PROJECT_DIR"
-
-echo "=== Pre-commit checks ==="
-
-# File size check (blocking)
-.githooks/check-sizes.sh || exit 2
-
-# Formatting: gofumpt + goimports (blocking — catches issues the full
-# gate would catch later, fast enough to run on every commit).
-if ! test -z "$(gofumpt -l .)"; then
-    echo "❌ gofumpt formatting issues:"
-    gofumpt -l .
-    echo "   Run: gofumpt -w ."
-    exit 2
+if [ "$LEFTHOOK_VERBOSE" = "1" -o "$LEFTHOOK_VERBOSE" = "true" ]; then
+  set -x
 fi
-if ! test -z "$(goimports -l -local github.com/calionauta/gogogo-fullstack-template $(find . -name '*.go' ! -name '*_templ.go'))"; then
-    echo "❌ goimports issues:"
-    goimports -l -local github.com/calionauta/gogogo-fullstack-template $(find . -name '*.go' ! -name '*_templ.go')
-    echo "   Run: goimports -w -local github.com/calionauta/gogogo-fullstack-template ."
-    exit 2
-fi
-echo "✅ formatting clean"
 
-# Datastar lint + CSS rebuild check (only when .templ files changed).
-# If a contributor adds a new utility class, the generated CSS will
-# be stale; this block regenerates it and aborts the commit if the
-# working tree is dirty after, so the regenerated CSS must be staged.
-if git diff --cached --name-only | grep -qE '\.(templ|go)$'; then
-    bin/datastar-lint || exit 2
-    if grep -q "tailwindcss" package.json 2>/dev/null; then
-        echo "→ Rebuilding CSS (Tailwind v4 + DaisyUI v5)..."
-        if [ -d node_modules ]; then
-            npm run build --silent
-            if ! git diff --quiet --exit-code web/resources/static/app.min.css 2>/dev/null; then
-                echo "❌ CSS is out of date. Run \`make css\` and stage the regenerated file."
-                exit 2
-            fi
-        else
-            echo "  ⚠ node_modules not present; run \`make css-install\` first."
-        fi
+if [ "$LEFTHOOK" = "0" ]; then
+  exit 0
+fi
+
+call_lefthook()
+{
+  if test -n "$LEFTHOOK_BIN"
+  then
+    "$LEFTHOOK_BIN" "$@"
+  elif lefthook -h >/dev/null 2>&1
+  then
+    lefthook "$@"
+  else
+    dir="$(git rev-parse --show-toplevel)"
+    osArch=$(uname | tr '[:upper:]' '[:lower:]')
+    cpuArch=$(uname -m | sed 's/aarch64/arm64/;s/x86_64/x64/')
+    if test -f "$dir/node_modules/lefthook-${osArch}-${cpuArch}/bin/lefthook"
+    then
+      "$dir/node_modules/lefthook-${osArch}-${cpuArch}/bin/lefthook" "$@"
+    elif test -f "$dir/node_modules/@evilmartians/lefthook/bin/lefthook-${osArch}-${cpuArch}/lefthook"
+    then
+      "$dir/node_modules/@evilmartians/lefthook/bin/lefthook-${osArch}-${cpuArch}/lefthook" "$@"
+    elif test -f "$dir/node_modules/@evilmartians/lefthook-installer/bin/lefthook"
+    then
+      "$dir/node_modules/@evilmartians/lefthook-installer/bin/lefthook" "$@"
+    elif test -f "$dir/node_modules/lefthook/bin/index.js"
+    then
+      "$dir/node_modules/lefthook/bin/index.js" "$@"
+    
+    elif go tool lefthook -h >/dev/null 2>&1
+    then
+      go tool lefthook "$@"
+    elif bundle exec lefthook -h >/dev/null 2>&1
+    then
+      bundle exec lefthook "$@"
+    elif yarn lefthook -h >/dev/null 2>&1
+    then
+      yarn lefthook "$@"
+    elif pnpm lefthook -h >/dev/null 2>&1
+    then
+      pnpm lefthook "$@"
+    elif swift package lefthook >/dev/null 2>&1
+    then
+      swift package --build-path .build/lefthook --disable-sandbox lefthook "$@"
+    elif command -v mint >/dev/null 2>&1
+    then
+      mint run csjones/lefthook-plugin "$@"
+    elif uv run lefthook -h >/dev/null 2>&1
+    then
+      uv run lefthook "$@"
+    elif mise exec -- lefthook -h >/dev/null 2>&1
+    then
+      mise exec -- lefthook "$@"
+    elif devbox run lefthook -h >/dev/null 2>&1
+    then
+      devbox run lefthook "$@"
+    else
+      echo "Can't find lefthook in PATH"
     fi
-fi
+  fi
+}
 
-# go mod tidy check (fail if dirty)
-go mod tidy
-if ! git diff --exit-code go.mod go.sum >/dev/null 2>&1; then
-    echo "❌ go.mod or go.sum is dirty after 'go mod tidy'"
-    echo "   Run: go mod tidy && git add go.mod go.sum"
-    exit 2
-fi
-echo "✅ go.mod/go.sum tidy"
-
-# SCOPE annotation linter (only when relevant files are staged).
-# Catches the failure mode that drift in inline documentation
-# creates: new files in internal/ or features/ added without
-# `// SCOPE:layer=…,removal=…` would otherwise pass the linter
-# (golangci-lint doesn't know about our taxonomy).
-if git diff --cached --name-only | grep -qE '^(internal|features)/.*\.go$'; then
-    echo "→ check-scope (SCOPE annotation linter)..."
-    go run ./cmd/check-scope || exit 2
-fi
-
-# Full lint (blocking — no --fast shortcuts)
-if which golangci-lint >/dev/null 2>&1; then
-    golangci-lint run ./... --timeout 3m || exit 2
-else
-    echo "❌ golangci-lint not installed (brew install golangci-lint)"
-    exit 2
-fi
-echo "=== All pre-commit checks passed ==="
+call_lefthook run "pre-commit" "$@"

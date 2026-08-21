@@ -20,6 +20,7 @@ require (
 	github.com/wailsapp/wails/v3 v3.0.0-alpha2.117
 	github.com/zendev-sh/goai v0.7.6
 	maragu.dev/goqite v0.4.0
+	modernc.org/sqlite v1.53.0
 )
 
 require (
@@ -103,5 +104,4 @@ require (
 	modernc.org/libc v1.74.0 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
-	modernc.org/sqlite v1.53.0 // indirect
 )

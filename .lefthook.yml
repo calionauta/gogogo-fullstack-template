@@ -1,0 +1,53 @@
+# Lefthook config — gogogo-fullstack-template
+# Run `make setup` to activate hooks (installs wrappers into .githooks/).
+# Install lefthook: go install github.com/evilmartians/lefthook@latest
+#
+# Jobs with `glob:` only run when matching files are staged.
+# Scripts live in bin/check-*.sh so YAML stays free of escaping traps.
+
+pre-commit:
+  parallel: true
+  jobs:
+    - name: file-sizes
+      run: .githooks/check-sizes.sh
+
+    - name: fmt-gofumpt
+      run: bin/check-fmt.sh
+      glob: "*.go"
+
+    - name: mod-tidy
+      run: bin/check-mod-tidy.sh
+
+    - name: scope-lint
+      run: go run ./cmd/check-scope
+      glob: "{internal,features}/**/*.go"
+
+    - name: datastar-lint
+      run: bin/check-datastar.sh
+      glob: "*.{templ,go}"
+
+    - name: css-check
+      run: bin/check-css.sh
+      glob: "*.{templ,go,css}"
+
+    - name: golangci-lint
+      run: golangci-lint run ./... --timeout 5m
+      glob: "*.go"
+
+    - name: agents-md-staleness
+      run: bin/check-agents-md.sh
+      glob: "{AGENTS.md,go.mod,**/*.go,**/*.templ}"
+
+pre-push:
+  jobs:
+    - name: ci-local
+      run: make ci-local
+    - name: govulncheck
+      run: bin/check-govulncheck.sh
+    - name: deadcode
+      run: bin/check-deadcode.sh
+
+post-merge:
+  jobs:
+    - name: regen-assets
+      run: bash -c 'if git diff HEAD@{1} HEAD --name-only | grep -qE "\.(templ|css|go)$"; then echo "→ regenerating assets..."; make templ css-all; fi'
