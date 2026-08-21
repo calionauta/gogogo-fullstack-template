@@ -188,10 +188,12 @@ Workflow: `edit → make ci-local (if iterating) → git commit -F /tmp/msg → 
 | `make fmt` | `gofumpt` + `goimports` formatting only |
 | `make ci-local` | Full local gate, identical to CI: templ → datastar-lint → css-check → golangci-lint → race tests → build |
 
-The pre-commit hook (`make setup`) runs `gofumpt`, `goimports`,
-`datastar-lint`, a CSS staleness check, `go mod tidy`, and
-`golangci-lint` on every commit — so formatting and lint
-violations never reach the remote. Run **`make signoff`** for
+The git hooks (`make setup`, powered by [lefthook](https://github.com/evilmartians/lefthook))
+run `gofumpt`, `goimports`, `datastar-lint`, a CSS staleness check,
+`go mod tidy`, the SCOPE annotation linter, and `golangci-lint` on
+every commit — so formatting and lint violations never reach the
+remote. Jobs are glob-filtered (only run when matching files are
+staged) and executed in parallel. Run **`make signoff`** for
 the full gate (adds `ci-local` + `gh signoff` stamp) before
 pushing. Same checks the remote CI runs.
 
@@ -382,7 +384,7 @@ make fmt           # gofumpt + goimports check (CI gate; apply via gofumpt -w)
 make test          # Race tests (`-p 1` for DagNats engine stability). Discouraged locally — remote CI runs them.
 make ci-local      # Full local gate (= CI): templ + datastar-lint + css-check + golangci-lint + race tests + build
 make signoff       # `make ci-local` + `gh signoff -f` stamp. Default pre-push gate — catches ~95%% of regressions in <3min locally.
-make setup         # Install pre-commit + pre-push hooks
+make setup         # Activate lefthook git hooks (needs: go install github.com/evilmartians/lefthook@latest)
 make docker-image  # Build and push multi-arch image to ghcr.io
 
 `make check` was removed (redundant subset of `make ci-local`).
