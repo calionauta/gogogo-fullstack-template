@@ -54,7 +54,7 @@ services:
       # is rendered independently when that key is set.
       SIMULATE_LLM: ${SIMULATE_LLM:-true}
     env_file:
-      - /home/deploy/gogogo-fullstack-template/secrets/gogogo-fullstack-template.env
+      - /home/deploy/.secrets/gogogo-fullstack-template.env
     volumes:
       # Bind mount (not Docker volume) so operators can inspect/back up
       # the SQLite WAL files without docker exec (see scripts/db-tools/).
