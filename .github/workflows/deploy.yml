@@ -227,12 +227,16 @@ jobs:
           EOF
           chmod 0600 ~/.ssh/config
           APP_NAME="${{ env.APP_NAME }}"
-          SECRETS_DIR="/home/deploy/${APP_NAME}/secrets"
+          APP_DIR="/home/deploy/${APP_NAME}"
+          SECRETS_DIR="${APP_DIR}/secrets"
           ssh $DEPLOY_HOST "set -euo pipefail
             # Free disk space before writing anything
             docker system prune -af --filter 'until=24h' 2>/dev/null || true
             docker builder prune -af 2>/dev/null || true
-            mkdir -p \"$SECRETS_DIR\"
+            # Create full app layout so SCP destination dirs exist before upload
+            for d in bin compose env scripts secrets data/pb_data; do
+              mkdir -p \"${APP_DIR}/\${d}\"
+            done
             umask 077
             cat > \"$SECRETS_DIR/${APP_NAME}.env.tmp\" <<EOF2
           GOAI_API_KEY=$GOAI_API_KEY

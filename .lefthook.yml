@@ -38,18 +38,18 @@ pre-commit:
       run: bin/check-agents-md.sh
       glob: "{AGENTS.md,go.mod,**/*.go,**/*.templ}"
 
-# pre-push runs `make ci-local` (lint + race tests + build + browser smoke)
-# ONLY when the push touches files that gate covers. A commit that only
-# changes docs/.gitignore/markdown/JSON has nothing ci-local can break,
-# so the job is auto-skipped (no matching push files) and the push stays
-# fast. glob: is the automatic decision point — no manual choice needed.
+# pre-push stays LIGHT. The heavy gate (lint + race tests + build + smoke)
+# runs in GitHub Actions CI (`make ci-local` equivalent) on the runner after
+# push, in parallel with your continued work, and blocks the auto-deploy if it
+# fails — so a broken commit never ships. Blocking the local push on the full
+# race suite (~5min) for every .go change would stall the coding agent for
+# nothing, since CI runs the exact same gate.
 #
-# If a new file type can influence the build/test/smoke, add it here.
+# Local pre-push keeps only what gives instant, local feedback: vuln scan +
+# deadcode. Everything faster lives in pre-commit (already parallel, glob-
+# filtered). Run the whole gate on demand with `make ci-local`.
 pre-push:
   jobs:
-    - name: ci-local
-      run: make ci-local
-      glob: "{*.go,go.mod,go.sum,Makefile,package.json,package-lock.json,*.templ,*.css,scripts/**,bin/**,.githooks/**,.datastar-lint.yaml}"
     - name: govulncheck
       run: bin/check-govulncheck.sh
     - name: deadcode
