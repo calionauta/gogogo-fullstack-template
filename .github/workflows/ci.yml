@@ -5,6 +5,14 @@ on:
   pull_request:
     branches: [master]
   workflow_dispatch:
+concurrency:
+  # Cancel in-progress runs when a newer commit lands on the same ref (push+
+  # PR both trigger on the same branch, so without this every push to a branch
+  # with an open PR runs CI twice). Cheap fail-fast: a superseded commit's run
+  # is wasted compute. Group on the head ref so PRs and master don't clobber
+  # each other.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
@@ -28,9 +36,14 @@ jobs:
           /usr/local/go/bin/go version
       - name: Generate templ
         run: go tool templ generate
-      - name: Install C toolchain (CGO for loro-go)
-        # internal/collab uses loro-go, a CGO binding to the Loro C library.
-        run: sudo apt-get update -qq && sudo apt-get install -y gcc
+      - name: Check-scope (SCOPE annotations)
+        # Fast fail: validate annotations before heavy C toolchain installs
+        run: go run ./cmd/check-scope
+      - name: Datastar-lint
+        run: |
+          go install github.com/calionauta/datastar-lint@latest
+          export PATH="$HOME/go/bin:$PATH"
+          make datastar-lint
       - name: Lint
         uses: golangci/golangci-lint-action@v7
         with:
@@ -39,15 +52,9 @@ jobs:
           # cmd/desktop pulls in wails v3, which needs webview CGO headers
           # unavailable on the ubuntu runner; lint the web-facing packages only.
           args: ./cmd/web/ ./config/ ./db/ ./features/... ./internal/... ./router/... ./web/...
-      - name: Datastar-lint
-        run: |
-          go install github.com/calionauta/datastar-lint@latest
-          export PATH="$HOME/go/bin:$PATH"
-          make datastar-lint
-      - name: Check-scope (SCOPE annotations)
-        # Same gate as local ci-local / pre-commit: every hand-written .go
-        # file under internal/ + features/ must carry a // SCOPE: annotation.
-        run: go run ./cmd/check-scope
+      - name: Install C toolchain (CGO for loro-go)
+        # internal/collab uses loro-go, a CGO binding to the Loro C library.
+        run: sudo apt-get update -qq && sudo apt-get install -y gcc
       - name: Set up Node (CSS build)
         uses: actions/setup-node@v4
         with:
