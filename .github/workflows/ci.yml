@@ -55,6 +55,15 @@ jobs:
       - name: Install C toolchain (CGO for loro-go)
         # internal/collab uses loro-go, a CGO binding to the Loro C library.
         run: sudo apt-get update -qq && sudo apt-get install -y gcc
+      - name: Govulncheck (dependency vulnerabilities)
+        # Authoritative security gate in CI, matching the local pre-push hook.
+        # Scoped to the web/CI packages so cmd/desktop (Wails needs webview
+        # CGO headers absent on this runner) isn't scanned. Fail-fast: runs
+        # before the expensive test suite.
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          PKGS=$(go list ./... | grep -vE "cmd/desktop$|^github.com/calionauta/gogogo-fullstack-template$")
+          $(go env GOPATH)/bin/govulncheck $PKGS
       - name: Set up Node (CSS build)
         uses: actions/setup-node@v4
         with:
@@ -72,6 +81,13 @@ jobs:
           go test -race -p 1 $PKGS -v -count=1
       - name: Build
         run: go build -o /dev/null ./cmd/web/
+      - name: Deadcode (advisory)
+        # Matches bin/check-deadcode.sh: advisory only, scoped to the
+        # packages that are meant to be wired-up, so intentionally-unused
+        # library APIs (internal/llm, internal/datastar) stay off the radar.
+        run: |
+          go install golang.org/x/tools/cmd/deadcode@latest
+          $(go env GOPATH)/bin/deadcode -test ./cmd/... ./features/... ./router/... ./internal/nats/... ./internal/queue/... 2>&1 || echo "⚠️  dead code present (advisory)"
       - name: Browser smoke test
         # Boots the built binary in headless Chromium and fails on any
         # uncaught client-side JS error. Playwright/Chromium is ~300MB
