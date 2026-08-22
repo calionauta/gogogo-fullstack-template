@@ -1,3 +1,9 @@
+## [0.26.5] - 2026-08-21
+
+### Fixed
+
+- **Cross-session test teardown no longer races with `--race` (GOGO-004).** `mustReset()` in `features/todo/fixture_test.go` called `app.ResetBootstrapState()` directly, nilling the PocketBase DB pointer fields while the fire-and-forget logger batch handler still read `IsBootstrapped()`/DB from its goroutine during teardown — a data race the Go 1.26 scheduler rarely exposed but Go 1.27 detects reliably. The fix mirrors PocketBase's own `tests.TestApp.Cleanup()`: `mustReset()` now triggers `app.OnTerminate()`, whose `__pbAppLoggerOnTerminate__` handler (priority -999) drains and stops the batch handler before `ResetBootstrapState()` runs. Full `features/todo` package now passes 0 races / 0 failures under `go test -race` on Go 1.27.
+
 ## [0.26.4] - 2026-08-21
 
 ### Changed

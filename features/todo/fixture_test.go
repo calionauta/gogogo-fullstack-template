@@ -152,10 +152,25 @@ func buildFixture(t *testing.T, simClient *llm.Client) (
 // mustReset rolls back PocketBase bootstrap state on test failure.
 // Best-effort: errors are logged, never fatal, since the caller is
 // already in a cleanup/teardown or fatal path.
+//
+// It triggers OnTerminate (exactly like PocketBase's own
+// tests.TestApp.Cleanup does) rather than calling
+// ResetBootstrapState() directly. ResetBootstrapState nils the DB
+// pointer fields, and the fire-and-forget logger batch handler still
+// reads IsBootstrapped()/DB from a goroutine during teardown, so
+// calling it directly races with --race (detected under Go 1.27's
+// scheduler timing). OnTerminate's __pbAppLoggerOnTerminate__ handler
+// (priority -999) drains + stops the batch handler first.
 func mustReset(t *testing.T, app core.App) {
 	t.Helper()
-	if err := app.ResetBootstrapState(); err != nil {
-		t.Logf("ResetBootstrapState: %v", err)
+	event := &core.TerminateEvent{App: app}
+	if err := app.OnTerminate().Trigger(event, func(e *core.TerminateEvent) error {
+		if err := app.ResetBootstrapState(); err != nil {
+			t.Logf("ResetBootstrapState: %v", err)
+		}
+		return e.Next()
+	}); err != nil {
+		t.Logf("OnTerminate trigger: %v", err)
 	}
 }
 
