@@ -143,11 +143,12 @@ ci-local: templ datastar-lint css-check check-scope
 	@if which golangci-lint >/dev/null 2>&1; then golangci-lint run ./...; else echo "  ❌ golangci-lint not installed (brew install golangci-lint)"; exit 1; fi
 	@echo "→ tests (unified, -p 1 for DagNats engine stability)"
 	@go test -race -p 1 ./... -count=1
-	@echo "→ build"
-	@go build $(LDFLAGS) -o /dev/null ./cmd/web/
+	@echo "→ build (single build, reused by the smoke test)"
+	@go build $(LDFLAGS) -o /tmp/gogogo-ci-local-web ./cmd/web/
 	@echo "→ browser smoke test (Playwright)"
 	@npx playwright install chromium
-	@node scripts/smoke.mjs
+	@SMOKE_BIN=/tmp/gogogo-ci-local-web node scripts/smoke.mjs
+	@rm -f /tmp/gogogo-ci-local-web
 	@echo "✅ ci-local passed"
 
 # smoke boots the built binary in a headless browser, fails on uncaught client

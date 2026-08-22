@@ -399,9 +399,13 @@ try {
     console.log(`→ Using prebuilt binary ${bin}…`);
   } else {
     console.log("→ Building binary (./cmd/web)…");
+    // 240s: the unified binary embeds PocketBase+NATS+DagNats+Loro etc., and
+    // `go build ./cmd/web` can exceed 180s on a cold cache, tripping a false
+    // failure right after a clean ci-local pass. Prefer using SMOKE_BIN to
+    // reuse the binary ci-local already built.
     execSync(`go build -o ${JSON.stringify(bin)} ./cmd/web`, {
       stdio: "inherit",
-      timeout: 180000,
+      timeout: 240000,
     });
   }
 

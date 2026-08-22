@@ -38,10 +38,18 @@ pre-commit:
       run: bin/check-agents-md.sh
       glob: "{AGENTS.md,go.mod,**/*.go,**/*.templ}"
 
+# pre-push runs `make ci-local` (lint + race tests + build + browser smoke)
+# ONLY when the push touches files that gate covers. A commit that only
+# changes docs/.gitignore/markdown/JSON has nothing ci-local can break,
+# so the job is auto-skipped (no matching push files) and the push stays
+# fast. glob: is the automatic decision point — no manual choice needed.
+#
+# If a new file type can influence the build/test/smoke, add it here.
 pre-push:
   jobs:
     - name: ci-local
       run: make ci-local
+      glob: "{*.go,go.mod,go.sum,Makefile,package.json,package-lock.json,*.templ,*.css,scripts/**,bin/**,.githooks/**,.datastar-lint.yaml}"
     - name: govulncheck
       run: bin/check-govulncheck.sh
     - name: deadcode
