@@ -59,13 +59,13 @@ services:
       # Bind mount (not Docker volume) so operators can inspect/back up
       # the SQLite WAL files without docker exec (see scripts/db-tools/).
       #
-      # Host source is /home/deploy/<APP_NAME>/data (NOT /var/lib): the
+      # Host source is /home/deploy/services/<APP_NAME>/data (NOT /var/lib): the
       # deploy user is non-root and cannot mkdir/chown under /var/lib, so
       # the deploy script creates + ACLs the dir under /home/deploy and
       # grants container uid 65532 write access. The container target
       # stays /var/lib/<APP_NAME>/data — that is what the app's DATA_DIR
       # env points at, so the in-container path is unchanged.
-      - /home/deploy/${APP_NAME:-gogogo-fullstack-template}/data:/var/lib/${APP_NAME:-gogogo-fullstack-template}/data
+      - /home/deploy/services/${APP_NAME:-gogogo-fullstack-template}/data:/var/lib/${APP_NAME:-gogogo-fullstack-template}/data
     healthcheck:
       # Exec form (no shell) — the image is scratch, so wget/curl and
       # CMD-SHELL are unavailable. `/app health` is a built-in

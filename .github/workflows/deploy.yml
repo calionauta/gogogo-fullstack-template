@@ -219,7 +219,7 @@ jobs:
           EOF
           chmod 0600 ~/.ssh/config
           APP_NAME="${{ env.APP_NAME }}"
-          APP_DIR="/home/deploy/${APP_NAME}"
+          APP_DIR="/home/deploy/services/${APP_NAME}"
           SECRETS_DIR="${APP_DIR}/secrets"
           ssh $DEPLOY_HOST "set -euo pipefail
             # Free disk space before writing anything
@@ -241,14 +241,14 @@ jobs:
             echo '✓ secrets file written (mode 600)'
           "
 
-      # SCP the new binary to /home/deploy/<APP_NAME>/bin/ as .new so
+      # SCP the new binary to /home/deploy/services/<APP_NAME>/bin/ as .new so
       # the on-server script can atomically swap it.
       - name: Copy binary to server
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
         run: |
           set -euo pipefail
-          scp -P 2222 dist/${{ env.APP_NAME }}.new $DEPLOY_HOST:/home/deploy/${{ env.APP_NAME }}/bin/${{ env.APP_NAME }}.new
+          scp -P 2222 dist/${{ env.APP_NAME }}.new $DEPLOY_HOST:/home/deploy/services/${{ env.APP_NAME }}/bin/${{ env.APP_NAME }}.new
 
       # SCP the compose file (overwriting the previous one).
       - name: Copy compose file
@@ -256,7 +256,7 @@ jobs:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
         run: |
           set -euo pipefail
-          scp -P 2222 deploy/docker-compose.prod.yml $DEPLOY_HOST:/home/deploy/${{ env.APP_NAME }}/compose/docker-compose.prod.yml
+          scp -P 2222 deploy/docker-compose.prod.yml $DEPLOY_HOST:/home/deploy/services/${{ env.APP_NAME }}/compose/docker-compose.prod.yml
 
       # Ensure the directory layout exists, pull the latest source so
       # the on-server script and the scripts dir are current, then run
@@ -269,20 +269,20 @@ jobs:
           set -euo pipefail
           ssh $DEPLOY_HOST "set -euo pipefail
             APP_NAME=\"${{ env.APP_NAME }}\"
-            APP_DIR=\"/home/deploy/\${APP_NAME}\"
+            APP_DIR=\"/home/deploy/services/\${APP_NAME}\"
             for d in bin compose env scripts secrets data/pb_data; do
              mkdir -p \"\${APP_DIR}/\${d}\"
            done
 
-            if [ ! -d \"/home/deploy/\${APP_NAME}/repo\" ]; then
-              git clone \"https://github.com/${{ github.repository }}.git\" \"/home/deploy/\${APP_NAME}/repo\"
+            if [ ! -d \"/home/deploy/services/\${APP_NAME}/repo\" ]; then
+              git clone \"https://github.com/${{ github.repository }}.git\" \"/home/deploy/services/\${APP_NAME}/repo\"
             else
-              git -C \"/home/deploy/\${APP_NAME}/repo\" fetch origin
-              git -C \"/home/deploy/\${APP_NAME}/repo\" reset --hard origin/master
+              git -C \"/home/deploy/services/\${APP_NAME}/repo\" fetch origin
+              git -C \"/home/deploy/services/\${APP_NAME}/repo\" reset --hard origin/master
             fi
 
-            cp \"/home/deploy/\${APP_NAME}/repo/.env\" \"\${APP_DIR}/env/.env\" 2>/dev/null || true
-            cp \"/home/deploy/\${APP_NAME}/repo/scripts/deploy-prod.sh\" \"\${APP_DIR}/scripts/deploy-prod.sh\"
+            cp \"/home/deploy/services/\${APP_NAME}/repo/.env\" \"\${APP_DIR}/env/.env\" 2>/dev/null || true
+            cp \"/home/deploy/services/\${APP_NAME}/repo/scripts/deploy-prod.sh\" \"\${APP_DIR}/scripts/deploy-prod.sh\"
             chmod 0700 \"\${APP_DIR}/scripts/deploy-prod.sh\"
 
             bash \"\${APP_DIR}/scripts/deploy-prod.sh\"

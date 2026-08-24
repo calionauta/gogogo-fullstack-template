@@ -4,7 +4,7 @@
 # run any number of times and converges to the deployed state.
 #
 # Layout (managed by the deploy workflow):
-#   /home/deploy/gogogo-fullstack-template/
+#   /home/deploy/services/gogogo-fullstack-template/
 #     bin/gogogo-fullstack-template        (chmod 755, replaced on every deploy)
 #     compose/docker-compose.prod.yml   (replaced on every deploy)
 #     env/.env                  (committed to repo, no secrets)
@@ -12,8 +12,8 @@
 #                                   from GH Secrets; never committed)
 #     data/pb_data/             (gitignored, persistent volume)
 #
-# We use /home/deploy/ (not /opt/) because the deploy user does not
-# have passwordless sudo; /opt is root-owned. /home/deploy is writable
+# We use the services/ dir under the home (not /opt/) because the deploy user does not
+# have passwordless sudo; /opt is root-owned. services/ in the home is writable
 # by the deploy user and Docker still reads the compose file + binds
 # the volume from there.
 #
@@ -25,7 +25,7 @@
 set -euo pipefail
 
 PROJECT="gogogo-fullstack-template"
-APP_DIR="/home/deploy/${PROJECT}"
+APP_DIR="/home/deploy/services/${PROJECT}"
 BIN_DIR="${APP_DIR}/bin"
 COMPOSE_DIR="${APP_DIR}/compose"
 SECRETS_DIR="${APP_DIR}/secrets"
@@ -33,14 +33,14 @@ SECRETS_FILE="${SECRETS_DIR}/${PROJECT}.env"
 # Bind mount location for PocketBase SQLite WAL files. Must match
 # the host path inside deploy/docker-compose.prod.yml.
 #
-# IMPORTANT: lives under /home/deploy (owned by the deploy user), NOT
+# IMPORTANT: lives under the deploy user home (owned by deploy), NOT
 # /var/lib. The deploy user is non-root and CANNOT mkdir/chown under
 # /var/lib (root-owned) — that was the original bug: the script aborted
 # at `chown 65532:65532 /var/lib/.../data` and the container then
 # crashed with sqlite3: permission denied. Keeping the data dir inside
-# /home/deploy lets the deploy user create it and grant the container
+# the home lets the deploy user create it and grant the container
 # (uid 65532) write access without root.
-DATA_DIR="/home/deploy/${PROJECT}/data"
+DATA_DIR="/home/deploy/services/${PROJECT}/data"
 COMPOSE_FILE="${COMPOSE_DIR}/docker-compose.prod.yml"
 
 cd "${APP_DIR}"
