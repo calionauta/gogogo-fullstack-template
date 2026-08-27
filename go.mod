@@ -19,6 +19,7 @@ require (
 	github.com/pocketbase/dbx v1.12.0
 	github.com/pocketbase/pocketbase v0.39.11
 	github.com/starfederation/datastar-go v1.2.2
+	github.com/stripe/stripe-go/v80 v80.2.1
 	github.com/wailsapp/wails/v3 v3.0.0-beta.12
 	github.com/zendev-sh/goai v0.9.6
 	maragu.dev/goqite v0.4.0
