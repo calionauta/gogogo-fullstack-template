@@ -39,6 +39,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -147,6 +148,26 @@ type Config struct {
 	Skin string
 
 	GoAI GoAIConfig
+
+	// Credits gates the AI credits + BYOK plugin (lib calionauta/ai-credits).
+	// When Credits.Enabled is false the plugin registers no routes and
+	// credits.New is never built — the binary runs billing-free.
+	Credits CreditsConfig
+}
+
+// CreditsConfig holds the env-driven knobs for the AI credits plugin. Every
+// field defaults to billing-off; the plugin is only live when Enabled is
+// true AND the lib's schema can be applied to the app PocketBase SQLite.
+type CreditsConfig struct {
+	Enabled             bool
+	EncKey              []byte // CREDITS_ENC_KEY, 32 bytes; empty = BYOK store disabled
+	DefaultMode         string // managed | byok | explicit
+	MonthlyCredits      int64
+	Model               string            // default managed model id (fallback GOAI_MODEL)
+	PricingFile         string            // optional JSON prices file; empty = lib defaults
+	ByokProviders       map[string]string // provider -> OpenAI-compatible base URL
+	StripeSecretKey     string
+	StripeWebhookSecret string
 }
 
 // GoAIConfig holds the LLM client settings. Currently just an
@@ -225,7 +246,34 @@ func Load() *Config {
 	cfg.EntityStore = getEnv("ENTITY_STORE", "pb")
 	cfg.Skin = getEnv("UI_SKIN", "daisyui")
 
+	cfg.Credits.Enabled = envBool("CREDITS_ENABLED", false)
+	cfg.Credits.DefaultMode = getEnv("CREDITS_DEFAULT_MODE", "explicit")
+	cfg.Credits.MonthlyCredits = int64(envInt("CREDITS_MONTHLY_CREDITS", 0))
+	cfg.Credits.PricingFile = getEnv("CREDITS_PRICING_FILE", "")
+	cfg.Credits.Model = getEnv("CREDITS_MODEL", getEnv("GOAI_MODEL", "gpt-4o-mini"))
+	cfg.Credits.ByokProviders = parseProviders(getEnv("BYOK_PROVIDERS", ""))
+	if k := os.Getenv("CREDITS_ENC_KEY"); k != "" {
+		cfg.Credits.EncKey = []byte(k)
+	}
+	cfg.Credits.StripeSecretKey = os.Getenv("STRIPE_SECRET_KEY")
+	cfg.Credits.StripeWebhookSecret = os.Getenv("STRIPE_WEBHOOK_SECRET")
+
 	return cfg
+}
+
+// parseProviders parses the BYOK_PROVIDERS env var
+// ("openai=https://api.openai.com/v1,anthropic=https://api.anthropic.com/v1")
+// into a provider->base URL map. Malformed entries are dropped.
+func parseProviders(raw string) map[string]string {
+	out := map[string]string{}
+	for part := range strings.SplitSeq(raw, ",") {
+		k, v, ok := strings.Cut(strings.TrimSpace(part), "=")
+		if !ok || k == "" || v == "" {
+			continue
+		}
+		out[k] = v
+	}
+	return out
 }
 
 func getEnv(key, fallback string) string {

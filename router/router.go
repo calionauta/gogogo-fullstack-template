@@ -224,6 +224,12 @@ func Init(
 		// Remove config: delete this line + delete features/config/
 		cfgfeature.New(cfg).RegisterRoutes(se)
 
+		// AI credits + BYOK (optional). Only registered when
+		// CREDITS_ENABLED=true; when off, no-ops.
+		// Remove credits: delete this line + delete features/credits/
+		// + delete config Credits fields + delete go.mod require/replace.
+		registerCreditsRoutes(cfg, se)
+
 		return se.Next()
 	})
 }
