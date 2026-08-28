@@ -40,14 +40,18 @@ test:
 	# that tests it; running those packages in parallel under -race starves
 	# the engine and causes flaky timeouts. -p 1 serializes packages so the
 	# engine always gets enough CPU to complete runs within the test timeout.
-	@go test -race -p 1 ./... -count=1
+	# cmd/desktop is a separate Wails target (needs GTK/WebKit libs only on
+	# desktop build hosts); exclude it exactly as CI does.
+	@PKGS=$$(go list ./... | grep -vE "cmd/desktop$$|^github.com/calionauta/gogogo-fullstack-template$$"); \
+		go test -race -p 1 $$PKGS -count=1
 
 # test-fast is the tight TDD loop. It keeps -p 1 (so the DagNats
 # embedded-engine stability holds) but drops -race, which is the
 # dominant cost of the full gate (~5min -> ~1min). Use it for
 # red/green iteration; run `test` (or `make ci-local`) before commit.
 test-fast:
-	@go test -p 1 ./... -count=1
+	@PKGS=$$(go list ./... | grep -vE "cmd/desktop$$|^github.com/calionauta/gogogo-fullstack-template$$"); \
+		go test -p 1 $$PKGS -count=1
 
 # css-install installs the npm dev dependencies (Tailwind CLI + DaisyUI
 # v5). Idempotent. Run once after cloning; CI calls this in the
