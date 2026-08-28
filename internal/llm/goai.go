@@ -58,10 +58,19 @@ const DefaultModel = "gpt-4o-mini"
 // Client is a thin wrapper around the GoAI SDK with project-level
 // retry + SSE-friendly streaming. Constructed once at startup
 // (config.Load) and shared across handlers.
+//
+// Optional billing: when a Biller is set via SetMeter, every Chat/ChatStream
+// reserves credits before the call and settles at the real usage after
+// (fail-closed). The billing subject (userID) comes from a context value set
+// by the caller. A nil meter keeps the client billing-free — the default so
+// the template works without credits configured.
 type Client struct {
 	apiKey  string
 	baseURL string
 	modelID string
+
+	// meter, when non-nil, bills each call. See Biller.
+	meter Biller
 
 	// retry is the project-standard retry config. Same backoff used
 	// by the queue workers; tuned for transient LLM API hiccups
@@ -176,8 +185,15 @@ func (c *Client) Chat(ctx context.Context, prompt string) (string, error) {
 		return "", ErrNoAPIKey
 	}
 
+	// authorize before (fail-closed if a meter is set and billing fails)
+	settle, err := c.meterCall(ctx, prompt)
+	if err != nil {
+		return "", err
+	}
+
 	var result string
-	err := c.retry.Do(ctx, nil, "", "llm.chat", func() error {
+	var usage provider.Usage
+	err = c.retry.Do(ctx, nil, "", "llm.chat", func() error {
 		// Disable goai's internal retry: our c.retry (and, for queued
 		// work, the worker's retry) is the single retry layer. If goai
 		// retried here it would absorb transient 5xx before our retry
@@ -187,10 +203,17 @@ func (c *Client) Chat(ctx context.Context, prompt string) (string, error) {
 			return fmt.Errorf("llm: generate: %w", genErr)
 		}
 		result = r.Text
+		usage = r.TotalUsage
 		return nil
 	})
 	if err != nil {
+		if settle != nil {
+			settle(provider.Usage{}) // release, bill nothing
+		}
 		return "", err
+	}
+	if settle != nil {
+		settle(usage)
 	}
 	return result, nil
 }
@@ -281,6 +304,56 @@ func (c *Client) MustConfigured() error {
 	const setKeyHint = "Set GOAI_API_KEY in your environment or in the " +
 		"age-encrypted secrets file (run bin/init-secrets)"
 	return fmt.Errorf("%w. %s", ErrNoAPIKey, setKeyHint)
+}
+
+// UserIDKey is the context key that carries the billing subject (userID)
+// into a Chat/ChatStream call. Set by the caller so an optional Biller can
+// attribute the call. Absence = no user = the Biller decides.
+type userIDCtxKey struct{}
+
+// WithUserID returns ctx carrying the billing subject for the next LLM call.
+func WithUserID(ctx context.Context, userID string) context.Context {
+	return context.WithValue(ctx, userIDCtxKey{}, userID)
+}
+
+// UserIDFrom returns the billing subject carried in ctx ("" if unset).
+func UserIDFrom(ctx context.Context) string {
+	if v, _ := ctx.Value(userIDCtxKey{}).(string); v != "" {
+		return v
+	}
+	return ""
+}
+
+// Settle finalizes a reserved call at the real token usage. Passing a zero
+// Usage (error/abort) releases the reservation, billing nothing.
+type Settle func(provider.Usage)
+
+// Biller meters a single LLM call. Authorize runs before the call and returns
+// a Settle to finalize at the real usage after. Because Chat/ChatStream are
+// the single choke point, a non-nil meter bills every LLM path.
+type Biller interface {
+	// Authorize must fail-closed (err) when the user cannot be billed or
+	// cannot afford the call. It returns a Settle (or nil when nothing to
+	// settle). It may verify/populate the user from ctx.
+	Authorize(ctx context.Context, model, prompt string) (Settle, error)
+}
+
+// SetMeter installs an optional per-call billing hook. Nil disables billing
+// (the default, so an unconfigured template runs free).
+func (c *Client) SetMeter(m Biller) { c.meter = m }
+
+// ErrNoUserToBill is returned by a strict Biller when a call cannot be
+// attributed to a user (missing ctx user). Callers surface it as a billing
+// prompt rather than an opaque LLM failure.
+var ErrNoUserToBill = errors.New("llm: no user to bill this call")
+
+// meterCall authorizes a call (if a meter is set) and returns the Settle to
+// pass the real usage, or nil when there is no meter. Call once per LLM call.
+func (c *Client) meterCall(ctx context.Context, prompt string) (Settle, error) {
+	if c.meter == nil {
+		return nil, nil
+	}
+	return c.meter.Authorize(ctx, c.modelID, prompt)
 }
 
 // ChatStream pipes tokens from the LLM to fn as they arrive. Same

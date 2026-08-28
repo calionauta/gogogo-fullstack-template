@@ -225,10 +225,13 @@ func Init(
 		cfgfeature.New(cfg).RegisterRoutes(se)
 
 		// AI credits + BYOK (optional). Only registered when
-		// CREDITS_ENABLED=true; when off, no-ops.
-		// Remove credits: delete this line + delete features/credits/
-		// + delete config Credits fields + delete go.mod require/replace.
-		registerCreditsRoutes(cfg, se)
+		// CREDITS_ENABLED=true; when off, no-ops. When enabled, the credits
+		// Service also becomes the llm.Biller on the todo Client(s) so the
+		// real Suggest LLM calls are metered end-to-end.
+		// Remove credits: delete this block + delete features/credits/
+		// + delete credits.go helpers + delete config Credits fields
+		// + delete go.mod require/replace.
+		wireCredits(cfg, se, todoH)
 
 		return se.Next()
 	})

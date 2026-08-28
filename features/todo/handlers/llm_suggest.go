@@ -12,6 +12,7 @@ import (
 	sdk "github.com/starfederation/datastar-go/datastar"
 
 	dshelpers "github.com/calionauta/gogogo-fullstack-template/internal/datastar"
+	"github.com/calionauta/gogogo-fullstack-template/internal/llm"
 	"github.com/calionauta/gogogo-fullstack-template/internal/queue"
 )
 
@@ -59,7 +60,14 @@ func (h *TodoHandler) handleSuggestSimulated(c *core.RequestEvent) error {
 // retry feedback) back to the right browser tab.
 func (h *TodoHandler) enqueueSuggest(c *core.RequestEvent, jobType, partial string) error {
 	clientID := c.Request.URL.Query().Get("clientID")
-	payload, err := json.Marshal(map[string]string{"partial": partial})
+	// Capture the billing subject (userID) at enqueue time so the background
+	// worker can meter the call. Empty when the route is unauthenticated; the
+	// Biller then fails-closed if billing is enabled.
+	uid := ""
+	if c.Auth != nil {
+		uid = c.Auth.Id
+	}
+	payload, err := json.Marshal(map[string]string{"partial": partial, "userId": uid})
 	if err != nil {
 		return c.String(http.StatusInternalServerError, "marshal failed")
 	}
@@ -92,10 +100,16 @@ func (h *TodoHandler) enqueueSuggest(c *core.RequestEvent, jobType, partial stri
 func (h *TodoHandler) handleSuggestJob(ctx context.Context, hub *queue.SSEHub, job queue.Job) error {
 	var p struct {
 		Partial string `json:"partial"`
+		UserID  string `json:"userId"`
 	}
 	if err := json.Unmarshal(job.Payload, &p); err != nil {
 		return fmt.Errorf("decode suggest payload: %w", err)
 	}
+
+	// Stamp the billing subject (userID) into the ctx so the llm Client's
+	// optional Biller can attribute this call. Empty userID + a set meter
+	// → MeterUserError (fail closed) inside ChatSuggest.
+	ctx = llm.WithUserID(ctx, p.UserID)
 
 	client := h.llm
 	if job.Type == "suggest_simulated" {

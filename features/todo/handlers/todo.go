@@ -138,6 +138,21 @@ func (h *TodoHandler) SetLLMClient(c *llm.Client) { h.llm = c }
 // queue + retry async path can be demoed without a real API key.
 func (h *TodoHandler) SetSimulatedLLMClient(c *llm.Client) { h.llmSimulated = c }
 
+// SetLLMMeter wires the credits Biller (a llm.Biller) onto both the real and
+// simulated clients, metering every Chat/ChatStream (the llm choke point).
+// No-op when m is nil or a client isn't wired yet.
+func (h *TodoHandler) SetLLMMeter(m llm.Biller) {
+	if m == nil {
+		return
+	}
+	if h.llm != nil {
+		h.llm.SetMeter(m)
+	}
+	if h.llmSimulated != nil {
+		h.llmSimulated.SetMeter(m)
+	}
+}
+
 // CreateTodoForOnboarding programmatically creates a todo. Used by the
 // DagNats onboarding worker handlers (always compiled; no-op when
 // DAGNATS_ENABLED=false) to write example

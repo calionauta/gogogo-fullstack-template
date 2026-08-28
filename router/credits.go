@@ -16,6 +16,7 @@ import (
 
 	"github.com/calionauta/gogogo-fullstack-template/config"
 	"github.com/calionauta/gogogo-fullstack-template/features/credits"
+	"github.com/calionauta/gogogo-fullstack-template/features/todo/handlers"
 )
 
 func registerCredits(cfg *config.Config) *credits.Service {
@@ -30,10 +31,26 @@ func registerCredits(cfg *config.Config) *credits.Service {
 	return svc
 }
 
-// registerCreditsRoutes builds the credits service (if enabled) and mounts
-// its routes. One-liner so router.Init stays under the funlen ceiling.
-func registerCreditsRoutes(cfg *config.Config, se *core.ServeEvent) {
-	if svc := registerCredits(cfg); svc != nil {
-		svc.RegisterRoutes(se)
+// registerCreditsRoutes builds the credits service (if enabled), mounts its
+// routes over the router, and returns the service so caller-init can wire the
+// llm Biller onto the todo suggest worker. Returns nil when disabled/failed.
+func registerCreditsRoutes(cfg *config.Config, se *core.ServeEvent) *credits.Service {
+	svc := registerCredits(cfg)
+	if svc == nil {
+		return nil
 	}
+	svc.RegisterRoutes(se)
+	return svc
+}
+
+// wireCredits mounts the credits routes (if enabled) and, when the service
+// exists, installs it as the llm.Biller on the todo Client(s) so the real
+// Suggest LLM calls are metered. Extracted from router.Init to keep Init's
+// cognitive complexity under the ceiling.
+func wireCredits(cfg *config.Config, se *core.ServeEvent, todoH *handlers.TodoHandler) {
+	svc := registerCreditsRoutes(cfg, se)
+	if svc == nil || todoH == nil {
+		return
+	}
+	todoH.SetLLMMeter(svc)
 }

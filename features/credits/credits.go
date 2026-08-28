@@ -13,6 +13,7 @@ package credits
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log/slog"
 	"os"
@@ -71,12 +72,21 @@ func New(cfg *config.Config) (*Service, error) {
 	}
 
 	var store *credits.CredentialStore
-	if len(cfg.Credits.EncKey) == keyLen32 {
+	switch {
+	case len(cfg.Credits.EncKey) == keyLen32:
 		var k [keyLen32]byte
 		copy(k[:], cfg.Credits.EncKey)
 		store = svc.NewCredentialStore(k)
-	} else {
-		slog.Warn("credits: BYOK store disabled (CREDITS_ENC_KEY not 32 bytes)")
+	case len(cfg.Credits.ByokProviders) == 0:
+		// No BYOK relays requested → the enc key is simply not needed.
+		slog.Debug("credits: BYOK store not created (no CREDITS_ENC_KEY, no ByokProviders)")
+	default:
+		// Billing enabled AND the operator requested BYOK providers, but
+		// CREDITS_ENC_KEY isn't a 32-byte key — the relay would silently
+		// 404. Fail closed at boot instead of shipping dead routes.
+		return nil, fmt.Errorf(
+			"credits: CREDITS_ENC_KEY must be 32 bytes to serve BYOK providers %v",
+			cfg.Credits.ByokProviders)
 	}
 
 	var relay *credits.ByokRelay

@@ -89,7 +89,7 @@ func (s *Service) RunManaged(
 		return nil, fmt.Errorf("credits: generate: %w", genErr)
 	}
 
-	u := fromGoAIUsage(requestID, userID, s.Model, res.TotalUsage)
+	u := fromGoAIUsage(requestID, userID, model, res.TotalUsage)
 	creditsCharged, err := s.Credits.Credits(ctx, u) // micro-units → whole credits
 	if err != nil {
 		_ = s.Credits.Release(ctx, rsv)
