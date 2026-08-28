@@ -26,6 +26,8 @@ github.com/avast/retry-go/v4 v4.7.0 h1:yjDs35SlGvKwRNSykujfjdMxMhMQQM0TnIjJaHB+Z
 github.com/avast/retry-go/v4 v4.7.0/go.mod h1:ZMPDa3sY2bKgpLtap9JRUgk2yTAba7cgiFhqxY2Sg6Q=
 github.com/calionauta/ai-credits v0.1.0 h1:3Q7wH6wZxnwPL6a2XUhHGd9Vwf0gtJ+/bwRFaa1o5ug=
 github.com/calionauta/ai-credits v0.1.0/go.mod h1:imLjUweMbRzFrvs8BJUaPRAVdpQ8loz/ryXRi1ukklw=
+github.com/calionauta/ai-credits v0.2.0 h1:kt4CtfsU4I4mCCqq0sUbS7tH/5yBfqjHF3gFNsmIztM=
+github.com/calionauta/ai-credits v0.2.0/go.mod h1:imLjUweMbRzFrvs8BJUaPRAVdpQ8loz/ryXRi1ukklw=
 github.com/cenkalti/backoff/v4 v4.3.0 h1:MyRJ/UdXutAwSAT+s3wNd7MfTIcy71VQueUuFK343L8=
 github.com/cenkalti/backoff/v4 v4.3.0/go.mod h1:Y3VNntkOUPxTVeUxJ/G5vcM//AlwfmyYozVcomhLiZE=
 github.com/cenkalti/backoff/v5 v5.0.3 h1:ZN+IMa753KfX5hd8vVaMixjnqRZ3y8CuJKRKj1xcsSM=
