@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"time"
 
 	"github.com/avast/retry-go/v4"
@@ -101,25 +100,18 @@ func (r *RetryConfig) Do(ctx context.Context, hub *SSEHub, clientID string, oper
 	)
 }
 
-// isAuthError reports whether err is a 401/403 from the upstream LLM
-// provider (or any 4xx that is not 429). It unwraps the error chain
-// so the check works even when callers wrap the original APIError.
+// isAuthError reports whether err is a 4xx (non-retryable) upstream provider
+// error. It delegates classification to goai: APIError.IsRetryable is true for
+// 429/5xx/network (retry), false for auth and other 4xx (don't waste a retry
+// on them). Reuses the SDK's classification instead of a hand-rolled status
+// switch. Non-APIError errors (network) fall through to false → retried.
 func isAuthError(err error) bool {
 	if err == nil {
 		return false
 	}
 	var apiErr *goai.APIError
 	if errors.As(err, &apiErr) {
-		switch apiErr.StatusCode {
-		case http.StatusUnauthorized, http.StatusForbidden:
-			return true
-		case http.StatusTooManyRequests:
-			return false // retry rate limits
-		}
-		// Other 4xx (400, 404, 422...) are client errors: don't retry.
-		if apiErr.StatusCode >= 400 && apiErr.StatusCode < 500 {
-			return true
-		}
+		return !apiErr.IsRetryable
 	}
 	return false
 }
