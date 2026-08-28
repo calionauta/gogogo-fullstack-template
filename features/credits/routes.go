@@ -75,6 +75,28 @@ func (s *Service) RegisterRoutes(se *core.ServeEvent) {
 			return nil
 		})
 	}
+
+	// Stripe top-up: checkout (authed) + webhook (signed, public). Both
+	// no-op gracefully when Stripe isn't configured (see stripe.go).
+	r.POST("/api/credits/checkout", func(c *core.RequestEvent) error {
+		uid, ok := authedUserID(c)
+		if !ok {
+			return c.JSON(http.StatusUnauthorized, map[string]any{jsonErrKey: unauthorizedMsg})
+		}
+		var req CheckoutRequest
+		if err := c.BindBody(&req); err != nil {
+			return c.JSON(http.StatusBadRequest, map[string]any{jsonErrKey: "invalid body"})
+		}
+		url, err := s.HandleCheckout(uid, req)
+		if err != nil {
+			return c.JSON(http.StatusBadRequest, map[string]any{jsonErrKey: err.Error()})
+		}
+		return c.JSON(http.StatusOK, map[string]any{"url": url})
+	})
+	r.POST("/api/credits/stripe-webhook", func(c *core.RequestEvent) error {
+		s.HandleStripeWebhook(c.Response, c.Request)
+		return nil
+	})
 }
 
 // authedUserID returns the authenticated PocketBase user id, or "", false.

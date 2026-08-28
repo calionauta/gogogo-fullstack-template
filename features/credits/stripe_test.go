@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	_ "github.com/ncruces/go-sqlite3/driver"
+
 	"github.com/stripe/stripe-go/v80/webhook"
 
 	"github.com/calionauta/ai-credits/credits"

@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	_ "github.com/ncruces/go-sqlite3/driver"
+
 	"github.com/calionauta/ai-credits/credits"
 )
 
@@ -69,6 +71,17 @@ func TestRunManagedFailedCallBillsNothing(t *testing.T) {
 func balance(t *testing.T, s *Service) int64 {
 	t.Helper()
 	b, err := s.Credits.Balance(context.Background(), "user-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return b
+}
+
+// balanceFor reads the balance for an arbitrary user id (used by the Stripe
+// webhook tests which credit a named user).
+func balanceFor(t *testing.T, s *Service, uid string) int64 {
+	t.Helper()
+	b, err := s.Credits.Balance(context.Background(), uid)
 	if err != nil {
 		t.Fatal(err)
 	}

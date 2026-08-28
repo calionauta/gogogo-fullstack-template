@@ -63,11 +63,11 @@ func (s *Service) RunManaged(
 	}
 
 	// Predict a conservative max for an unknown-output call.
-	max, err := s.Credits.EstimateMax(ctx, model, tokenEstimate(req.Prompt), req.MaxOutputTokens)
+	max, err := s.Credits.EstimateMax(ctx, model, credits.EstimateTokens(req.Prompt), req.MaxOutputTokens)
 	if err != nil {
 		return nil, fmt.Errorf("credits: estimate: %w", err)
 	}
-	requestID := newRequestID()
+	requestID := credits.NewRequestID()
 	rsv, err := s.Credits.Reserve(ctx, userID, requestID, max)
 	if err != nil {
 		return nil, fmt.Errorf("credits: reserve: %w", err)
@@ -123,13 +123,4 @@ func fromGoAIUsage(requestID, userID, model string, u provider.Usage) credits.Us
 		CachedTokens:    u.CacheReadTokens,
 		ReasoningTokens: u.ReasoningTokens,
 	}
-}
-
-// tokenEstimate is a coarse input-token estimate (4 chars/token) used only to
-// size the reserve; the final price uses real usage.
-// ponytail: the exact constant is immaterial — it only inflates the reserve
-// ceiling, which the real usage corrects on settle.
-func tokenEstimate(prompt string) int {
-	const charsPerToken = 4
-	return len(prompt) / charsPerToken
 }

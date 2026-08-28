@@ -13,14 +13,10 @@ package credits
 
 import (
 	"context"
-	"database/sql"
 	"io"
 	"log/slog"
 	"os"
 	"time"
-
-	"github.com/google/uuid"
-	_ "github.com/ncruces/go-sqlite3/driver"
 
 	"github.com/calionauta/ai-credits/credits"
 	"github.com/calionauta/gogogo-fullstack-template/config"
@@ -47,7 +43,11 @@ func New(cfg *config.Config) (*Service, error) {
 	if !cfg.Credits.Enabled {
 		return nil, nil
 	}
-	db, err := openCreditsDB(cfg.DBPath)
+	dbPath := cfg.DBPath
+	if dbPath == "" {
+		dbPath = "data/app.db"
+	}
+	db, err := credits.OpenSQLite("sqlite3", dbPath)
 	if err != nil {
 		return nil, err
 	}
@@ -100,27 +100,9 @@ const defaultBaseURL = "https://api.openai.com/v1"
 // store requires.
 const keyLen32 = 32
 
-// openCreditsDB opens a second SQLite connection to the app DB file, using
-// the same ncruces driver the goqite queue loads. WAL (set by PocketBase at
-// startup) allows concurrent readers/writers across connections.
-func openCreditsDB(path string) (*sql.DB, error) {
-	if path == "" {
-		path = "data/app.db"
-	}
-	db, err := sql.Open("sqlite3", path)
-	if err != nil {
-		return nil, err
-	}
-	return db, nil
-}
-
 // defaultReservationTimeout is the lib default (5m) mirrored here so the
 // plugin is self-documenting without coupling to lib internals.
 const defaultReservationTimeout = 5 * time.Minute
-
-// newRequestID returns a fresh idempotency-scoped request id for reserves,
-// usage records, and ledger keys (req:<id>). UUID v4; collisions negligible.
-func newRequestID() string { return uuid.NewString() }
 
 // pricingReader returns the configured pricing JSON reader, or nil for the
 // lib's built-in defaults.
