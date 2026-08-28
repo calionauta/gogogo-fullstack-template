@@ -43,9 +43,12 @@ func New(cfg *config.Config) (*Service, error) {
 	if !cfg.Credits.Enabled {
 		return nil, nil
 	}
+	// The credits ledger lives in the SAME SQLite file PocketBase uses
+	// (default DataDir/data.db) so users and balances share one atomic
+	// backup; the lib opens its own connection (the PB builder is opaque).
 	dbPath := cfg.DBPath
 	if dbPath == "" {
-		dbPath = "data/app.db"
+		dbPath = "data/data.db"
 	}
 	db, err := credits.OpenSQLite("sqlite3", dbPath)
 	if err != nil {

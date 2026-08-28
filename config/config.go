@@ -7,7 +7,8 @@
 //	ENVIRONMENT         (default: "development") — set to "production" for prod mode
 //	APP_NAME            (default: binary name)   — project name (secrets scope)
 //	LOG_LEVEL           (default: "INFO")
-//	DATABASE_PATH       (default: "data/app.db")
+//	DATABASE_PATH       (default: "data/data.db") — the SQLite file the
+//	                    credits ledger shares with PocketBase (see DATA_DIR)
 //	DATA_DIR            (default: "data")
 //	ENCRYPTION_KEY      (default: "") — PocketBase encryption key
 //	ADMIN_UNLOCK_TOKEN  (default: "") — master password for admin endpoints
@@ -224,7 +225,7 @@ func Load() *Config {
 		Port:          port,
 		LogLevel:      getEnv("LOG_LEVEL", "INFO"),
 		Dev:           dev,
-		DBPath:        getEnv("DATABASE_PATH", "data/app.db"),
+		DBPath:        getEnv("DATABASE_PATH", "data/data.db"),
 		DataDir:       getEnv("DATA_DIR", "data"),
 		EncryptionKey: os.Getenv("ENCRYPTION_KEY"),
 		AdminToken:    os.Getenv("ADMIN_UNLOCK_TOKEN"),
