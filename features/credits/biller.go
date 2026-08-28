@@ -33,7 +33,12 @@ func (s *Service) Authorize(ctx context.Context, model, prompt string) (llm.Sett
 	}
 
 	// Monthly grant must be applied before reserving so the user's credit
-	// pool is topped up for this period.
+	// pool is topped up for this period. EnsureMonthlyGrant also honors the
+	// optional subscription gate: if a `subscriptions` row exists for the
+	// user and is not 'active', the grant is refused (fail-closed). The gate
+	// only bites once something calls SetSubscription — none of the apps set
+	// subscription rows today (prepaid/BYOK-first), so it stays inert; wire
+	// SetSubscription when a paid-tier model lands.
 	if _, err := s.Credits.EnsureMonthlyGrant(ctx, uid, ""); err != nil {
 		return nil, err
 	}
