@@ -381,6 +381,13 @@ When you remove a feature or plugin component, tests come along naturally:
 
 ## Desktop builds
 
+The desktop shell (`cmd/desktop`) is a **separate build target**, not part of
+the default web build/test loop. It pulls in Wails v3, which requires GTK + WebKit dev
+libs (`libwebkit2gtk-4.1-dev`) that only exist on desktop build hosts — so
+`make build`, `make test`, and `go build ./...`/`go test ./...` from the repo root
+exclude `cmd/desktop` (same exclusion CI applies). To build it, run `make desktop`
+(or `./scripts/desktop-build.sh`) on a machine with those libraries installed.
+
 ```bash
 # One-time: install Wails v3 CLI
 # go install github.com/wailsapp/wails/v3/cmd/wails@latest
