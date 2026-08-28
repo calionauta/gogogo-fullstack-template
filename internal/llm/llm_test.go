@@ -123,20 +123,18 @@ func TestSplitLines(t *testing.T) {
 	}
 }
 
-// TestRetryConfig_UsedByChat verifies that the Client wires a
-// RetryConfig with sane defaults. The retry itself can't be exercised
-// in a unit test without a fake provider, so this just confirms
-// the configuration is sensible (3 attempts, fast initial delay).
-func TestRetryConfig_UsedByChat(t *testing.T) {
-	c := New("test-key")
-	if c.retry.Attempts != 3 {
-		t.Fatalf("default attempts = %d, want 3", c.retry.Attempts)
+// TestRetryIsGoAIsOwn: retry is now delegated to goai's native layer. A
+// real client gets goai's default (2) retries; NewSimulated disables goai
+// retry (0) so the queue WORKER is the demo's retry unit.
+func TestRetryIsGoAIsOwn(t *testing.T) {
+	real := New("test-key")
+	if real.maxRetries != 2 {
+		t.Fatalf("real client maxRetries = %d, want 2 (goai default)", real.maxRetries)
 	}
-	if c.retry.Delay > time.Second {
-		t.Fatalf("default delay too long for tests: %v", c.retry.Delay)
-	}
-	if c.retry.MaxDelay < c.retry.Delay {
-		t.Fatalf("MaxDelay %v < Delay %v", c.retry.MaxDelay, c.retry.Delay)
+	sim := NewSimulated()
+	defer sim.Close()
+	if sim.maxRetries != 0 {
+		t.Fatalf("simulated client maxRetries = %d, want 0 (worker is retry unit)", sim.maxRetries)
 	}
 }
 

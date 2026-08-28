@@ -37,7 +37,6 @@ import (
 	"github.com/zendev-sh/goai/provider/compat"
 
 	"github.com/calionauta/gogogo-fullstack-template/internal/llm/fakeserver"
-	"github.com/calionauta/gogogo-fullstack-template/internal/queue"
 )
 
 // ErrNoAPIKey is returned by Chat/ChatStream when the client was built
@@ -72,10 +71,11 @@ type Client struct {
 	// meter, when non-nil, bills each call. See Biller.
 	meter Biller
 
-	// retry is the project-standard retry config. Same backoff used
-	// by the queue workers; tuned for transient LLM API hiccups
-	// (5xx, 429) rather than logical errors.
-	retry queue.RetryConfig
+	// maxRetries controls goai's native retry count. 2 for real clients
+	// (provider-aware backoff); 0 (disabled) for NewSimulated, where the
+	// queue WORKER is the retry unit so the demo's per-attempt SSE toasts
+	// come from the worker, not goai.
+	maxRetries int
 
 	// server is the in-process fake LLM used by NewSimulated. Nil for
 	// real clients. Closed via Close().
@@ -95,14 +95,10 @@ func New(apiKey string) *Client {
 		modelID = DefaultModel
 	}
 	return &Client{
-		apiKey:  apiKey,
-		baseURL: baseURL,
-		modelID: modelID,
-		retry: queue.RetryConfig{
-			Attempts: 3,
-			Delay:    500 * time.Millisecond,
-			MaxDelay: 5 * time.Second,
-		},
+		apiKey:     apiKey,
+		baseURL:    baseURL,
+		modelID:    modelID,
+		maxRetries: 2,
 	}
 }
 
@@ -129,15 +125,11 @@ func NewSimulated() *Client {
 		fakeserver.WithResponse(`["Review the pull request","Write the meeting notes","Ping the on-call engineer"]`),
 	)
 	return &Client{
-		apiKey:  "simulated",
-		baseURL: srv.URL,
-		modelID: "simulated-model",
-		retry: queue.RetryConfig{
-			Attempts: 1,
-			Delay:    100 * time.Millisecond,
-			MaxDelay: time.Second,
-		},
-		server: srv,
+		apiKey:     "simulated",
+		baseURL:    srv.URL,
+		modelID:    "simulated-model",
+		maxRetries: 0, // the queue worker is the retry unit in the demo
+		server:     srv,
 	}
 }
 
@@ -191,31 +183,31 @@ func (c *Client) Chat(ctx context.Context, prompt string) (string, error) {
 		return "", err
 	}
 
-	var result string
-	var usage provider.Usage
-	err = c.retry.Do(ctx, nil, "", "llm.chat", func() error {
-		// Disable goai's internal retry: our c.retry (and, for queued
-		// work, the worker's retry) is the single retry layer. If goai
-		// retried here it would absorb transient 5xx before our retry
-		// policy / SSE feedback ever saw them.
-		r, genErr := goai.GenerateText(ctx, m, goai.WithPrompt(prompt), goai.WithMaxRetries(0))
-		if genErr != nil {
-			return fmt.Errorf("llm: generate: %w", genErr)
-		}
-		result = r.Text
-		usage = r.TotalUsage
-		return nil
-	})
-	if err != nil {
+	// Retry is delegated to goai's native layer (withRetry, default
+	// MaxRetries=2): it classifies retryable errors (429/5xx/network),
+	// honors Retry-After/retry-after-ms headers, and backs off
+	// exponentially with jitter — provider-aware, exactly what we'd
+	// otherwise reimplement. The worker/job RetryConfig.Do (for queued
+	// work) is separate and re-drives the whole job on final failure.
+	// Removed our own c.retry.Do layer here so a single generation is one
+	// authorize + one settle, not N re-executions.
+	r, genErr := goai.GenerateText(ctx, m,
+		goai.WithPrompt(prompt),
+		goai.WithMaxRetries(c.maxRetries),
+		goai.WithRetryObserver(func(attempt int, err error, delay time.Duration) {
+			slog.Info("llm: goai retry", "attempt", attempt, "delay", delay, "error", err)
+		}),
+	)
+	if genErr != nil {
 		if settle != nil {
 			settle(provider.Usage{}) // release, bill nothing
 		}
-		return "", err
+		return "", fmt.Errorf("llm: generate: %w", genErr)
 	}
 	if settle != nil {
-		settle(usage)
+		settle(r.TotalUsage)
 	}
-	return result, nil
+	return r.Text, nil
 }
 
 // ChatSuggest is a higher-level helper for the "AI suggest next todo"
@@ -356,9 +348,11 @@ func (c *Client) meterCall(ctx context.Context, prompt string) (Settle, error) {
 	return c.meter.Authorize(ctx, c.modelID, prompt)
 }
 
-// ChatStream pipes tokens from the LLM to fn as they arrive. Same
-// retry as Chat. Used by StreamToSSE for Datastar token-by-token
-// rendering. Returns ErrNoAPIKey if not configured.
+// ChatStream pipes tokens from the LLM to fn as they arrive. Same retry as
+// Chat (goai native withRetry covers the stream handshake; Partial-arrival
+// connection drops are surfaced via stream.Err for the caller to back off).
+// Used by StreamToSSE for Datastar token-by-token rendering. Returns
+// ErrNoAPIKey if not configured.
 func (c *Client) ChatStream(ctx context.Context, prompt string, fn func(string) error) error {
 	if c.apiKey == "" {
 		return ErrNoAPIKey
@@ -367,24 +361,41 @@ func (c *Client) ChatStream(ctx context.Context, prompt string, fn func(string) 
 	if m == nil {
 		return ErrNoAPIKey
 	}
-	return c.retry.DoSilent(ctx, func() error {
-		// See Chat: goai's internal retry is disabled so our retry
-		// policy is the only one in play.
-		stream, err := goai.StreamText(ctx, m, goai.WithPrompt(prompt), goai.WithMaxRetries(0))
-		if err != nil {
-			return fmt.Errorf("llm: stream: %w", err)
+
+	// Meter the stream too: authorize before, settle at the real streamed
+	// usage after. goai's withRetry (default 2) covers the stream start;
+	// a mid-stream drop surfaces via stream.Err() below (release on error).
+	settle, err := c.meterCall(ctx, prompt)
+	if err != nil {
+		return err
+	}
+
+	stream, err := goai.StreamText(ctx, m, goai.WithPrompt(prompt), goai.WithMaxRetries(c.maxRetries))
+	if err != nil {
+		if settle != nil {
+			settle(provider.Usage{})
 		}
-		for text := range stream.TextStream() {
-			if cbErr := fn(text); cbErr != nil {
-				return cbErr
+		return fmt.Errorf("llm: stream: %w", err)
+	}
+	for text := range stream.TextStream() {
+		if cbErr := fn(text); cbErr != nil {
+			if settle != nil {
+				settle(provider.Usage{})
 			}
+			return cbErr
 		}
-		// Drain the stream and surface any deferred error. No Close()
-		// method exists; the doc says consume the channel or cancel
-		// the context, both of which we just did.
-		if err := stream.Err(); err != nil {
-			return fmt.Errorf("llm: stream: %w", err)
+	}
+	// Drain the stream and surface any deferred error. No Close()
+	// method exists; the doc says consume the channel or cancel
+	// the context, both of which we just did.
+	if err := stream.Err(); err != nil {
+		if settle != nil {
+			settle(provider.Usage{})
 		}
-		return nil
-	})
+		return fmt.Errorf("llm: stream: %w", err)
+	}
+	if settle != nil {
+		settle(stream.Result().TotalUsage)
+	}
+	return nil
 }
