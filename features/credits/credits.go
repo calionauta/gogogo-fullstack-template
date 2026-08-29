@@ -20,19 +20,23 @@ import (
 	"time"
 
 	"github.com/calionauta/ai-credits/credits"
+	paymentcore "github.com/calionauta/ai-credits/payments"
+	stripecredits "github.com/calionauta/ai-credits/stripe"
 	"github.com/calionauta/gogogo-fullstack-template/config"
 )
 
 // Service bundles the credits engine plus the app-facing deps handlers need.
 type Service struct {
-	Credits *credits.Service
-	Store   *credits.CredentialStore
-	Relay   *credits.ByokRelay
-	Cfg     *config.CreditsConfig
-	Model   string // default managed model id
-	AppKey  string // app-level GOAI_API_KEY for managed mode
-	BaseURL string // app-level GOAI_BASE_URL for managed mode
-	Now     func() time.Time
+	Credits  *credits.Service
+	Store    *credits.CredentialStore
+	Relay    *credits.ByokRelay
+	Cfg      *config.CreditsConfig
+	Model    string // default managed model id
+	AppKey   string // app-level GOAI_API_KEY for managed mode
+	BaseURL  string // app-level GOAI_BASE_URL for managed mode
+	Now      func() time.Time
+	Payments *paymentcore.Service
+	Stripe   *stripecredits.Adapter
 }
 
 // New builds the credits engine on the app's SQLite DB file (a fresh
@@ -94,15 +98,38 @@ func New(cfg *config.Config) (*Service, error) {
 		relay = svc.NewByokRelay(store, cfg.Credits.ByokProviders, slog.Default())
 	}
 
+	catalog := map[string]paymentcore.CatalogItem{
+		"topup-small": {Credits: 500, Currency: "usd", AmountMinor: 500},
+		"topup-large": {Credits: 2500, Currency: "usd", AmountMinor: 2000},
+	}
+	paymentSvc, err := paymentcore.New(db, svc, catalog)
+	if err != nil {
+		_ = db.Close()
+		return nil, err
+	}
+	var stripeSvc *stripecredits.Adapter
+	if cfg.Credits.StripeSecretKey != "" && cfg.Credits.StripeWebhookSecret != "" {
+		stripeSvc, err = stripecredits.New(paymentSvc, stripecredits.Config{
+			SecretKey: cfg.Credits.StripeSecretKey, WebhookSecret: cfg.Credits.StripeWebhookSecret,
+			SuccessURL: cfg.Credits.StripeSuccessURL, CancelURL: cfg.Credits.StripeCancelURL,
+		})
+		if err != nil {
+			_ = db.Close()
+			return nil, err
+		}
+	}
+
 	return &Service{
-		Credits: svc,
-		Store:   store,
-		Relay:   relay,
-		Cfg:     &cfg.Credits,
-		Model:   cfg.Credits.Model,
-		AppKey:  cfg.GoAI.APIKey,
-		BaseURL: defaultBaseURL,
-		Now:     time.Now,
+		Credits:  svc,
+		Store:    store,
+		Relay:    relay,
+		Cfg:      &cfg.Credits,
+		Model:    cfg.Credits.Model,
+		AppKey:   cfg.GoAI.APIKey,
+		BaseURL:  defaultBaseURL,
+		Now:      time.Now,
+		Payments: paymentSvc,
+		Stripe:   stripeSvc,
 	}, nil
 }
 

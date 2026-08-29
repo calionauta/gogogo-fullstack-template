@@ -24,14 +24,6 @@ github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 h1:DklsrG3d
 github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2/go.mod h1:WaHUgvxTVq04UNunO+XhnAqY/wQc+bxr74GqbsZ/Jqw=
 github.com/avast/retry-go/v4 v4.7.0 h1:yjDs35SlGvKwRNSykujfjdMxMhMQQM0TnIjJaHB+Zio=
 github.com/avast/retry-go/v4 v4.7.0/go.mod h1:ZMPDa3sY2bKgpLtap9JRUgk2yTAba7cgiFhqxY2Sg6Q=
-github.com/calionauta/ai-credits v0.1.0 h1:3Q7wH6wZxnwPL6a2XUhHGd9Vwf0gtJ+/bwRFaa1o5ug=
-github.com/calionauta/ai-credits v0.1.0/go.mod h1:imLjUweMbRzFrvs8BJUaPRAVdpQ8loz/ryXRi1ukklw=
-github.com/calionauta/ai-credits v0.2.0 h1:kt4CtfsU4I4mCCqq0sUbS7tH/5yBfqjHF3gFNsmIztM=
-github.com/calionauta/ai-credits v0.2.0/go.mod h1:imLjUweMbRzFrvs8BJUaPRAVdpQ8loz/ryXRi1ukklw=
-github.com/calionauta/ai-credits v0.3.0 h1:ltYctZ0Ov8Nvxb3LKqOlgYu4bl9epz0rHR0+qZJZMzQ=
-github.com/calionauta/ai-credits v0.3.0/go.mod h1:imLjUweMbRzFrvs8BJUaPRAVdpQ8loz/ryXRi1ukklw=
-github.com/calionauta/ai-credits v0.4.0 h1:glOF5BXZLr3jIz090f8BOBJXsh2CCpqYXZ7ZhwSncAw=
-github.com/calionauta/ai-credits v0.4.0/go.mod h1:imLjUweMbRzFrvs8BJUaPRAVdpQ8loz/ryXRi1ukklw=
 github.com/cenkalti/backoff/v4 v4.3.0 h1:MyRJ/UdXutAwSAT+s3wNd7MfTIcy71VQueUuFK343L8=
 github.com/cenkalti/backoff/v4 v4.3.0/go.mod h1:Y3VNntkOUPxTVeUxJ/G5vcM//AlwfmyYozVcomhLiZE=
 github.com/cenkalti/backoff/v5 v5.0.3 h1:ZN+IMa753KfX5hd8vVaMixjnqRZ3y8CuJKRKj1xcsSM=
@@ -199,8 +191,6 @@ github.com/wailsapp/wails/v3 v3.0.0-beta.12 h1:Vema2kFgJvkwPovQ8GMBBrkZNm5cKVR4b
 github.com/wailsapp/wails/v3 v3.0.0-beta.12/go.mod h1:zKZYhB3WjrN5LhJWbnOAVMN0Xf8qTozbw2nf5micKl4=
 github.com/xyproto/randomstring v1.0.5 h1:YtlWPoRdgMu3NZtP45drfy1GKoojuR7hmRcnhZqKjWU=
 github.com/xyproto/randomstring v1.0.5/go.mod h1:rgmS5DeNXLivK7YprL0pY+lTuhNQW3iGxZ18UQApw/E=
-github.com/zendev-sh/goai v0.9.6 h1:4gQilLYjPd6xiEpQAnzyXoxrWbz3luAUkJFhkO//FE0=
-github.com/zendev-sh/goai v0.9.6/go.mod h1:F0NPGQu0kzKQOQ0/pWYJ4E3J0EY2TBa+uEvqgOPsSaY=
 github.com/zendev-sh/goai v0.9.8 h1:qwL6iVhtiVqwtIlm+w1t2u0U3800IkjeGS7Jryzkn5g=
 github.com/zendev-sh/goai v0.9.8/go.mod h1:F0NPGQu0kzKQOQ0/pWYJ4E3J0EY2TBa+uEvqgOPsSaY=
 go.opentelemetry.io/auto/sdk v1.2.1 h1:jXsnJ4Lmnqd11kwkBV2LgLoFMZKizbCi5fNZ/ipaZ64=

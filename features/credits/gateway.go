@@ -101,8 +101,8 @@ func (s *Service) RunManaged(
 	mu, _ := s.Credits.Cost(ctx, u)
 	u.CostMicrounits = mu
 	u.CreditsCharged = creditsCharged
-	if err := s.Credits.RecordUsage(ctx, u); err != nil {
-		return nil, fmt.Errorf("credits: record: %w", err)
+	if err := s.Credits.RecordUsageRetry(ctx, u); err != nil {
+		return nil, fmt.Errorf("credits: settled but usage audit was not recorded (request %s): %w", requestID, err)
 	}
 
 	return &ManagedResult{Text: res.Text, CreditsCharged: creditsCharged, RequestID: requestID}, nil

@@ -173,6 +173,8 @@ type CreditsConfig struct {
 	ByokProviders       map[string]string // provider -> OpenAI-compatible base URL
 	StripeSecretKey     string
 	StripeWebhookSecret string
+	StripeSuccessURL    string
+	StripeCancelURL     string
 }
 
 // GoAIConfig holds the LLM client settings. Currently just an
@@ -262,6 +264,8 @@ func Load() *Config {
 	}
 	cfg.Credits.StripeSecretKey = os.Getenv("STRIPE_SECRET_KEY")
 	cfg.Credits.StripeWebhookSecret = os.Getenv("STRIPE_WEBHOOK_SECRET")
+	cfg.Credits.StripeSuccessURL = getEnv("STRIPE_SUCCESS_URL", "http://localhost:3000/credits?status=success")
+	cfg.Credits.StripeCancelURL = getEnv("STRIPE_CANCEL_URL", "http://localhost:3000/credits?status=cancelled")
 
 	return cfg
 }
