@@ -22,6 +22,9 @@
 //	DAGNATS_ENABLED     (default: true)  — enable DagNats workflows
 //	DAGNATS_HTTP_ADDR   (default: "127.0.0.1:8090")
 //	DAGNATS_NATS_PORT   (default: 4222)
+//	CREDITS_ENABLED     (default: false) — enable ai-credits managed/BYOK billing
+//	CREDITS_ENC_KEY     (default: "") — 32 raw bytes or 64 hex chars for BYOK key storage
+//	BYOK_PROVIDERS      (default: "") — provider=url pairs for the BYOK relay
 //	DAGNATS_STORE_DIR   (default: "data/dagnats")
 //	OFFLINE_SYNC_ENABLED (default: true) — toggle hybrid offline sync
 //	ENTITY_STORE         (default: "pb") — todo persistence strategy
@@ -37,6 +40,7 @@
 package config
 
 import (
+	"encoding/hex"
 	"log"
 	"os"
 	"strconv"
@@ -254,12 +258,27 @@ func Load() *Config {
 	cfg.Credits.Model = getEnv("CREDITS_MODEL", getEnv("GOAI_MODEL", "gpt-4o-mini"))
 	cfg.Credits.ByokProviders = parseProviders(getEnv("BYOK_PROVIDERS", ""))
 	if k := os.Getenv("CREDITS_ENC_KEY"); k != "" {
-		cfg.Credits.EncKey = []byte(k)
+		cfg.Credits.EncKey = parseCreditsEncKey(k)
 	}
 	cfg.Credits.StripeSecretKey = os.Getenv("STRIPE_SECRET_KEY")
 	cfg.Credits.StripeWebhookSecret = os.Getenv("STRIPE_WEBHOOK_SECRET")
 
 	return cfg
+}
+
+const creditsEncKeyBytes = 32
+
+// parseCreditsEncKey accepts the normal secret-manager representation (64 hex
+// chars for 32 key bytes) while retaining support for a legacy raw 32-byte
+// value. Invalid values remain invalid and are rejected fail-closed by the
+// credits plugin when a BYOK provider is configured.
+func parseCreditsEncKey(raw string) []byte {
+	if len(raw) == hex.EncodedLen(creditsEncKeyBytes) {
+		if key, err := hex.DecodeString(raw); err == nil {
+			return key
+		}
+	}
+	return []byte(raw)
 }
 
 // parseProviders parses the BYOK_PROVIDERS env var

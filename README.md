@@ -22,6 +22,7 @@
 - [UI sounds (cuelume)](#ui-sounds-cuelume)
 - [Admin & Dashboard](#admin--dashboard)
 - [Configuring the LLM (GoAI)](#configuring-the-llm-goai)
+- [AI credits & BYOK (optional)](#ai-credits--byok-optional)
 - [Getting started](#getting-started)
 - [Local CI (gh-signoff)](#local-ci-gh-signoff)
 - [Desktop & Mobile](#desktop--mobile-wails-v3--loro-crdt--nats-leaf-node)
@@ -61,7 +62,8 @@ Everything you need to build a modern web app, in a single binary:
 | **Task queue** | [goqite](https://github.com/maragudk/goqite) + SSE Hub | Background jobs streamed to the browser, no Redis |
 | **Retries** | [avast/retry-go v4](https://github.com/avast/retry-go) | Exponential backoff with jitter, no boilerplate |
 | **Durable Workflows** | [DagNats](https://github.com/danmestas/dagnats) | Multi-step durable workflows as declarative JSON over NATS JetStream |
-| **LLM SDK** | [GoAI](https://github.com/zendev-sh/goai) | Any provider: OpenAI, Anthropic, Groq, Ollama… |
+| **LLM SDK** | [GoAI](https://github.com/zendev-sh/goai) | Any provider: OpenAI, Anthropic, Groq, Ollama…; provider-aware retry and streaming |
+| **AI credits + BYOK** | [ai-credits](https://github.com/calionauta/ai-credits) | Optional SQLite ledger: managed LLM reserve/settle billing, monthly entitlements, Stripe top-ups, and encrypted per-user BYOK relay metering |
 | **Real-time** | [NATS JetStream](https://nats.io) | Multi-user real-time, cross-instance broadcast |
 | **Secrets** | [age](https://age-encryption.org) + `~/.secrets/` | Local encryption, no vault, no cloud |
 | **IDs** | [google/uuid](https://github.com/google/uuid) | Stable request/job IDs |
@@ -114,7 +116,8 @@ Every capability is always compiled. What you get:
 |-----------|----------------|--------------|
 | **Todo app + PocketBase realtime** | — | DB actions (create/toggle/delete) stream through PocketBase realtime, per-user scoped via `owner` rule. SSE Hub for ephemeral signals (toasts, clients count, AI suggest) |
 | **Queue + retry** | — | `goqite` background jobs + `retry-go` (the "Queue + Retry" demo). Stepper UI streamed via SSE; uses signal-set `techStep`/`techPhase` |
-| **AI Suggest** | `GOAI_API_KEY` unset | GoAI/Groq call from the todo UI; button hidden when no key. Stepper UI streamed via SSE; uses signal-set `aiStep`/`aiPhase` (kept independent from Queue + Retry's stepper signals) |
+| **AI Suggest** | `GOAI_API_KEY` unset | GoAI call from the todo UI; button hidden when no key. Stepper UI streamed via SSE; uses signal-set `aiStep`/`aiPhase` (kept independent from Queue + Retry's stepper signals) |
+| **AI credits + BYOK** | `CREDITS_ENABLED=false` | Optional [ai-credits](https://github.com/calionauta/ai-credits) plugin: meter Todo AI Suggest with reserve/settle, expose balances/top-ups, and proxy a user's encrypted provider key through an OpenAI-compatible BYOK relay |
 | **Collaborative whiteboard** | — | Loro CRDT + Rough.js canvas, SSE + NATS broadcast, offline-first outbox replay, PocketBase-persisted snapshots |
 | **UI skins (pluggable)** | `UI_SKIN` | DaisyUI v5 (default), BasecoatUI (shadcn-style OKLCH tokens), or Morpheus (vendorized web components). Switch at runtime via `UI_SKIN` env var or `?skin=` query. See [UI skins](#ui-skins-pluggable-daisyui--basecoat--morpheus) |
 | **Landing page** | — | Public marketing page on `GET /` (the project tagline + a single CTA). Does NOT require auth, does NOT read the database. The todo demo moved from `/` to `/todo` |
@@ -353,9 +356,42 @@ GOAI_BASE_URL=https://api.groq.com/openai/v1
 GOAI_MODEL=llama-3.3-70b-versatile
 ```
 
-**2. Keyless simulated LLM (on by default — best for trying the queue + retry path in dev).** `SIMULATE_LLM` is enabled automatically (no API key needed); set `SIMULATE_LLM=false` to disable it. It spins up an in-process fake GoAI client that scripts a realistic failure (500 → retry → slow → 200) so you can watch the retry feedback toasts end-to-end. The UI shows a **Suggest (simulated)** button that reuses the exact same `goqite` + `retry-go` path as the real provider.
+**2. Keyless simulated LLM (on by default — best for trying the queue + retry path in dev).** `SIMULATE_LLM` is enabled automatically (no API key needed); set `SIMULATE_LLM=false` to disable it. It spins up an in-process fake GoAI client that scripts a realistic failure (500 → retry → slow → 200) so you can watch the retry feedback toasts end-to-end. The UI shows a **Suggest (simulated)** button with the same `goqite` job + SSE feedback flow as a real suggestion; its retries stay at the worker level so every attempt is visible in the demo.
 
 If neither `GOAI_API_KEY` is set nor `SIMULATE_LLM` is enabled (i.e. `SIMULATE_LLM=false` and no key), the AI suggest route is **not registered** and the UI button is hidden. The Todo example keeps working — AI is opt-in, not required.
+
+## AI credits & BYOK (optional)
+
+[`ai-credits`](https://github.com/calionauta/ai-credits) is an optional plugin
+that keeps AI billing in the same SQLite file as PocketBase: an immutable ledger
+with a materialized balance, pricing by actual token usage, conservative
+reserve/settle for unknown-output calls, lazy monthly entitlements, Stripe
+top-ups, and a reconciler. It stays completely dormant unless enabled.
+
+```bash
+# Managed mode: Todo AI Suggest reserves before the call and settles at GoAI's
+# actual usage. Insufficient balance blocks the call before it reaches a provider.
+CREDITS_ENABLED=true
+CREDITS_MONTHLY_CREDITS=1000
+
+# Optional BYOK: user keys are encrypted at rest; calls pass through the
+# OpenAI-compatible relay and are metered but never charged credits.
+CREDITS_ENC_KEY="$(openssl rand -hex 32)" # 64 hex chars = 32 key bytes
+BYOK_PROVIDERS="openai=https://api.openai.com/v1,groq=https://api.groq.com/openai/v1"
+```
+
+With `CREDITS_ENABLED=true`, authenticated users get `GET /api/credits`, the
+real Todo **Suggest** path is metered in managed mode, and the app exposes
+`POST /api/ai/request` for managed OpenAI-compatible calls. When both BYOK vars
+are present, `POST /api/byok/{provider}/{path...}` injects the user's encrypted
+key server-side and records upstream JSON/SSE token usage with
+`billing_mode=byok` and `credits_charged=0`.
+
+`CREDITS_ENC_KEY` accepts the normal `openssl rand -hex 32` representation (or
+a legacy raw 32-byte value). The relay trusts the authenticated PocketBase user
+stamped by the app; do not expose `X-Auth-User` from an external proxy. For the
+library contract, schema, and security model see
+[`ai-credits/docs/architecture.md`](https://github.com/calionauta/ai-credits/blob/main/docs/architecture.md).
 
 ## Getting started
 
