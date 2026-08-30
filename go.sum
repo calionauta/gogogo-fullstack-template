@@ -36,6 +36,8 @@ github.com/calionauta/ai-credits v0.4.1-0.20260830222700-0298bf6297a6 h1:/7WMPnr
 github.com/calionauta/ai-credits v0.4.1-0.20260830222700-0298bf6297a6/go.mod h1:0MtYDJ9cJmjjCG6tS3Pf7Tu4lOX3zcfITjJGGF8R+LI=
 github.com/calionauta/ai-credits v0.4.1-0.20260830222948-208087a0c524 h1:4dgNZnBHS1nfPVTLm4hzK8vSwRt/mDFbtBfbJOsUn4M=
 github.com/calionauta/ai-credits v0.4.1-0.20260830222948-208087a0c524/go.mod h1:0MtYDJ9cJmjjCG6tS3Pf7Tu4lOX3zcfITjJGGF8R+LI=
+github.com/calionauta/ai-credits v0.4.1-0.20260830223728-af42bfb204d8 h1:rOViz+oZF899nOVsonPG4GsCpf4luweRgUAx8vhi7KM=
+github.com/calionauta/ai-credits v0.4.1-0.20260830223728-af42bfb204d8/go.mod h1:0MtYDJ9cJmjjCG6tS3Pf7Tu4lOX3zcfITjJGGF8R+LI=
 github.com/cenkalti/backoff/v4 v4.3.0 h1:MyRJ/UdXutAwSAT+s3wNd7MfTIcy71VQueUuFK343L8=
 github.com/cenkalti/backoff/v4 v4.3.0/go.mod h1:Y3VNntkOUPxTVeUxJ/G5vcM//AlwfmyYozVcomhLiZE=
 github.com/cenkalti/backoff/v5 v5.0.3 h1:ZN+IMa753KfX5hd8vVaMixjnqRZ3y8CuJKRKj1xcsSM=
