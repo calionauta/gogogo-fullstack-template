@@ -87,7 +87,7 @@ func (s *Service) RegisterRoutes(se *core.ServeEvent) {
 		if err := c.BindBody(&req); err != nil {
 			return c.JSON(http.StatusBadRequest, map[string]any{jsonErrKey: "invalid body"})
 		}
-		url, err := s.HandleCheckout(uid, req)
+		url, err := s.HandleCheckout(c.Request.Context(), uid, req)
 		if err != nil {
 			return c.JSON(http.StatusBadRequest, map[string]any{jsonErrKey: err.Error()})
 		}

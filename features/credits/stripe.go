@@ -11,11 +11,11 @@ type CheckoutRequest struct {
 	SKU string `json:"sku"`
 }
 
-func (s *Service) HandleCheckout(userID string, req CheckoutRequest) (string, error) {
+func (s *Service) HandleCheckout(ctx context.Context, userID string, req CheckoutRequest) (string, error) {
 	if s.Stripe == nil {
 		return "", errors.New("credits: stripe not enabled")
 	}
-	checkout, err := s.Stripe.CreateCheckout(context.Background(), userID, req.SKU)
+	checkout, err := s.Stripe.CreateCheckout(ctx, userID, req.SKU)
 	if err != nil {
 		return "", err
 	}
