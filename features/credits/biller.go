@@ -54,6 +54,7 @@ func (s *Service) Authorize(ctx context.Context, model, prompt string) (llm.Sett
 	if err != nil {
 		return nil, err
 	}
+	_ = s.Credits.EnqueueSettlement(ctx, requestID, uid, rsv.ID, "goai", model)
 
 	// Closure captures the reservation + model; settle(ctx, realUsage)
 	// finalizes it at the real cost for this model.

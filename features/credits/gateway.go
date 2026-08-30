@@ -72,6 +72,7 @@ func (s *Service) RunManaged(
 	if err != nil {
 		return nil, fmt.Errorf("credits: reserve: %w", err)
 	}
+	_ = s.Credits.EnqueueSettlement(ctx, requestID, userID, rsv.ID, "goai", model)
 
 	// Call the provider directly (not internal/llm.Client.Chat, which discards
 	// usage); capture TotalUsage for the final price.
@@ -90,6 +91,13 @@ func (s *Service) RunManaged(
 	}
 
 	u := fromGoAIUsage(requestID, userID, model, res.TotalUsage)
+	if err := s.Credits.SettleViaOutbox(ctx, requestID, u); err == nil {
+		mu, _ := s.Credits.Cost(ctx, u)
+		u.CostMicrounits = mu
+		// Credits already settled via outbox; fetch charged via cost.
+		charged, _ := s.Credits.Credits(ctx, u)
+		return &ManagedResult{Text: res.Text, CreditsCharged: charged, RequestID: requestID}, nil
+	}
 	creditsCharged, err := s.Credits.Credits(ctx, u) // micro-units → whole credits
 	if err != nil {
 		_ = s.Credits.Release(ctx, rsv)
