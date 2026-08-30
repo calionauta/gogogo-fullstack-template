@@ -119,7 +119,7 @@ func New(cfg *config.Config) (*Service, error) {
 		}
 	}
 
-	return &Service{
+	svcOut := &Service{
 		Credits:  svc,
 		Store:    store,
 		Relay:    relay,
@@ -130,7 +130,24 @@ func New(cfg *config.Config) (*Service, error) {
 		Now:      time.Now,
 		Payments: paymentSvc,
 		Stripe:   stripeSvc,
-	}, nil
+	}
+	// Wire background workers: payments retry + settlement outbox (KISS: fire-and-forget, context.Background)
+	if paymentSvc != nil {
+		go func() {
+			w := paymentcore.NewWorker(paymentSvc, paymentcore.WorkerConfig{Interval: 10 * time.Second})
+			w.Run(context.Background())
+		}()
+	}
+	if svc != nil {
+		go func() {
+			ticker := time.NewTicker(time.Minute)
+			defer ticker.Stop()
+			for range ticker.C {
+				_ = svc.ProcessSettlementOutbox(context.Background(), 100)
+			}
+		}()
+	}
+	return svcOut, nil
 }
 
 // defaultBaseURL matches the internal/llm default when GOAI_BASE_URL is unset.
