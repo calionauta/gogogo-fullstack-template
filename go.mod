@@ -36,8 +36,6 @@ require (
 	github.com/antithesishq/antithesis-sdk-go v0.7.2 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
 	github.com/calionauta/ai-credits v0.4.0
-	github.com/calionauta/ai-credits/payments v0.0.0
-	github.com/calionauta/ai-credits/stripe v0.0.0
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
@@ -114,7 +112,3 @@ require (
 )
 
 replace github.com/calionauta/ai-credits => ../ai-credits
-
-replace github.com/calionauta/ai-credits/payments => ../ai-credits/integrations/payments
-
-replace github.com/calionauta/ai-credits/stripe => ../ai-credits/integrations/stripe
