@@ -79,7 +79,7 @@ func balance(t *testing.T, s *Service) int64 {
 
 // balanceFor reads the balance for an arbitrary user id (used by the Stripe
 // webhook tests which credit a named user).
-func balanceFor(t *testing.T, s *Service, uid string) int64 {
+func balanceFor(t *testing.T, s *Service, uid string) int64 { //nolint:unused
 	t.Helper()
 	b, err := s.Credits.Balance(context.Background(), uid)
 	if err != nil {

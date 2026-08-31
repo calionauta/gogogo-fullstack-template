@@ -91,7 +91,7 @@ func (s *Service) RunManaged(
 	}
 
 	u := fromGoAIUsage(requestID, userID, model, res.TotalUsage)
-	if err := s.Credits.SettleViaOutbox(ctx, requestID, u); err == nil {
+	if err2 := s.Credits.SettleViaOutbox(ctx, requestID, u); err2 == nil {
 		mu, _ := s.Credits.Cost(ctx, u)
 		u.CostMicrounits = mu
 		// Credits already settled via outbox; fetch charged via cost.

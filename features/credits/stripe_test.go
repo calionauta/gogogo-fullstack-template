@@ -29,7 +29,9 @@ func stripeTestService(t *testing.T) (*Service, *paymentcore.Purchase) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	payments, err := paymentcore.New(db, ledger, map[string]paymentcore.CatalogItem{"topup-small": {Credits: 500, Currency: "usd", AmountMinor: 500}})
+	payments, err := paymentcore.New(db, ledger, map[string]paymentcore.CatalogItem{
+		"topup-small": {Credits: 500, Currency: "usd", AmountMinor: 500},
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,11 +48,15 @@ func stripeTestService(t *testing.T) (*Service, *paymentcore.Purchase) {
 
 func TestStripeWebhookGrantIsIdempotentPerPaymentIntent(t *testing.T) {
 	s, p := stripeTestService(t)
-	payload := []byte(`{"id":"evt_test_1","api_version":"2024-09-30.acacia","type":"checkout.session.completed","data":{"object":{"id":"cs_test_1","payment_intent":"pi_test_1","payment_status":"paid","metadata":{"purchase_id":"` + p.ID + `"}}}}`)
-	signed := webhook.GenerateTestSignedPayload(&webhook.UnsignedPayload{Payload: payload, Secret: "whsec_test", Timestamp: time.Now()})
+	payload := []byte(`{"id":"evt_test_1","api_version":"2024-09-30.acacia",` +
+		`"type":"checkout.session.completed","data":{"object":{` +
+		`"id":"cs_test_1","payment_intent":"pi_test_1","payment_status":"paid",` +
+		`"metadata":{"purchase_id":"` + p.ID + `"}}}}`)
+	signed := webhook.GenerateTestSignedPayload(
+		&webhook.UnsignedPayload{Payload: payload, Secret: "whsec_test", Timestamp: time.Now()})
 	for range 2 {
 		rec := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(signed.Payload))
+		req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/", bytes.NewReader(signed.Payload))
 		req.Header.Set("Stripe-Signature", signed.Header)
 		s.HandleStripeWebhook(rec, req)
 		if rec.Code != http.StatusOK {
@@ -66,7 +72,7 @@ func TestStripeWebhookGrantIsIdempotentPerPaymentIntent(t *testing.T) {
 func TestStripeWebhookRejectsBadSignature(t *testing.T) {
 	s, _ := stripeTestService(t)
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader([]byte(`{}`)))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/", bytes.NewReader([]byte(`{}`)))
 	req.Header.Set("Stripe-Signature", "bad")
 	s.HandleStripeWebhook(rec, req)
 	if rec.Code != http.StatusBadRequest {
