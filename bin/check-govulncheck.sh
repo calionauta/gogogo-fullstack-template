@@ -8,5 +8,6 @@ if ! which govulncheck >/dev/null 2>&1; then
   echo "  → Installing..."
   go install golang.org/x/vuln/cmd/govulncheck@latest
 fi
-govulncheck ./... || { echo "❌ Vulnerability scan failed"; exit 1; }
+PKGS=$(bash scripts/web-packages.sh)
+govulncheck $PKGS || { echo "❌ Vulnerability scan failed"; exit 1; }
 echo "  ✓"

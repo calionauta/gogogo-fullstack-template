@@ -116,6 +116,61 @@ async function waitForServiceWorkerControl(page) {
   }
 }
 
+async function verifySingleOnlineTodoSubmit(page, skin) {
+  if (skin !== "basecoat") return;
+
+  const title = `online-single-submit-${Date.now()}`;
+  const skinPath = `/todo?skin=${encodeURIComponent(skin)}`;
+
+  console.log("→ Exercising Basecoat rapid online submit guard…");
+  await page.goto(BASE + skinPath, { waitUntil: "load", timeout: 20000 });
+  await page.evaluate(() => {
+    const originalFetch = window.fetch.bind(window);
+    let release;
+    window.__smokeHeldTodoPost = {
+      count: 0,
+      release: () => release?.(),
+      restore: () => {
+        window.fetch = originalFetch;
+      },
+    };
+    window.fetch = async (input, init) => {
+      const url = typeof input === "string" ? input : input.url;
+      if ((init?.method || "GET").toUpperCase() !== "POST" || !url.includes("/api/todos")) {
+        return originalFetch(input, init);
+      }
+      window.__smokeHeldTodoPost.count++;
+      await new Promise((resolve) => {
+        release = resolve;
+      });
+      return originalFetch(input, init);
+    };
+  });
+
+  try {
+    const titleInput = page.getByPlaceholder("Add a new todo...");
+    await titleInput.fill(title);
+    await titleInput.press("Enter");
+    await titleInput.press("Enter");
+    await page.waitForFunction(() => window.__smokeHeldTodoPost.count >= 1);
+    const postCount = await page.evaluate(() => window.__smokeHeldTodoPost.count);
+    if (postCount !== 1) {
+      throw new Error(`rapid Basecoat submit made ${postCount} requests; expected exactly one`);
+    }
+  } finally {
+    await page.evaluate(() => {
+      window.__smokeHeldTodoPost.release();
+      window.__smokeHeldTodoPost.restore();
+    });
+  }
+
+  const row = page
+    .locator('[id^="todo-"]:not(#todo-list)')
+    .filter({ hasText: title });
+  await row.waitFor({ state: "visible", timeout: 20000 });
+  console.log("  ✓ Basecoat rapid online submit sends one request");
+}
+
 async function verifyOfflineTodoQueue(page, context, skin = "daisyui") {
   const title = `offline-smoke-${Date.now()}`;
   const skinPath = skin === "daisyui" ? "/todo" : `/todo?skin=${encodeURIComponent(skin)}`;
@@ -502,6 +557,7 @@ try {
   const offlineSkins = ["daisyui", "basecoat", "morpheus"];
   for (const skin of offlineSkins) {
     pageErrors.length = 0;
+    await verifySingleOnlineTodoSubmit(page, skin);
     await verifyOfflineTodoQueue(page, context, skin);
     if (pageErrors.length > 0) {
       fail(`uncaught JS error during offline queue test (skin=${skin}): ${pageErrors.map((e) => e.msg).join(" | ")}`);

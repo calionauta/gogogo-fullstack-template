@@ -10,7 +10,7 @@
 #
 # Prerequisites (checked automatically):
 #   - Go 1.26+
-#   - Wails v3 CLI (go install github.com/wailsapp/wails/v3/cmd/wails@latest)
+#   - Wails v3 CLI (go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.12)
 #   - Android: SDK API 35 + NDK 26.3.x + JDK 21 (for Android builds)
 #   - macOS: Xcode Command Line Tools (for .app packaging)
 #
@@ -59,9 +59,9 @@ check_go() {
 check_wails() {
     if ! command -v wails3 &>/dev/null && ! command -v wails &>/dev/null; then
         warn "Wails CLI not found. Installing..."
-        go install github.com/wailsapp/wails/v3/cmd/wails@latest
-        if ! command -v wails &>/dev/null; then
-            error "Wails installation failed. Try: go install github.com/wailsapp/wails/v3/cmd/wails@latest"
+        go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.12
+        if ! command -v wails3 &>/dev/null; then
+            error "Wails installation failed. Try: go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.12"
             return 1
         fi
     fi

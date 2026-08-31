@@ -824,7 +824,7 @@ func createForm(signals todo.Signals) templ.Component {
 			templ_7745c5c3_Var34 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 54, "<form data-on:submit__prevent=\"if (!$loading) { $loading = true; @post('/api/todos?clientID=' + encodeURIComponent($clientID || '') + '&idem_key=' + encodeURIComponent(crypto.randomUUID()) + '&skin=basecoat', {contentType: 'form'}); }\" class=\"flex gap-2 mb-4\"><div class=\"flex-1\"><input type=\"text\" name=\"title\" class=\"input w-full\" placeholder=\"Add a new todo...\" data-bind=\"newTitle\"></div><button type=\"submit\" class=\"btn\" data-variant=\"primary\" data-attr:disabled=\"$loading || !$newTitle.trim()\"><span data-show=\"!$loading\">Add</span> <span data-show=\"$loading\" class=\"flex items-center gap-1\"><span class=\"spinner\"></span> <span>Adding</span></span></button></form>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 54, "<form data-on:submit__prevent=\"$loading ? null : ($loading = true, @post('/api/todos?clientID=' + encodeURIComponent($clientID || '') + '&idem_key=' + encodeURIComponent(crypto.randomUUID()) + '&skin=basecoat', {contentType: 'form'}))\" class=\"flex gap-2 mb-4\"><div class=\"flex-1\"><input type=\"text\" name=\"title\" class=\"input w-full\" placeholder=\"Add a new todo...\" data-bind=\"newTitle\"></div><button type=\"submit\" class=\"btn\" data-variant=\"primary\" data-attr:disabled=\"$loading || !$newTitle.trim()\"><span data-show=\"!$loading\">Add</span> <span data-show=\"$loading\" class=\"flex items-center gap-1\"><span class=\"spinner\"></span> <span>Adding</span></span></button></form>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

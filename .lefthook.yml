@@ -31,7 +31,7 @@ pre-commit:
       glob: "*.{templ,go,css}"
 
     - name: golangci-lint
-      run: golangci-lint run ./... --timeout 5m
+      run: bash -c 'PKGS=$(bash scripts/web-packages.sh); golangci-lint run $PKGS --timeout 5m'
       glob: "*.go"
 
     - name: agents-md-staleness

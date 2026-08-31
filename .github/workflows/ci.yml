@@ -62,7 +62,7 @@ jobs:
         # before the expensive test suite.
         run: |
           go install golang.org/x/vuln/cmd/govulncheck@latest
-          PKGS=$(go list ./... | grep -vE "cmd/desktop$|^github.com/calionauta/gogogo-fullstack-template$")
+          PKGS=$(bash scripts/web-packages.sh)
           $(go env GOPATH)/bin/govulncheck $PKGS
       - name: Set up Node (CSS build)
         uses: actions/setup-node@v4
@@ -77,7 +77,7 @@ jobs:
         # Skip cmd/desktop: it is a Wails build that needs GTK/WebKit dev
         # libraries only present on the desktop build runners, not here.
         run: |
-          PKGS=$(go list ./... | grep -vE "cmd/desktop$|^github.com/calionauta/gogogo-fullstack-template$")
+          PKGS=$(bash scripts/web-packages.sh)
           go test -race -p 1 $PKGS -v -count=1
       - name: Build
         run: go build -o /dev/null ./cmd/web/
@@ -87,11 +87,11 @@ jobs:
         # library APIs (internal/llm, internal/datastar) stay off the radar.
         run: |
           go install golang.org/x/tools/cmd/deadcode@latest
-          $(go env GOPATH)/bin/deadcode -test ./cmd/... ./features/... ./router/... ./internal/nats/... ./internal/queue/... 2>&1 || echo "⚠️  dead code present (advisory)"
+          $(go env GOPATH)/bin/deadcode -test ./cmd/web/... ./features/... ./router/... ./internal/nats/... ./internal/queue/... 2>&1 || echo "⚠️  dead code present (advisory)"
       - name: Browser smoke test
-        # Boots the built binary in headless Chromium and fails on any
-        # uncaught client-side JS error. Playwright/Chromium is ~300MB
-        # and only needed for the E2E smoke test; skip in CI by default.
-        # Run locally via: node scripts/smoke.mjs
+        # Datastar is a global client runtime; exercise the rendered app in
+        # Chromium so upgrades cannot pass Go checks while breaking signals.
         run: |
-          echo "⏭️  Browser smoke test skipped in CI. Run locally with: node scripts/smoke.mjs"
+          npx playwright install --with-deps chromium
+          go build -o /tmp/gogogo-ci-web ./cmd/web/
+          SMOKE_BIN=/tmp/gogogo-ci-web node scripts/smoke.mjs

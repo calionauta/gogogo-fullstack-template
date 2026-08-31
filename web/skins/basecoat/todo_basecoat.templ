@@ -393,7 +393,7 @@ templ durableWorkflowPanel(signals todo.Signals) {
 
 // createForm owns the title input + Add button.
 templ createForm(signals todo.Signals) {
-	<form data-on:submit__prevent="if (!$loading) { $loading = true; @post('/api/todos?clientID=' + encodeURIComponent($clientID || '') + '&idem_key=' + encodeURIComponent(crypto.randomUUID()) + '&skin=basecoat', {contentType: 'form'}); }"
+	<form data-on:submit__prevent="$loading ? null : ($loading = true, @post('/api/todos?clientID=' + encodeURIComponent($clientID || '') + '&idem_key=' + encodeURIComponent(crypto.randomUUID()) + '&skin=basecoat', {contentType: 'form'}))"
 		class="flex gap-2 mb-4">
 		<div class="flex-1">
 			<input type="text" name="title" class="input w-full" placeholder="Add a new todo..." data-bind="newTitle"/>

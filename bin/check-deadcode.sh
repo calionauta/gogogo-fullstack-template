@@ -11,7 +11,7 @@ if ! which deadcode >/dev/null 2>&1; then
 fi
 
 echo "→ Running deadcode scan..."
-output=$(deadcode -test ./cmd/... ./features/... ./router/... ./internal/nats/... ./internal/queue/... 2>&1) || true
+output=$(deadcode -test ./cmd/web/... ./features/... ./router/... ./internal/nats/... ./internal/queue/... 2>&1) || true
 if [ -n "$output" ]; then
     echo "  ⚠️  Dead code found:"
     echo "$output" | head -20

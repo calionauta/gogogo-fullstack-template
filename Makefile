@@ -23,7 +23,7 @@ desktop: templ
 	@go build $(LDFLAGS) -o gogogo-desktop ./cmd/desktop
 
 wails-build: templ
-	@echo "→ wails build (requires wails CLI: go install github.com/wailsapp/wails/v3/cmd/wails@latest)"...
+	@echo "→ wails build (requires wails CLI: go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.12)"...
 	@wails3 build
 
 run:
@@ -42,7 +42,7 @@ test:
 	# engine always gets enough CPU to complete runs within the test timeout.
 	# cmd/desktop is a separate Wails target (needs GTK/WebKit libs only on
 	# desktop build hosts); exclude it exactly as CI does.
-	@PKGS=$$(go list ./... | grep -vE "cmd/desktop$$|^github.com/calionauta/gogogo-fullstack-template$$"); \
+	@PKGS=$$(bash scripts/web-packages.sh); \
 		go test -race -p 1 $$PKGS -count=1
 
 # test-fast is the tight TDD loop. It keeps -p 1 (so the DagNats
@@ -50,7 +50,7 @@ test:
 # dominant cost of the full gate (~5min -> ~1min). Use it for
 # red/green iteration; run `test` (or `make ci-local`) before commit.
 test-fast:
-	@PKGS=$$(go list ./... | grep -vE "cmd/desktop$$|^github.com/calionauta/gogogo-fullstack-template$$"); \
+	@PKGS=$$(bash scripts/web-packages.sh); \
 		go test -p 1 $$PKGS -count=1
 
 # css-install installs the npm dev dependencies (Tailwind CLI + DaisyUI
@@ -112,9 +112,9 @@ datastar-lint:
 
 lint:
 	@echo "→ go vet..."
-	@go vet ./...
+	@PKGS=$$(bash scripts/web-packages.sh); go vet $$PKGS
 	@echo "→ golangci-lint (full, no --fast)..."
-	@if which golangci-lint >/dev/null 2>&1; then golangci-lint run ./...; else echo "  ❌ golangci-lint not installed (brew install golangci-lint)"; exit 1; fi
+	@if which golangci-lint >/dev/null 2>&1; then PKGS=$$(bash scripts/web-packages.sh); golangci-lint run $$PKGS; else echo "  ❌ golangci-lint not installed (brew install golangci-lint)"; exit 1; fi
 
 check-sizes:
 	@mkdir -p .githooks
@@ -132,7 +132,7 @@ check-scope:
 	@echo "✅ SCOPE annotations present"
 
 deadcode:
-	@which deadcode >/dev/null 2>&1 && deadcode -test ./... || echo "  (deadcode not installed, run: go install golang.org/x/tools/cmd/deadcode@latest)"
+	@which deadcode >/dev/null 2>&1 && PKGS=$$(bash scripts/web-packages.sh) && deadcode -test $$PKGS || echo "  (deadcode not installed, run: go install golang.org/x/tools/cmd/deadcode@latest)"
 
 # check is the single quality gate. Run it after EVERY significant edit,
 # not just before commit. It formats, lints .templ, vets, lints, sizes,
@@ -144,9 +144,9 @@ deadcode:
 # engine stability), and a single unified build — no more tag matrix.
 ci-local: templ datastar-lint css-check check-scope
 	@echo "→ lint (golangci-lint, same as CI)"
-	@if which golangci-lint >/dev/null 2>&1; then golangci-lint run ./...; else echo "  ❌ golangci-lint not installed (brew install golangci-lint)"; exit 1; fi
+	@if which golangci-lint >/dev/null 2>&1; then PKGS=$$(bash scripts/web-packages.sh); golangci-lint run $$PKGS; else echo "  ❌ golangci-lint not installed (brew install golangci-lint)"; exit 1; fi
 	@echo "→ tests (unified, -p 1 for DagNats engine stability)"
-	@go test -race -p 1 ./... -count=1
+	@PKGS=$$(bash scripts/web-packages.sh); go test -race -p 1 $$PKGS -count=1
 	@echo "→ build (single build, reused by the smoke test)"
 	@go build $(LDFLAGS) -o /tmp/gogogo-ci-local-web ./cmd/web/
 	@echo "→ browser smoke test (Playwright)"
@@ -203,7 +203,7 @@ docker-image: templ
 
 coverage:
 	@echo "→ Running tests with coverage..."
-	@go test -race -p 1 ./... -count=1 -coverprofile=coverage.out -covermode=atomic
+	@PKGS=$$(bash scripts/web-packages.sh); go test -race -p 1 $$PKGS -count=1 -coverprofile=coverage.out -covermode=atomic
 	@go tool cover -func=coverage.out | sort -k3 -r | head -30
 	@echo "---"
 	@go tool cover -html=coverage.out -o coverage.html

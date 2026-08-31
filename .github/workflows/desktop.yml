@@ -1,0 +1,44 @@
+name: Desktop
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linux-desktop:
+    # Wails v3's default Linux backend is GTK4 + WebKitGTK 6.0. Pin the
+    # runner instead of relying on ubuntu-latest's changing package set.
+    runs-on: ubuntu-24.04
+    env:
+      GOTOOLCHAIN: local
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Go 1.26.6 manually
+        # Keep the installation path aligned with web CI. setup-go has
+        # intermittently produced a corrupted toolchain on GitHub runners.
+        run: |
+          curl -fsSL https://go.dev/dl/go1.26.6.linux-amd64.tar.gz -o /tmp/go.tgz
+          sudo rm -rf /usr/local/go
+          sudo tar -C /usr/local -xzf /tmp/go.tgz
+          echo "/usr/local/go/bin" >> "$GITHUB_PATH"
+          /usr/local/go/bin/go version
+      - name: Install Wails Linux build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y build-essential pkg-config libgtk-4-dev libwebkitgtk-6.0-dev
+      - name: Verify Wails environment
+        run: |
+          go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-beta.12
+          "$(go env GOPATH)/bin/wails3" doctor
+      - name: Generate templ
+        run: go tool templ generate
+      - name: Vet desktop target
+        run: go vet ./cmd/desktop
+      - name: Build desktop application
+        run: ./scripts/desktop-build.sh
