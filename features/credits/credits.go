@@ -45,7 +45,7 @@ type Service struct {
 // constructs the BYOK credential store + relay. Returns (nil, nil) when the
 // feature is disabled — handlers then no-op and the binary boots
 // billing-free.
-func New(cfg *config.Config) (*Service, error) { //nolint:gocyclo // wiring BYOK + payments + stripe has branches, extracted helpers below keep KISS
+func New(cfg *config.Config) (*Service, error) {
 	if !cfg.Credits.Enabled {
 		return nil, nil
 	}

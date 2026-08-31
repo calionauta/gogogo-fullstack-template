@@ -20,7 +20,6 @@ import (
 	"github.com/calionauta/gogogo-fullstack-template/internal/queue"
 )
 
-//nolint:gocyclo // SSE lifecycle is inherently sequential.
 func (h *TodoHandler) handleSSEStream(c *core.RequestEvent) error {
 	// The global auth middleware skips /api/* paths (PocketBase owns
 	// those), so c.Auth is nil here by default. Load the app session

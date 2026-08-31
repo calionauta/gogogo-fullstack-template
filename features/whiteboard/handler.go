@@ -207,8 +207,6 @@ func (h *Handler) handleBoard(c *core.RequestEvent) error {
 // both shape updates and presence events on this single stream. The auth
 // cookie is loaded explicitly (the /api prefix is skipped by the global
 // middleware) so the stream is scoped to the logged-in user.
-//
-//nolint:gocyclo // SSE lifecycle is inherently sequential.
 func (h *Handler) handleStream(c *core.RequestEvent) error {
 	if err := auth.LoadAppAuth(c); err != nil {
 		slog.Warn("whiteboard: stream auth load", "error", err)

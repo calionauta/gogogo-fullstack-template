@@ -87,7 +87,6 @@ func (wp *WorkerPool) Stop() {
 	slog.Info("queue workers stopped")
 }
 
-//nolint:gocyclo // worker drain/stop loop; extracted helpers would obscure the deadlock fix.
 func (wp *WorkerPool) worker(id int) {
 	defer wp.wg.Done()
 

@@ -206,7 +206,7 @@ var onboardingStepOrder = []string{
 	"greet", "await-first-todo", "todo-1", "todo-2", "todo-3", "finalize",
 }
 
-//nolint:gocyclo,gocognit // extracting the completed catch-up loop would add abstraction over single-use sim
+//nolint:gocyclo // extracting the completed catch-up loop would add abstraction over single-use sim
 func (h *OnboardingHandler) pollRun(runID string) {
 	ctx := context.Background()
 	timeout := time.After(onbPollTimeout)
