@@ -35,12 +35,7 @@ func TestOnboarding_ResumeSignalsRun(t *testing.T) {
 
 	// Boot a real DagNats server on the conventional NATS port (same
 	// wiring cmd/web/dagnats.go uses).
-	srv := server.New(server.Config{
-		DataDir:       t.TempDir(),
-		HTTPAddr:      "127.0.0.1:18099",
-		NATSPort:      4224,
-		MaxStoreBytes: 1 << 30,
-	})
+	srv := dagnats.NewServer(t.TempDir(), "127.0.0.1:18099", 4224, 1<<30)
 
 	// Register the same task handlers the real app registers in
 	// cmd/web/dagnats.go (names must match OnboardingWorkflowJSON).

@@ -100,12 +100,7 @@ func buildFixtureDagNats(t *testing.T) (
 	r.POST("/logout", auth.HandleLogout)
 
 	// Boot a real DagNats engine (same wiring cmd/web/dagnats.go uses).
-	srv := server.New(server.Config{
-		DataDir:       t.TempDir(),
-		HTTPAddr:      e2eDagNatsHTTP,
-		NATSPort:      e2eNATS,
-		MaxStoreBytes: 1 << 30,
-	})
+	srv := dagnats.NewServer(t.TempDir(), e2eDagNatsHTTP, e2eNATS, 1<<30)
 	shim := server.EmbeddedWorker(srv)
 	shim.Handle("onboarding-greet", func(ctx worker.TaskContext) error {
 		// Forward the run input (root step) so the create-todo steps

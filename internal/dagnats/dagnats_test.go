@@ -22,12 +22,10 @@ func startTestServer(t *testing.T, httpAddr, dataDir string) *Client {
 		t.Fatalf("mkdir data dir: %v", err)
 	}
 
-	srv := server.New(server.Config{
-		DataDir:       dataDir,
-		HTTPAddr:      httpAddr,
-		NATSPort:      -1,        // ephemeral (nats-server: -1 = random port; 0 = no listener)
-		MaxStoreBytes: 256 << 20, // 256 MiB; the onboarding workflow persists almost nothing.
-	})
+	srv := NewServer(dataDir, httpAddr,
+		-1,      // ephemeral (nats-server: -1 = random port; 0 = no listener)
+		256<<20, // 256 MiB; the onboarding workflow persists almost nothing.
+	)
 
 	// Register the same task handlers the app uses (names must match the
 	// workflow JSON). In the test they are no-ops — we validate the

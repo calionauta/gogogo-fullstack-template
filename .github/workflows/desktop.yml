@@ -19,11 +19,11 @@ jobs:
       GOTOOLCHAIN: local
     steps:
       - uses: actions/checkout@v4
-      - name: Install Go 1.26.6 manually
+      - name: Install Go 1.27.1 manually
         # Keep the installation path aligned with web CI. setup-go has
         # intermittently produced a corrupted toolchain on GitHub runners.
         run: |
-          curl -fsSL https://go.dev/dl/go1.26.6.linux-amd64.tar.gz -o /tmp/go.tgz
+          curl -fsSL https://go.dev/dl/go1.27.1.linux-amd64.tar.gz -o /tmp/go.tgz
           sudo rm -rf /usr/local/go
           sudo tar -C /usr/local -xzf /tmp/go.tgz
           echo "/usr/local/go/bin" >> "$GITHUB_PATH"

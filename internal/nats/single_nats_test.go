@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/danmestas/dagnats/server"
+	"github.com/calionauta/gogogo-fullstack-template/internal/dagnats"
 )
 
 // TestConnectExisting_SingleNATS proves the single-NATS convention: when
@@ -13,12 +13,7 @@ import (
 // starting a second one. A published update must round-trip through the
 // shared JetStream, confirming the broadcaster and DagNats share one NATS.
 func TestConnectExisting_SingleNATS(t *testing.T) {
-	srv := server.New(server.Config{
-		DataDir:       t.TempDir(),
-		HTTPAddr:      "127.0.0.1:18099",
-		NATSPort:      4222,
-		MaxStoreBytes: 1 << 30,
-	})
+	srv := dagnats.NewServer(t.TempDir(), "127.0.0.1:18099", 4222, 1<<30)
 	go func() { _ = srv.Run() }()
 	// ConnectExisting uses RetryOnFailedConnect, so it blocks until the
 	// engine's NATS is reachable — no polling loop needed here.

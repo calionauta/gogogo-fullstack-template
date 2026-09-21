@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 #
 # Multi-stage build (maximo lean):
-#   1. builder  — golang:1.26-alpine + nodejs/npm. Runs the Tailwind v4
+#   1. builder  — golang:1.27-alpine + nodejs/npm. Runs the Tailwind v4
 #                  + DaisyUI v5 CSS build, generates Templ, compiles
 #                  the Go binary (CGO_ENABLED=0 + static + stripped).
 #   2. runtime  — scratch. The runtime image contains ONLY:
@@ -25,7 +25,7 @@
 # ────────────────────────────
 # Stage 1: builder
 # ────────────────────────────
-FROM golang:1.26-alpine AS builder
+FROM golang:1.27-alpine AS builder
 RUN apk add --no-cache git ca-certificates nodejs npm gcc musl-dev
 # ARGs for build-time metadata injection. Defaults match local
 # builds; the docker-image Makefile target passes real values via

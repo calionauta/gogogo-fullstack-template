@@ -22,14 +22,14 @@ jobs:
       GOTOOLCHAIN: local
     steps:
       - uses: actions/checkout@v4
-      - name: Install Go 1.26.6 manually
+      - name: Install Go 1.27.1 manually
         # actions/setup-go extracts the toolchain via tar and has been
         # intermittently corrupting it on this runner image. Install the
         # official stable tarball from go.dev into /usr/local/go instead,
         # which is a separate, reliable path. Version must match the
-        # `toolchain` directive in go.mod (bumped for GO-2026 stdlib CVEs).
+        # `go` directive in go.mod (bumped for GO-2026 stdlib CVEs).
         run: |
-          curl -fsSL https://go.dev/dl/go1.26.6.linux-amd64.tar.gz -o /tmp/go.tgz
+          curl -fsSL https://go.dev/dl/go1.27.1.linux-amd64.tar.gz -o /tmp/go.tgz
           sudo rm -rf /usr/local/go
           sudo tar -C /usr/local -xzf /tmp/go.tgz
           echo "/usr/local/go/bin" >> "$GITHUB_PATH"
@@ -47,7 +47,7 @@ jobs:
       - name: Lint
         uses: golangci/golangci-lint-action@v7
         with:
-          version: v2.12.2
+          version: v2.13.2
           skip-cache: true
           # cmd/desktop pulls in wails v3, which needs webview CGO headers
           # unavailable on the ubuntu runner; lint the web-facing packages only.

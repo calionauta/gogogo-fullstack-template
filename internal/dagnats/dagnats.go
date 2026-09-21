@@ -16,7 +16,24 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/danmestas/dagnats/server"
 )
+
+// NewServer builds the embedded DagNats engine with the template's
+// defaults. DagNats v0.0.18 added a periodic queue-snapshot publisher
+// that panics on a zero QueueSnapshotInterval, so default it to the
+// upstream 5s cadence here instead of repeating the field at every
+// construction site (production + tests).
+func NewServer(dataDir, httpAddr string, natsPort int, maxStoreBytes int64) *server.Server {
+	return server.New(server.Config{
+		DataDir:               dataDir,
+		HTTPAddr:              httpAddr,
+		NATSPort:              natsPort,
+		MaxStoreBytes:         maxStoreBytes,
+		QueueSnapshotInterval: 5 * time.Second,
+	})
+}
 
 // Client is a minimal HTTP client for the DagNats REST API. It registers
 // workflow definitions and starts/signals/inspects runs. Keeping it tiny

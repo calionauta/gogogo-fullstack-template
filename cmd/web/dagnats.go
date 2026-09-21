@@ -37,12 +37,10 @@ func startDagNats(cfg *config.Config, _ *pocketbase.PocketBase, todoH *handlers.
 		return
 	}
 
-	srv := server.New(server.Config{
-		DataDir:       cfg.DagNats.StoreDir,
-		HTTPAddr:      cfg.DagNats.HTTPAddr,
-		NATSPort:      4222,     // fixed conventional port — shared with the realtime broadcaster
-		MaxStoreBytes: 10 << 30, // 10 GiB JetStream store cap (required by dagnats)
-	})
+	srv := dagnats.NewServer(cfg.DagNats.StoreDir, cfg.DagNats.HTTPAddr,
+		4222,   // fixed conventional port — shared with the realtime broadcaster
+		10<<30, // 10 GiB JetStream store cap (required by dagnats)
+	)
 	dagNatsServer = srv
 
 	// Register the onboarding worker handlers on the same NATS the engine

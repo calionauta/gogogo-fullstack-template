@@ -3,9 +3,8 @@ package main
 import (
 	"testing"
 
-	"github.com/danmestas/dagnats/server"
-
 	"github.com/calionauta/gogogo-fullstack-template/config"
+	"github.com/calionauta/gogogo-fullstack-template/internal/dagnats"
 	"github.com/calionauta/gogogo-fullstack-template/internal/nats"
 )
 
@@ -29,12 +28,7 @@ func TestStartNATS_SingleNATSWithDagNats(t *testing.T) {
 	cfg.NATS.StoreDir = t.TempDir()
 
 	// DagNats owns the NATS on the conventional port.
-	srv := server.New(server.Config{
-		DataDir:       t.TempDir(),
-		HTTPAddr:      "127.0.0.1:18098",
-		NATSPort:      14222,
-		MaxStoreBytes: 1 << 30,
-	})
+	srv := dagnats.NewServer(t.TempDir(), "127.0.0.1:18098", 14222, 1<<30)
 	go func() { _ = srv.Run() }()
 
 	// startNATS internally calls ConnectExisting, which uses
