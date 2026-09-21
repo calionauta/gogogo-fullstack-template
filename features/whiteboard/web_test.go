@@ -79,6 +79,7 @@ func webFixture(t *testing.T) (string, *collab.MemoryPersister, func()) {
 
 	r := router.NewRouter[*core.RequestEvent](
 		func(w http.ResponseWriter, req *http.Request) (*core.RequestEvent, router.EventCleanupFunc) {
+			//nolint:modernize // embedded literal must keep the Event: name — Go forbids mixing it with the named App: field.
 			return &core.RequestEvent{App: app, Event: router.Event{Response: w, Request: req}}, nil
 		},
 	)
@@ -146,8 +147,8 @@ func login(t *testing.T, client *http.Client, baseURL string) {
 // mustReset rolls back bootstrap state on failure. Best-effort.
 func mustReset(t *testing.T, app core.App) {
 	t.Helper()
-	if err := app.ResetBootstrapState(); err != nil {
-		t.Logf("ResetBootstrapState: %v", err)
+	if err := app.ClearBootstrap(); err != nil {
+		t.Logf("ClearBootstrap: %v", err)
 	}
 }
 

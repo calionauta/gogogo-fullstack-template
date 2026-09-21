@@ -18,6 +18,11 @@ import (
 
 var dagNatsServer *server.Server
 
+const (
+	dagnatsNATSPort = 4222     // fixed conventional port — shared with the realtime broadcaster
+	dagnatsMaxStore = 10 << 30 // 10 GiB JetStream store cap (required by dagnats)
+)
+
 // startDagNats boots the DagNats durable-workflow engine in the same
 // binary on its own HTTP port (cfg.DagNats.HTTPAddr, default :8090). It
 // registers the onboarding worker handlers (which write example todos to
@@ -38,8 +43,7 @@ func startDagNats(cfg *config.Config, _ *pocketbase.PocketBase, todoH *handlers.
 	}
 
 	srv := dagnats.NewServer(cfg.DagNats.StoreDir, cfg.DagNats.HTTPAddr,
-		4222,   // fixed conventional port — shared with the realtime broadcaster
-		10<<30, // 10 GiB JetStream store cap (required by dagnats)
+		dagnatsNATSPort, dagnatsMaxStore,
 	)
 	dagNatsServer = srv
 

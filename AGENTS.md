@@ -13,7 +13,7 @@ Module: `github.com/calionauta/gogogo-fullstack-template`
 
 ## Stack (exact versions)
 
-Go 1.26 | Templ v0.3.1020 | Datastar v1.2.2 | PocketBase v0.39.5 (ncruces/go-sqlite3) | TailwindCSS v4.1.13 + DaisyUI v5.6.15 | goqite v0.4.0 | retry-go v4 | DagNats v0.0.5 | NATS JetStream | age v1.3.1 | uuid v1.6.0
+Go 1.27 | Templ v0.3.1020 | Datastar v1.2.2 | PocketBase v0.40.4 (ncruces/go-sqlite3) | TailwindCSS v4.3.3 + DaisyUI v5.7.42 | goqite v0.4.0 | retry-go v4 | DagNats v0.0.18 | NATS JetStream | age v1.3.2 | uuid v1.6.0
 
 Skills: `cali-coding-go-standards` (code quality), `cali-code-navigation` (ripwire orient-first, cymbal-first search). Install via `npx skills add .../cali-coding-go-standards`.
 

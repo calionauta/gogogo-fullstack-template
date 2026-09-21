@@ -155,7 +155,7 @@ func buildFixture(t *testing.T, simClient *llm.Client) (
 //
 // It triggers OnTerminate (exactly like PocketBase's own
 // tests.TestApp.Cleanup does) rather than calling
-// ResetBootstrapState() directly. ResetBootstrapState nils the DB
+// ClearBootstrap() directly. ClearBootstrap nils the DB
 // pointer fields, and the fire-and-forget logger batch handler still
 // reads IsBootstrapped()/DB from a goroutine during teardown, so
 // calling it directly races with --race (detected under Go 1.27's
@@ -165,8 +165,8 @@ func mustReset(t *testing.T, app core.App) {
 	t.Helper()
 	event := &core.TerminateEvent{App: app}
 	if err := app.OnTerminate().Trigger(event, func(e *core.TerminateEvent) error {
-		if err := app.ResetBootstrapState(); err != nil {
-			t.Logf("ResetBootstrapState: %v", err)
+		if err := app.ClearBootstrap(); err != nil {
+			t.Logf("ClearBootstrap: %v", err)
 		}
 		return e.Next()
 	}); err != nil {
@@ -214,6 +214,7 @@ func createTodosCollection(app core.App) error {
 // ResponseWriter and the HTTP request.
 func newRequestEventFactory(app core.App) router.EventFactoryFunc[*core.RequestEvent] {
 	return func(w http.ResponseWriter, req *http.Request) (*core.RequestEvent, router.EventCleanupFunc) {
+		//nolint:modernize // embedded literal must keep the Event: name — Go forbids mixing it with the named App: field.
 		return &core.RequestEvent{
 			App: app,
 			Event: router.Event{

@@ -45,7 +45,7 @@ func TestCrudConsumerCreate(t *testing.T) {
 	if bootErr := app.Bootstrap(); bootErr != nil {
 		t.Fatalf("Bootstrap: %v", bootErr)
 	}
-	defer func() { _ = app.ResetBootstrapState() }()
+	defer func() { _ = app.ClearBootstrap() }()
 
 	// Create the todos collection (same schema as production).
 	col := core.NewBaseCollection("todos")
@@ -118,7 +118,7 @@ func TestCrudConsumerToggle(t *testing.T) {
 	if bootErr := app.Bootstrap(); bootErr != nil {
 		t.Fatalf("Bootstrap: %v", bootErr)
 	}
-	defer func() { _ = app.ResetBootstrapState() }()
+	defer func() { _ = app.ClearBootstrap() }()
 
 	col := core.NewBaseCollection("todos")
 	col.Fields.Add(&core.TextField{Name: "title"}, &core.BoolField{Name: "completed"}, &core.TextField{Name: "owner"})
@@ -174,7 +174,7 @@ func TestCrudConsumerDelete(t *testing.T) {
 	if bootErr := app.Bootstrap(); bootErr != nil {
 		t.Fatalf("Bootstrap: %v", bootErr)
 	}
-	defer func() { _ = app.ResetBootstrapState() }()
+	defer func() { _ = app.ClearBootstrap() }()
 
 	col := core.NewBaseCollection("todos")
 	col.Fields.Add(&core.TextField{Name: "title"}, &core.BoolField{Name: "completed"}, &core.TextField{Name: "owner"})
@@ -220,7 +220,7 @@ func TestCrudConsumerClearCompleted(t *testing.T) {
 	if bootErr := app.Bootstrap(); bootErr != nil {
 		t.Fatalf("Bootstrap: %v", bootErr)
 	}
-	defer func() { _ = app.ResetBootstrapState() }()
+	defer func() { _ = app.ClearBootstrap() }()
 
 	col := core.NewBaseCollection("todos")
 	col.Fields.Add(&core.TextField{Name: "title"}, &core.BoolField{Name: "completed"}, &core.TextField{Name: "owner"})
