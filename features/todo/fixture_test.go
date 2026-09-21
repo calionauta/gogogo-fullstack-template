@@ -214,14 +214,12 @@ func createTodosCollection(app core.App) error {
 // ResponseWriter and the HTTP request.
 func newRequestEventFactory(app core.App) router.EventFactoryFunc[*core.RequestEvent] {
 	return func(w http.ResponseWriter, req *http.Request) (*core.RequestEvent, router.EventCleanupFunc) {
-		//nolint:modernize // embedded literal must keep the Event: name — Go forbids mixing it with the named App: field.
-		return &core.RequestEvent{
-			App: app,
-			Event: router.Event{
-				Response: w,
-				Request:  req,
-			},
-		}, nil
+		// Assign via promoted fields: the literal form needs the Event:
+		// name next to App:, which modernize flags but Go requires.
+		e := &core.RequestEvent{App: app}
+		e.Response = w
+		e.Request = req
+		return e, nil
 	}
 }
 
