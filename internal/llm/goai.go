@@ -25,10 +25,11 @@ package llm
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"log/slog"
-	"math/rand"
+	"math/big"
 	"os"
 	"time"
 
@@ -246,13 +247,19 @@ var safeSeedTasks = []string{
 }
 
 // randomTasks returns 3 distinct safe seed tasks in random order.
+// Fisher–Yates over crypto/rand: gosec G404 forbids math/rand here even
+// though the shuffle only varies demo seed text (no security use).
 func randomTasks() []string {
-	idx := rand.Perm(len(safeSeedTasks))
-	out := make([]string, 0, 3)
-	for _, i := range idx[:3] {
-		out = append(out, safeSeedTasks[i])
+	order := append([]string(nil), safeSeedTasks...)
+	for i := len(order) - 1; i > 0; i-- {
+		j, err := rand.Int(rand.Reader, big.NewInt(int64(i+1)))
+		if err != nil {
+			break // entropy failure: keep the remaining order as-is
+		}
+		k := int(j.Int64())
+		order[i], order[k] = order[k], order[i]
 	}
-	return out
+	return order[:3]
 }
 
 // ChatSuggest returns 3 short, distinct, actionable todo suggestions. If

@@ -69,12 +69,12 @@ jobs:
         with:
           fetch-depth: 0
           fetch-tags: true
-      - name: Install Go 1.26.5 manually
+      - name: Install Go 1.27.1 manually
         # actions/setup-go extracts the toolchain via tar and has been
         # intermittently corrupting it on this runner image. Install the
         # official stable tarball from go.dev into /usr/local/go instead.
         run: |
-          curl -fsSL https://go.dev/dl/go1.26.5.linux-amd64.tar.gz -o /tmp/go.tgz
+          curl -fsSL https://go.dev/dl/go1.27.1.linux-amd64.tar.gz -o /tmp/go.tgz
           sudo rm -rf /usr/local/go
           sudo tar -C /usr/local -xzf /tmp/go.tgz
           echo "/usr/local/go/bin" >> "$GITHUB_PATH"

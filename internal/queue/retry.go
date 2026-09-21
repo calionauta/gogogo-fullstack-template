@@ -109,8 +109,7 @@ func isAuthError(err error) bool {
 	if err == nil {
 		return false
 	}
-	var apiErr *goai.APIError
-	if errors.As(err, &apiErr) {
+	if apiErr, ok := errors.AsType[*goai.APIError](err); ok {
 		return !apiErr.IsRetryable
 	}
 	return false
