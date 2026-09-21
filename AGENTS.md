@@ -15,7 +15,7 @@ Module: `github.com/calionauta/gogogo-fullstack-template`
 
 Go 1.26 | Templ v0.3.1020 | Datastar v1.2.2 | PocketBase v0.39.5 (ncruces/go-sqlite3) | TailwindCSS v4.1.13 + DaisyUI v5.6.15 | goqite v0.4.0 | retry-go v4 | DagNats v0.0.5 | NATS JetStream | age v1.3.1 | uuid v1.6.0
 
-Skills: `cali-coding-go-standards` (code quality), `cali-code-navigation` (cymbal-first search). Install via `npx skills add .../cali-coding-go-standards`.
+Skills: `cali-coding-go-standards` (code quality), `cali-code-navigation` (ripwire orient-first, cymbal-first search). Install via `npx skills add .../cali-coding-go-standards`.
 
 ## Commands
 
@@ -407,6 +407,12 @@ The desktop binary shares 100% of the backend. With `NATS_LEAFNODE_URL` set, it 
 ## Testing
 
 Temp-dir PocketBase + Bootstrap + real SQLite; `httptest.NewServer` over a real router; assert against DB. LLM fakes via `internal/llm/fakeserver` (transport) or injected stubs (business logic). `go test -race -p 1 ./...` (serialized packages for DagNats engine stability).
+
+**Test types we write:** `test-behavior` (httptest over a real router, browser/e2e for user-facing flows), `test-unit` (pure logic), `test-integration` (real DB/API/queue seams), `test-security` (auth/payment/data). `make coverage` is informational — never a gate, and never a target to chase.
+
+**NO mutation testing.** Do not add mutation tooling (go-mutate, gremlins, Stryker, mutmut, PIT), do not create `test-mutation` scopes, and do not set mutation-score targets — not 50%, not 70%, not any. The evidence (Hamidi et al. 2026; Just et al.; SWE-Mutation, ACL 2026) is that full mutation tooling barely beats coverage on real faults while oracles stay the bottleneck, and per-PR mutation gates cost hours of CI for ~33% unproductive mutants.
+
+**The one keeper: hand-mutation as a red-proof.** When a test must prove it would actually catch a defect, temporarily invert or remove the guarded behavior, confirm the test fails, then revert. No tooling, no CI minutes. A test that stays green on broken code is rejected — that check is mandatory for critical invariants. Never leave an intentionally mutated line committed.
 
 ---
 
